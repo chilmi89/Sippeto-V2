@@ -1,4 +1,4 @@
-package model_role
+package model_permission
 
 import (
 	"time"
@@ -6,8 +6,8 @@ import (
 	"github.com/uptrace/bun"
 )
 
-type Role struct {
-	bun.BaseModel `bun:"table:roles,alias:r"`
+type Permission struct {
+	bun.BaseModel `bun:"table:permissions,alias:p"`
 
 	ID        string    `bun:"id,type:uuid,pk,default:gen_random_uuid()" json:"id"`
 	Name      string    `bun:"name,notnull,unique" json:"name"`

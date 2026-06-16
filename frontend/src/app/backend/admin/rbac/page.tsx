@@ -18,11 +18,12 @@ import {
   Search,
   CheckCircle2
 } from "lucide-react";
-import FullPageLoader from "@/components/layout/FullPageLoader";
-import SectionLoader from "@/components/layout/SectionLoader";
+
 import Link from "next/link";
 import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
+import { getPermissionsAction } from "@/app/actions/permission";
+import { getRolePermissionsAction, assignPermissionAction, revokePermissionAction } from "@/app/actions/role_permission";
 
 interface Role {
   id: string;
@@ -62,7 +63,6 @@ export default function RbacPage() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [mappings, setMappings] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "matrix">("list");
 
@@ -71,33 +71,28 @@ export default function RbacPage() {
   const [searchPermQuery, setSearchPermQuery] = useState("");
 
   const fetchRbacData = async () => {
-    setLoading(true);
     try {
-      const [rolesRes, permsRes, mappingsRes] = await Promise.all([
-        fetch("/api/backend/role"),
-        fetch("/api/backend/permission"),
-        fetch("/api/backend/role-permission")
-      ]);
-
-      if (!rolesRes.ok || !permsRes.ok || !mappingsRes.ok) throw new Error("Gagal mengambil data RBAC");
-
-      const [rolesData, permsData, mappingsData] = await Promise.all([
-        rolesRes.json(),
-        permsRes.json(),
-        mappingsRes.json()
-      ]);
-
+      const rolesRes = await fetch("/api/backend/role");
+      if (!rolesRes.ok) throw new Error("Gagal mengambil data peran");
+      const rolesData = await rolesRes.json();
       setRoles(rolesData);
-      setPermissions(permsData);
+
+      const [permsRes, mappingsRes] = await Promise.all([
+        getPermissionsAction(),
+        getRolePermissionsAction()
+      ]);
+
+      if (permsRes.error) throw new Error(permsRes.error);
+      if (mappingsRes.error) throw new Error(mappingsRes.error);
+
+      setPermissions(permsRes.data);
       
       const mappingSet = new Set<string>(
-        mappingsData.map((m: RolePermission) => `${m.role_id}:${m.permission_id}`)
+        mappingsRes.data.map((m: RolePermission) => `${m.role_id}:${m.permission_id}`)
       );
       setMappings(mappingSet);
     } catch (err: any) {
       setError(err.message);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -116,13 +111,11 @@ export default function RbacPage() {
     setMappings(newMappings);
 
     try {
-      const res = await fetch("/api/backend/role-permission", {
-        method: exists ? "DELETE" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role_id: roleId, permission_id: permissionId })
-      });
+      const res = exists 
+        ? await revokePermissionAction(roleId, permissionId)
+        : await assignPermissionAction(roleId, permissionId);
 
-      if (!res.ok) throw new Error("Gagal sinkronisasi");
+      if (res.error) throw new Error(res.error);
       toast.success(exists ? "Izin dicabut" : "Izin diberikan", { autoClose: 800 });
       
       // Update role counts in our local state
@@ -168,7 +161,6 @@ export default function RbacPage() {
 
   return (
     <div className="flex flex-col gap-8 w-full max-w-full pb-8 animate-in fade-in duration-500">
-      {loading && <FullPageLoader />}
       
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -228,9 +220,7 @@ export default function RbacPage() {
 
       {/* Main Content */}
       <div className="bg-white rounded-xl border border-zinc-100 shadow-xl shadow-zinc-200/10 overflow-hidden min-h-[500px] relative">
-        {loading ? (
-             <SectionLoader text="Sinkronisasi Database..." />
-        ) : error ? (
+        {error ? (
             <div className="p-20 text-center flex flex-col items-center gap-4">
                 <ShieldAlert className="w-16 h-16 text-rose-500 opacity-20" />
                 <p className="text-sm font-bold text-rose-500 uppercase tracking-widest">{error}</p>
@@ -338,7 +328,7 @@ export default function RbacPage() {
       </div>
       
       {/* Legend for Matrix */}
-        {viewMode === "matrix" && !loading && (
+        {viewMode === "matrix" && (
             <div className="flex items-center gap-6 p-6 bg-white rounded-2xl border border-zinc-100 shadow-sm animate-in fade-in slide-in-from-top-2">
                 <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Petunjuk Matrix:</p>
                 <div className="flex items-center gap-2">

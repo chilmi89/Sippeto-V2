@@ -20,4 +20,13 @@ Please read and follow the custom development guidelines, architecture rules, an
 - **Sintaksis SQL**: Fokus pada query SQL raw/query builder eksplisit (`db.NewRaw()` atau `db.QueryContext()`) untuk `SELECT`, `INSERT`, `UPDATE`, `DELETE`, hindari ORM relation builders bawaan yang rumit.
 - **JWT Extraction**: Controller/Middleware Go wajib dapat membaca token dari cookie `token` maupun header `Authorization: Bearer <token>`.
 
+**ALUR KERJA MIGRASI PENUH (END-TO-END TRANSITION):**
+1. **Implementasi API Golang**: Bangun fitur API di backend Golang terlebih dahulu mengikuti struktur modular di atas.
+2. **Setup Proxy Rewrite**: Tambahkan rule rewrite di `next.config.ts` agar request `/api/backend/<fitur>` langsung diarahkan ke `http://localhost:8080/api/<fitur>`.
+3. **Hapus API Next.js Lama**: Hapus total folder API Next.js yang sudah dimigrasi (misal: `src/app/api/backend/<fitur>/`).
+4. **Buat Server Actions**: Buat file action baru di `src/app/actions/<fitur>.ts` untuk membungkus komunikasi fetch ke backend Golang. Ambil cookie `token` dari `cookies()` Next.js dan masukkan ke header `Authorization: Bearer <token>`.
+5. **Refaktor Halaman UI**: Hubungkan halaman UI (`page.tsx` terkait) dengan Server Actions yang baru dibuat untuk memicu aksi database/API.
+6. **Optimasi UI (Tanpa Loader Memblokir)**: Selalu hilangkan visual loader animatif yang memblokir layar (`FullPageLoader`, `SectionLoader`, dll.). Render data langsung atau tampilkan error/kosong secara instan agar user experience terasa cepat.
+
+
 

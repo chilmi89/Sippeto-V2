@@ -13,10 +13,10 @@ import {
   Save,
   X
 } from "lucide-react";
-import FullPageLoader from "@/components/layout/FullPageLoader";
-import SectionLoader from "@/components/layout/SectionLoader";
+
 import Link from "next/link";
 import { toast } from "react-toastify";
+import { getPermissionsAction, createPermissionAction, deletePermissionAction } from "@/app/actions/permission";
 
 interface Permission {
   id: string;
@@ -26,7 +26,6 @@ interface Permission {
 
 export default function PermissionsPage() {
   const [permissions, setPermissions] = useState<Permission[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   
@@ -37,16 +36,12 @@ export default function PermissionsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchPermissions = async () => {
-    setLoading(true);
     try {
-      const response = await fetch("/api/backend/permission");
-      if (!response.ok) throw new Error("Gagal mengambil data izin");
-      const data = await response.json();
-      setPermissions(data);
+      const res = await getPermissionsAction();
+      if (res.error) throw new Error(res.error);
+      setPermissions(res.data);
     } catch (err: any) {
       setError(err.message);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -60,16 +55,8 @@ export default function PermissionsPage() {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch("/api/backend/permission", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newPermissionName }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Gagal menambah izin");
-      }
+      const res = await createPermissionAction(newPermissionName);
+      if (res.error) throw new Error(res.error);
 
       setNewPermissionName("");
       setIsCreateModalOpen(false);
@@ -88,11 +75,8 @@ export default function PermissionsPage() {
     if (!confirm("Apakah Anda yakin ingin menghapus izin ini? Aksi ini akan mempengaruhi matrix otoritas yang ada.")) return;
 
     try {
-      const response = await fetch(`/api/backend/permission/${id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) throw new Error("Gagal menghapus izin");
+      const res = await deletePermissionAction(id);
+      if (res.error) throw new Error(res.error);
       
       toast.success("Izin telah dihapus");
       fetchPermissions();
@@ -109,7 +93,6 @@ export default function PermissionsPage() {
 
   return (
     <div className="flex flex-col gap-8 w-full max-w-full pb-8 animate-in fade-in duration-500">
-      {loading && <FullPageLoader />}
       
       {/* Breadcrumbs */}
       <div className="flex items-center gap-2 text-zinc-400 text-[10px] font-black uppercase tracking-widest px-1">
@@ -168,13 +151,7 @@ export default function PermissionsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-50">
-              {loading ? (
-                <tr>
-                   <td colSpan={3} className="py-24">
-                      <SectionLoader text="Mengambil Data Izin..." />
-                   </td>
-                </tr>
-              ) : error ? (
+              {error ? (
                 <tr>
                   <td colSpan={3} className="px-8 py-20 text-center">
                     <div className="flex flex-col items-center gap-3 text-rose-500">
