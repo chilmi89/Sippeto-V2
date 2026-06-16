@@ -1,0 +1,36 @@
+# Dependencies
+/frontend/node_modules
+/frontend/next-env.d.ts
+
+# Production Build
+/frontend/.next/
+/frontend/out/
+/frontend/tsconfig.tsbuildinfo
+
+# IDEs and Editors
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Local Environment Variables
+/frontend/.env
+/frontend/.env.local
+/frontend/.env.development.local
+/frontend/.env.test.local
+/frontend/.env.production.local
+/backend-golang/.env
+
+# Vercel
+/frontend/.vercel
+
+# Golang binaries and build artifacts
+/backend-golang/backend-golang
+/backend-golang/main
+/backend-golang/bin/
+
+# Temporary / Scratch Files
+/scratch/

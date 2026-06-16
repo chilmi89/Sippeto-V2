@@ -1,0 +1,65 @@
+# 🧠 BLUEPRINT SISTEM UMKM (ALUR KERJA & STRUKTUR)
+
+## 1. ALUR BISNIS UMKM
+- Beli Bahan Baku (Jagung, Minyak, dll)
+- Produksi Barang (Keripik)
+- Stok Barang Jadi
+- Penjualan Kasir (POS)
+- Terima Uang Pemasukan
+- Pencatatan Keuangan (Laba/Rugi)
+
+## 2. MASTER DATA (DATA INTI)
+- **Produk Jadi**
+  - Contoh: Keripik Original, Keripik Balado, Keripik Pedas
+  - Field: Nama Produk, Harga Jual, Harga Modal (Opsional), Stok
+- **Bahan Baku**
+  - Contoh: Jagung, Minyak Goreng, Bumbu
+  - Field: Nama Bahan, Satuan (kg, liter, pcs), Stok
+- **Pelanggan (Opsional)**
+  - Field: Nama, No HP
+
+## 3. FITUR INTI SISTEM
+- **Produksi Barang**
+  - Input: Jumlah bahan baku yang digunakan (misal: 5kg jagung, 2L minyak).
+  - Output: Stok bahan baku berkurang otomatis, stok produk jadi bertambah otomatis.
+- **POS / Kasir (Penjualan)**
+  - Proses: Pilih produk, input jumlah, perhitungan total otomatis.
+  - Pembayaran: Pilihan metode (Cash / Transfer).
+  - Output: Stok produk dikurangi otomatis, uang masuk otomatis tercatat di pemasukan.
+- **Pembelian Bahan Baku**
+  - Proses: Input pembelian (misal: beli daun jeruk, bumbu 50rb).
+  - Output: Stok bahan bertambah otomatis, uang biaya otomatis tercatat di pengeluaran.
+
+## 4. FITUR KEUANGAN & STOK
+- **Modul Keuangan (Sederhana)**
+  - Pemasukan (Income): Uang masuk hasil penjualan POS.
+  - Pengeluaran (Expense): Uang keluar untuk pembelian bahan baku, bayar listrik, gaji karyawan dll.
+  - Laporan Akhir: Laba Bersih = Pemasukan - Pengeluaran.
+- **Modul Manajemen Stok (Inventory)**
+  - Stok Produk Jadi: Bertambah karena produksi selesai, berkurang karena kasir mencatat ada penjualan.
+  - Stok Bahan Baku: Bertambah karena ada input nota pembelian bahan, berkurang karena dipakai saat proses produksi.
+
+## 5. DASHBOARD & ANALITIK
+- **Tampilan Utama (Highlight Harian)**
+  - Total omset penjualan hari ini.
+  - Total pengeluaran hari ini.
+  - Laba hari ini.
+  - Alert/peringatan jika stok produk atau bahan baku mulai menipis.
+  - Daftar produk paling laris (Top Selling).
+
+## 6. FITUR TAMBAHAN & HAK AKSES
+- **Role User (RBAC - Hak Akses)**
+  - Owner: Memiliki akses ke semua data, laporan lengkap, dan kelola fitur keuangan secara penuh.
+  - Staf Produksi: Boleh mengakses fitur input produksi dan memantau jumlah bahan baku/stok.
+  - Kasir (Sales): Hanya diizinkan mengakses transaksi penjualan (POS).
+- **Pengembangan Tambahan (Jika Diperlukan Nanti)**
+  - Analitik Lanjutan: Tren hari paling laku, dsb.
+  - Notifikasi Sistem: Alarm/Pop-up via sistem bila bahan & produk habis.
+  - Multi-Cabang: Bisa mengelola stok masing-masing jika usaha membuka cabang lain kelak.
+
+## 7. ISTILAH SISTEM (Kamus Tim IT - Non-Teori)
+- Modal: Uang untuk beli bahan.
+- Omset: Total nilai penjualan kotor.
+- Laba: Keuntungan bersih (selesai dikurangi pengeluaran/biaya produksi).
+- HPP: Harga modal produksi per satu kemasan barang (opsional, jika dicatat).
+- Cashflow: Aliran perputaran uang masuk dan keluar setiap harinya.
