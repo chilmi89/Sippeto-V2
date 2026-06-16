@@ -11,8 +11,6 @@ import {
   Trash2,
   Edit
 } from "lucide-react";
-import FullPageLoader from "@/components/layout/FullPageLoader";
-import SectionLoader from "@/components/layout/SectionLoader";
 import Link from "next/link";
 import { toast } from "react-toastify";
 
@@ -38,7 +36,6 @@ const getRoleStyle = (name: string) => {
 
 export default function RolesPage() {
   const [roles, setRoles] = useState<Role[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -46,7 +43,6 @@ export default function RolesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchRoles = async () => {
-    setLoading(true);
     try {
       const response = await fetch("/api/backend/role");
       if (!response.ok) throw new Error("Gagal mengambil data peran");
@@ -54,8 +50,6 @@ export default function RolesPage() {
       setRoles(data);
     } catch (err: any) {
       setError(err.message);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -95,9 +89,23 @@ export default function RolesPage() {
     }
   };
 
+  const handleDeleteRole = async (id: string) => {
+    if (!confirm("Hapus peran ini?")) return;
+    try {
+      const res = await fetch(`/api/backend/role/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Gagal menghapus peran");
+      }
+      toast.success("Peran berhasil dihapus");
+      fetchRoles();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-8 w-full max-w-full pb-8 animate-in fade-in duration-500">
-      {loading && <FullPageLoader />}
       
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -152,13 +160,7 @@ export default function RolesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-50">
-              {loading ? (
-                <tr>
-                   <td colSpan={4} className="py-24">
-                      <SectionLoader text="Mengambil Data Peran..." />
-                   </td>
-                </tr>
-              ) : error ? (
+              {error ? (
                 <tr>
                   <td colSpan={4} className="px-8 py-20 text-center">
                     <div className="flex flex-col items-center gap-3 text-rose-500">
@@ -216,7 +218,10 @@ export default function RolesPage() {
                           >
                             <Edit className="w-4 h-4" />
                           </Link>
-                          <button className="p-2 text-zinc-400 hover:text-rose-500 transition-all hover:bg-zinc-50 rounded-lg border border-transparent hover:border-zinc-100 shadow-sm active:scale-90">
+                          <button 
+                            onClick={() => handleDeleteRole(role.id)}
+                            className="p-2 text-zinc-400 hover:text-rose-500 transition-all hover:bg-zinc-50 rounded-lg border border-transparent hover:border-zinc-100 shadow-sm active:scale-90"
+                          >
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
@@ -231,7 +236,7 @@ export default function RolesPage() {
       </div>
 
        {/* Pagination (Visual Only for now) */}
-       {!loading && !error && filteredRoles.length > 0 && (
+       {!error && filteredRoles.length > 0 && (
           <div className="flex items-center justify-center gap-2 mt-8">
              <button className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-zinc-100 text-zinc-400 hover:text-zinc-800 transition-all">
                <ChevronLeft className="w-4 h-4" />

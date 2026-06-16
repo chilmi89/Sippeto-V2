@@ -14,6 +14,7 @@ import FullPageLoader from "@/components/layout/FullPageLoader";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "react-toastify";
+import { getPermissionByIDAction, updatePermissionAction, deletePermissionAction } from "@/app/actions/permission";
 
 interface Permission {
   id: string;
@@ -33,11 +34,10 @@ export default function PermissionDetailPage() {
   useEffect(() => {
     const fetchPermission = async () => {
       try {
-        const response = await fetch(`/api/backend/permission/${id}`);
-        if (!response.ok) throw new Error("Izin tidak ditemukan");
-        const data = await response.json();
-        setPermission(data);
-        setPermissionName(data.name);
+        const res = await getPermissionByIDAction(id as string);
+        if (res.error) throw new Error(res.error);
+        setPermission(res.data);
+        setPermissionName(res.data.name);
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -54,19 +54,10 @@ export default function PermissionDetailPage() {
 
     setIsUpdating(true);
     try {
-      const response = await fetch(`/api/backend/permission/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: permissionName }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Gagal memperbarui izin");
-      }
+      const res = await updatePermissionAction(id as string, permissionName);
+      if (res.error) throw new Error(res.error);
       
-      const updated = await response.json();
-      setPermission(updated);
+      setPermission(res.data);
       toast.success("Izin berhasil diperbarui!");
     } catch (err: any) {
       toast.error(err.message || "Gagal memperbarui izin");
@@ -79,11 +70,8 @@ export default function PermissionDetailPage() {
     if (!confirm("Apakah Anda yakin ingin menghapus izin ini? Tindakan ini akan berpengaruh pada semua peran yang menggunakannya.")) return;
 
     try {
-      const response = await fetch(`/api/backend/permission/${id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) throw new Error("Gagal menghapus izin");
+      const res = await deletePermissionAction(id as string);
+      if (res.error) throw new Error(res.error);
       
       toast.success("Izin berhasil dihapus");
       router.push("/backend/admin/rbac/permission");

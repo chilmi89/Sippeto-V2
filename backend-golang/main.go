@@ -7,7 +7,8 @@ import (
 	"backend-golang/internal/db"
 	"backend-golang/internal/modular/auth/router_auth"
 	"backend-golang/internal/modular/profile/router_profile"
-	"backend-golang/internal/modular/role/router_role"
+	"backend-golang/internal/modular/superadmin/permission/router_permission"
+	"backend-golang/internal/modular/superadmin/role/router_role"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -69,6 +70,7 @@ func main() {
 	// Menginisialisasi router modular
 	if database != nil {
 		router_role.SetupRouter(r, database)
+		router_permission.SetupRouter(r, database)
 		router_auth.SetupRouter(r, database)
 		router_profile.SetupRouter(r, database)
 	}

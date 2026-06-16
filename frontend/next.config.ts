@@ -32,6 +32,26 @@ const nextConfig: NextConfig = {
         source: "/api/auth/logout",
         destination: "http://localhost:8080/api/auth/logout",
       },
+      {
+        source: "/api/backend/role",
+        destination: "http://localhost:8080/api/role",
+      },
+      {
+        source: "/api/backend/role/:id",
+        destination: "http://localhost:8080/api/role/:id",
+      },
+      {
+        source: "/api/backend/permission",
+        destination: "http://localhost:8080/api/permission",
+      },
+      {
+        source: "/api/backend/permission/:id",
+        destination: "http://localhost:8080/api/permission/:id",
+      },
+      {
+        source: "/api/backend/role-permission",
+        destination: "http://localhost:8080/api/role-permission",
+      },
     ];
   },
 };
