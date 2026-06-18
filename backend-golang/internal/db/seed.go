@@ -11,16 +11,19 @@ import (
 func RunSeed(db *bun.DB) error {
 	ctx := context.Background()
 
-	type roleData struct {
-		id   string
-		name string
+	type rolePerm struct {
+		roleID       string
+		permissionID string
 	}
 
-	roles := []roleData{
-		{"00000000-0000-0000-0000-000000000001", "superadmin"},
-		{"00000000-0000-0000-0000-000000000002", "admin"},
-		{"00000000-0000-0000-0000-000000000003", "owner"},
-		{"00000000-0000-0000-0000-000000000004", "user"},
+	roles := []struct {
+		id   string
+		name string
+	}{
+		{"9120f34a-0591-49f8-a041-0e8e11404774", "Admin"},
+		{"d8fcf754-dfd9-4bd8-8b40-0fa9b0a8d776", "UMKM"},
+		{"7b14cbcd-a375-4e49-a9f7-43251c00d39e", "owner"},
+		{"58146efc-e1a4-4a0e-b557-3ccec075f132", "kurir"},
 	}
 
 	for _, r := range roles {
@@ -33,33 +36,19 @@ func RunSeed(db *bun.DB) error {
 		}
 	}
 
-	type permData struct {
+	permissions := []struct {
 		id   string
 		name string
-	}
-
-	permissions := []permData{
-		// Superadmin only
-		{"10000000-0000-0000-0000-000000000001", "manage_users"},
-		{"10000000-0000-0000-0000-000000000002", "manage_roles"},
-		{"10000000-0000-0000-0000-000000000003", "manage_permissions"},
-		{"10000000-0000-0000-0000-000000000004", "manage_tenants"},
-		{"10000000-0000-0000-0000-000000000018", "view_dashboard"},
-
-		// Admin / Owner
-		{"10000000-0000-0000-0000-000000000005", "manage_products"},
-		{"10000000-0000-0000-0000-000000000006", "manage_branches"},
-		{"10000000-0000-0000-0000-000000000007", "manage_transactions"},
-		{"10000000-0000-0000-0000-000000000008", "manage_orders"},
-		{"10000000-0000-0000-0000-000000000009", "view_reports"},
-		{"10000000-0000-0000-0000-000000000010", "manage_stocks"},
-		{"10000000-0000-0000-0000-000000000011", "manage_categories"},
-		{"10000000-0000-0000-0000-000000000012", "manage_payment_methods"},
-		{"10000000-0000-0000-0000-000000000013", "view_notifications"},
-		{"10000000-0000-0000-0000-000000000014", "upload_files"},
-		{"10000000-0000-0000-0000-000000000015", "manage_profile"},
-		{"10000000-0000-0000-0000-000000000016", "manage_umkm"},
-		{"10000000-0000-0000-0000-000000000017", "view_public_store"},
+	}{
+		{"b3eace0e-700d-45a0-b867-7a7bf6e9384c", "kelola_produk"},
+		{"d6775f3b-7df4-4ce1-803f-80a189d5e549", "kelola_stok"},
+		{"5fada4cf-54e9-4104-9c75-dc5f6dfb08f7", "kelola_cabang"},
+		{"d88ff953-3cf5-415e-a4f0-0a2205f66e02", "custom-jurnal-transaksi"},
+		{"bd671e9e-2883-4bce-9d7b-8fc9155583f7", "profile"},
+		{"bc736b42-dbf4-462d-9a14-f24e11525254", "management-karyawan"},
+		{"08861d45-80a1-4607-8d26-43300d49f4ea", "laporan-keuangan"},
+		{"cab1d87b-6315-4b5e-aede-bc951d27649a", "data-penjualan"},
+		{"f4366f10-e808-4f70-9318-5b4be7aedd16", "view dashboard packing"},
 	}
 
 	for _, p := range permissions {
@@ -72,128 +61,77 @@ func RunSeed(db *bun.DB) error {
 		}
 	}
 
-	superadminPerms := []string{
-		"10000000-0000-0000-0000-000000000001",
-		"10000000-0000-0000-0000-000000000002",
-		"10000000-0000-0000-0000-000000000003",
-		"10000000-0000-0000-0000-000000000004",
-		"10000000-0000-0000-0000-000000000005",
-		"10000000-0000-0000-0000-000000000006",
-		"10000000-0000-0000-0000-000000000007",
-		"10000000-0000-0000-0000-000000000008",
-		"10000000-0000-0000-0000-000000000009",
-		"10000000-0000-0000-0000-000000000010",
-		"10000000-0000-0000-0000-000000000011",
-		"10000000-0000-0000-0000-000000000012",
-		"10000000-0000-0000-0000-000000000013",
-		"10000000-0000-0000-0000-000000000014",
-		"10000000-0000-0000-0000-000000000015",
-		"10000000-0000-0000-0000-000000000016",
-		"10000000-0000-0000-0000-000000000017",
-		"10000000-0000-0000-0000-000000000018",
+	rolePerms := []rolePerm{
+		// Admin → all permissions
+		{"9120f34a-0591-49f8-a041-0e8e11404774", "b3eace0e-700d-45a0-b867-7a7bf6e9384c"},
+		{"9120f34a-0591-49f8-a041-0e8e11404774", "d6775f3b-7df4-4ce1-803f-80a189d5e549"},
+		{"9120f34a-0591-49f8-a041-0e8e11404774", "5fada4cf-54e9-4104-9c75-dc5f6dfb08f7"},
+		{"9120f34a-0591-49f8-a041-0e8e11404774", "d88ff953-3cf5-415e-a4f0-0a2205f66e02"},
+		{"9120f34a-0591-49f8-a041-0e8e11404774", "bd671e9e-2883-4bce-9d7b-8fc9155583f7"},
+		{"9120f34a-0591-49f8-a041-0e8e11404774", "bc736b42-dbf4-462d-9a14-f24e11525254"},
+		{"9120f34a-0591-49f8-a041-0e8e11404774", "08861d45-80a1-4607-8d26-43300d49f4ea"},
+		{"9120f34a-0591-49f8-a041-0e8e11404774", "cab1d87b-6315-4b5e-aede-bc951d27649a"},
+		{"9120f34a-0591-49f8-a041-0e8e11404774", "f4366f10-e808-4f70-9318-5b4be7aedd16"},
+		// UMKM
+		{"d8fcf754-dfd9-4bd8-8b40-0fa9b0a8d776", "b3eace0e-700d-45a0-b867-7a7bf6e9384c"},
+		{"d8fcf754-dfd9-4bd8-8b40-0fa9b0a8d776", "d6775f3b-7df4-4ce1-803f-80a189d5e549"},
+		{"d8fcf754-dfd9-4bd8-8b40-0fa9b0a8d776", "5fada4cf-54e9-4104-9c75-dc5f6dfb08f7"},
+		{"d8fcf754-dfd9-4bd8-8b40-0fa9b0a8d776", "cab1d87b-6315-4b5e-aede-bc951d27649a"},
+		{"d8fcf754-dfd9-4bd8-8b40-0fa9b0a8d776", "bd671e9e-2883-4bce-9d7b-8fc9155583f7"},
+		// owner
+		{"7b14cbcd-a375-4e49-a9f7-43251c00d39e", "b3eace0e-700d-45a0-b867-7a7bf6e9384c"},
+		{"7b14cbcd-a375-4e49-a9f7-43251c00d39e", "d6775f3b-7df4-4ce1-803f-80a189d5e549"},
+		{"7b14cbcd-a375-4e49-a9f7-43251c00d39e", "5fada4cf-54e9-4104-9c75-dc5f6dfb08f7"},
+		{"7b14cbcd-a375-4e49-a9f7-43251c00d39e", "d88ff953-3cf5-415e-a4f0-0a2205f66e02"},
+		{"7b14cbcd-a375-4e49-a9f7-43251c00d39e", "bd671e9e-2883-4bce-9d7b-8fc9155583f7"},
+		{"7b14cbcd-a375-4e49-a9f7-43251c00d39e", "bc736b42-dbf4-462d-9a14-f24e11525254"},
+		{"7b14cbcd-a375-4e49-a9f7-43251c00d39e", "08861d45-80a1-4607-8d26-43300d49f4ea"},
+		{"7b14cbcd-a375-4e49-a9f7-43251c00d39e", "cab1d87b-6315-4b5e-aede-bc951d27649a"},
+		// kurir
+		{"58146efc-e1a4-4a0e-b557-3ccec075f132", "bd671e9e-2883-4bce-9d7b-8fc9155583f7"},
+		{"58146efc-e1a4-4a0e-b557-3ccec075f132", "cab1d87b-6315-4b5e-aede-bc951d27649a"},
 	}
-	for _, pid := range superadminPerms {
+
+	for _, rp := range rolePerms {
 		_, err := db.ExecContext(ctx,
 			`INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?) ON CONFLICT DO NOTHING`,
-			"00000000-0000-0000-0000-000000000001", pid,
+			rp.roleID, rp.permissionID,
 		)
 		if err != nil {
-			log.Printf("Gagal assign permission %s ke superadmin: %v", pid, err)
+			log.Printf("Gagal assign permission: %v", err)
 		}
 	}
 
-	adminPerms := []string{
-		"10000000-0000-0000-0000-000000000005",
-		"10000000-0000-0000-0000-000000000006",
-		"10000000-0000-0000-0000-000000000007",
-		"10000000-0000-0000-0000-000000000008",
-		"10000000-0000-0000-0000-000000000009",
-		"10000000-0000-0000-0000-000000000010",
-		"10000000-0000-0000-0000-000000000011",
-		"10000000-0000-0000-0000-000000000012",
-		"10000000-0000-0000-0000-000000000013",
-		"10000000-0000-0000-0000-000000000014",
-		"10000000-0000-0000-0000-000000000015",
-		"10000000-0000-0000-0000-000000000016",
-		"10000000-0000-0000-0000-000000000017",
-		"10000000-0000-0000-0000-000000000018",
-	}
-	for _, pid := range adminPerms {
-		_, err := db.ExecContext(ctx,
-			`INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?) ON CONFLICT DO NOTHING`,
-			"00000000-0000-0000-0000-000000000002", pid,
-		)
-		if err != nil {
-			log.Printf("Gagal assign permission %s ke admin: %v", pid, err)
-		}
-	}
-
-	ownerPerms := []string{
-		"10000000-0000-0000-0000-000000000005",
-		"10000000-0000-0000-0000-000000000006",
-		"10000000-0000-0000-0000-000000000007",
-		"10000000-0000-0000-0000-000000000008",
-		"10000000-0000-0000-0000-000000000009",
-		"10000000-0000-0000-0000-000000000010",
-		"10000000-0000-0000-0000-000000000011",
-		"10000000-0000-0000-0000-000000000012",
-		"10000000-0000-0000-0000-000000000013",
-		"10000000-0000-0000-0000-000000000014",
-		"10000000-0000-0000-0000-000000000015",
-		"10000000-0000-0000-0000-000000000016",
-		"10000000-0000-0000-0000-000000000017",
-		"10000000-0000-0000-0000-000000000018",
-	}
-	for _, pid := range ownerPerms {
-		_, err := db.ExecContext(ctx,
-			`INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?) ON CONFLICT DO NOTHING`,
-			"00000000-0000-0000-0000-000000000003", pid,
-		)
-		if err != nil {
-			log.Printf("Gagal assign permission %s ke owner: %v", pid, err)
-		}
-	}
-
-	userPerms := []string{
-		"10000000-0000-0000-0000-000000000013",
-		"10000000-0000-0000-0000-000000000015",
-		"10000000-0000-0000-0000-000000000017",
-	}
-	for _, pid := range userPerms {
-		_, err := db.ExecContext(ctx,
-			`INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?) ON CONFLICT DO NOTHING`,
-			"00000000-0000-0000-0000-000000000004", pid,
-		)
-		if err != nil {
-			log.Printf("Gagal assign permission %s ke user: %v", pid, err)
-		}
-	}
-
-	hashed, err := bcrypt.GenerateFromPassword([]byte("sippeto2026"), bcrypt.DefaultCost)
+	var adminCount int
+	err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM profiles WHERE email = 'admin@gmail.com'").Scan(&adminCount)
 	if err != nil {
-		log.Printf("Gagal hash password: %v", err)
-		return err
+		log.Printf("Gagal cek admin: %v", err)
 	}
 
-	_, err = db.ExecContext(ctx,
-		`INSERT INTO profiles (id, role_id, email, password, full_name, is_active, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, true, NOW(), NOW())
-		 ON CONFLICT (email) DO UPDATE SET password = ?, full_name = ?, role_id = ?, updated_at = NOW()`,
-		"00000000-0000-0000-0000-000000000001",
-		"00000000-0000-0000-0000-000000000002",
-		"admin@gmail.com",
-		string(hashed),
-		"Super Admin",
-		string(hashed),
-		"Super Admin",
-		"00000000-0000-0000-0000-000000000002",
-	)
-	if err != nil {
-		log.Printf("Gagal upsert admin: %v", err)
-		return err
+	if adminCount == 0 {
+		hashed, err := bcrypt.GenerateFromPassword([]byte("sippeto2026"), bcrypt.DefaultCost)
+		if err != nil {
+			log.Printf("Gagal hash password: %v", err)
+			return err
+		}
+		_, err = db.ExecContext(ctx,
+			`INSERT INTO profiles (id, role_id, email, password, full_name, is_active, metadata, created_at, updated_at)
+			 VALUES (?, ?, ?, ?, ?, true, '{"system": "master"}', NOW(), NOW())`,
+			"0f34733d-b653-43a4-914b-f96aa62bead0",
+			"9120f34a-0591-49f8-a041-0e8e11404774",
+			"admin@gmail.com",
+			string(hashed),
+			"Super Admin SiPetto",
+		)
+		if err != nil {
+			log.Printf("Gagal insert admin: %v", err)
+			return err
+		}
+		log.Println("Admin created: admin@gmail.com / sippeto2026 (role: Admin)")
+	} else {
+		log.Println("Admin already exists")
 	}
-	log.Println("Admin user upsert: admin@gmail.com / sippeto2026")
 
-	log.Println("Seed data selesai!")
+	log.Println("Seed selesai!")
 	return nil
 }

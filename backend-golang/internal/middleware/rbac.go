@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -23,7 +24,7 @@ func RequireRole(allowedRoles ...string) gin.HandlerFunc {
 		}
 
 		for _, allowed := range allowedRoles {
-			if roleStr == allowed {
+			if strings.EqualFold(roleStr, allowed) {
 				c.Next()
 				return
 			}
