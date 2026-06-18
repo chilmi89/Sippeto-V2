@@ -337,7 +337,7 @@ func (r *tenantUMKMRepository) GetPublicBranches(ctx context.Context, profileID 
 
 func (r *tenantUMKMRepository) CreateRegisterUMKM(ctx context.Context, req dto_tenant_umkm.CompleteRegisterUMKMRequest) (*dto_tenant_umkm.TenantProfileInfo, error) {
 	var ownerRoleID string
-	err := r.db.NewRaw("SELECT id FROM roles WHERE name = 'Owner' LIMIT 1").Scan(ctx, &ownerRoleID)
+	err := r.db.NewRaw("SELECT id FROM roles WHERE LOWER(name) = LOWER('Owner') LIMIT 1").Scan(ctx, &ownerRoleID)
 	if err != nil {
 		return nil, fmt.Errorf("role Owner tidak ditemukan")
 	}
@@ -395,7 +395,7 @@ func (r *tenantUMKMRepository) UpdateRegisterUMKM(ctx context.Context, req dto_t
 	}
 
 	var ownerRoleID string
-	err := r.db.NewRaw("SELECT id FROM roles WHERE name = 'Owner' LIMIT 1").Scan(ctx, &ownerRoleID)
+	err := r.db.NewRaw("SELECT id FROM roles WHERE LOWER(name) = LOWER('Owner') LIMIT 1").Scan(ctx, &ownerRoleID)
 	if err != nil {
 		return nil, fmt.Errorf("role Owner tidak ditemukan")
 	}
