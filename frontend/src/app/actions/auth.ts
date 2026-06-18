@@ -97,6 +97,22 @@ export async function refreshTokenAction() {
   }
 }
 
+export async function registerAction(payload: { nama: string; email: string; password: string }) {
+  try {
+    const res = await fetch(`${BACKEND_API_URL}/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) return { error: data.error || "Terjadi kesalahan saat registrasi." };
+    return { success: true, user: data.user };
+  } catch (err) {
+    console.error("registerAction Error:", err);
+    return { error: "Gagal terhubung ke server backend." };
+  }
+}
+
 export async function getMeAction() {
   try {
     const cookieStore = await cookies();

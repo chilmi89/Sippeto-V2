@@ -9,6 +9,7 @@ import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { WelcomeSection } from '@/components/auth/WelcomeSection';
 import FullPageLoader from '@/components/layout/FullPageLoader';
+import { createUmkmAction, updateUmkmAction } from '@/app/actions/register_umkm';
 
 const UmkmPage = () => {
     const [isMounted, setIsMounted] = useState(false);
@@ -44,23 +45,16 @@ const UmkmPage = () => {
         e.preventDefault();
         setLoading(true);
         try {
-            const method = pendingId ? 'PATCH' : 'POST';
-            // Jika ada pendingId (setelah RegisterCard), kita tambahkan di body.
             const body = pendingId ? { id: pendingId, ...formData } : formData;
-            
-            const res = await fetch('/api/umkm', {
-                method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
-            });
-            
-            const data = await res.json();
-            
-            if (!res.ok) {
-                toast.error(data.error || 'Terjadi kesalahan sistem.');
+            const result = pendingId
+                ? await updateUmkmAction(body)
+                : await createUmkmAction(body);
+
+            if (result.error) {
+                toast.error(result.error);
                 return;
             }
-            
+
             toast.success(pendingId ? 'Data UMKM berhasil dilengkapi!' : 'Registrasi UMKM Berhasil!');
             sessionStorage.removeItem('pending_profile_id');
             router.push('/login');
