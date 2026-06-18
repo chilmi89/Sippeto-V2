@@ -2,7 +2,9 @@ package service_auth
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
+	"fmt"
 	"os"
 	"time"
 
@@ -18,6 +20,7 @@ type AuthService interface {
 	RefreshToken(ctx context.Context, tokenString string) (*dto_auth.RefreshResponse, error)
 	GenerateResetToken(ctx context.Context, email string) (string, error)
 	ResetPassword(ctx context.Context, req dto_auth.ResetPasswordRequest) error
+	Register(ctx context.Context, req dto_auth.RegisterRequest) (*dto_auth.RegisterResponse, error)
 }
 
 type authService struct {
@@ -50,19 +53,18 @@ func (s *authService) Login(ctx context.Context, req dto_auth.LoginRequest) (*dt
 		roleName = profile.Role.Name
 	}
 
-	// Generate JWT Token
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
-		secret = "your-secret-key"
+		return nil, errors.New("Konfigurasi server tidak valid.")
 	}
 
-	// 1. Generate Access Token (15 menit)
+	// 1. Generate Access Token (2 jam)
 	accessClaims := jwt.MapClaims{
 		"id":        profile.ID,
 		"email":     profile.Email,
 		"role_id":   profile.RoleID,
 		"role_name": roleName,
-		"exp":       time.Now().Add(15 * time.Minute).Unix(),
+		"exp":       time.Now().Add(2 * time.Hour).Unix(),
 	}
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
 	accessTokenString, err := accessToken.SignedString([]byte(secret))
@@ -102,10 +104,13 @@ func (s *authService) Login(ctx context.Context, req dto_auth.LoginRequest) (*dt
 func (s *authService) RefreshToken(ctx context.Context, tokenString string) (*dto_auth.RefreshResponse, error) {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
-		secret = "your-secret-key"
+		return nil, errors.New("Konfigurasi server tidak valid.")
 	}
 
 	token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("metode signing tidak valid: %v", t.Header["alg"])
+		}
 		return []byte(secret), nil
 	})
 
@@ -127,13 +132,13 @@ func (s *authService) RefreshToken(ctx context.Context, tokenString string) (*dt
 	email, _ := claims["email"].(string)
 	roleID, _ := claims["role_id"].(string)
 
-	// Buat Access Token baru (15 menit)
+	// Buat Access Token baru (2 jam)
 	accessClaims := jwt.MapClaims{
 		"id":        userID,
 		"email":     email,
 		"role_id":   roleID,
 		"role_name": roleName,
-		"exp":       time.Now().Add(15 * time.Minute).Unix(),
+		"exp":       time.Now().Add(2 * time.Hour).Unix(),
 	}
 
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
@@ -158,14 +163,12 @@ func (s *authService) GenerateResetToken(ctx context.Context, email string) (str
 
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
-		secret = "your-secret-key"
+		return "", errors.New("Konfigurasi server tidak valid.")
 	}
 
-	// Gunakan pass_hash di dalam claims agar token ini hangus setelah password diubah!
 	claims := jwt.MapClaims{
-		"email":     profile.Email,
-		"pass_hash": profile.Password,
-		"exp":       time.Now().Add(15 * time.Minute).Unix(), // valid 15 menit
+		"email": profile.Email,
+		"exp":   time.Now().Add(15 * time.Minute).Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -180,10 +183,13 @@ func (s *authService) GenerateResetToken(ctx context.Context, email string) (str
 func (s *authService) ResetPassword(ctx context.Context, req dto_auth.ResetPasswordRequest) error {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
-		secret = "your-secret-key"
+		return errors.New("Konfigurasi server tidak valid.")
 	}
 
 	token, err := jwt.Parse(req.Token, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("metode signing tidak valid: %v", t.Header["alg"])
+		}
 		return []byte(secret), nil
 	})
 
@@ -197,12 +203,11 @@ func (s *authService) ResetPassword(ctx context.Context, req dto_auth.ResetPassw
 	}
 
 	email, ok := claims["email"].(string)
-	tokenPassHash, ok2 := claims["pass_hash"].(string)
-	if !ok || !ok2 || email == "" {
+	if !ok || email == "" {
 		return errors.New("Token tidak valid.")
 	}
 
-	// Pastikan pass_hash saat ini masih sama dengan pass_hash di token
+	// Pastikan user masih ada
 	profile, err := s.repo.FindByEmail(ctx, email)
 	if err != nil {
 		return err
@@ -211,7 +216,7 @@ func (s *authService) ResetPassword(ctx context.Context, req dto_auth.ResetPassw
 		return errors.New("User tidak ditemukan.")
 	}
 
-	if profile.Password != tokenPassHash {
+	if profile.Password == "" {
 		return errors.New("Token reset password sudah digunakan.")
 	}
 
@@ -225,4 +230,51 @@ func (s *authService) ResetPassword(ctx context.Context, req dto_auth.ResetPassw
 	err = s.repo.UpdatePassword(ctx, email, string(hashedBytes))
 	return err
 }
+
+func (s *authService) Register(ctx context.Context, req dto_auth.RegisterRequest) (*dto_auth.RegisterResponse, error) {
+	// Periksa apakah email sudah terdaftar
+	existing, err := s.repo.FindByEmail(ctx, req.Email)
+	if err != nil {
+		return nil, err
+	}
+	if existing != nil {
+		return nil, errors.New("Email sudah terdaftar.")
+	}
+
+	hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), 10)
+	if err != nil {
+		return nil, errors.New("Gagal memproses sandi.")
+	}
+
+	userID, err := generateUUID()
+	if err != nil {
+		return nil, errors.New("Gagal membuat ID pengguna.")
+	}
+	err = s.repo.CreateProfile(ctx, userID, req.Nama, req.Email, string(hashed))
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto_auth.RegisterResponse{
+		Message: "Registrasi berhasil.",
+		User: dto_auth.RegisteredUser{
+			ID:    userID,
+			Nama:  req.Nama,
+			Email: req.Email,
+		},
+	}, nil
+}
+
+func generateUUID() (string, error) {
+	b := make([]byte, 16)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", fmt.Errorf("gagal generate UUID: %w", err)
+	}
+	b[6] = (b[6] & 0x0f) | 0x40
+	b[8] = (b[8] & 0x3f) | 0x80
+	return fmt.Sprintf("%x-%x-%x-%x-%x",
+		b[0:4], b[4:6], b[6:8], b[8:10], b[10:]), nil
+}
+
 

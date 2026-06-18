@@ -8,9 +8,13 @@ import {
   ChevronLeft, ChevronRight,
   X, TriangleAlert,
 } from "lucide-react";
-import FullPageLoader from "@/components/layout/FullPageLoader";
-import SectionLoader from "@/components/layout/SectionLoader";
 import { toast } from "react-toastify";
+import {
+  getCategoriesAction,
+  createCategoryAction,
+  updateCategoryAction,
+  deleteCategoryAction
+} from "@/app/actions/transaction";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -21,13 +25,6 @@ interface Category {
   name: string;
   type: TabType;
   updatedAt?: string;
-}
-
-interface PaginatedResponse {
-  data: Category[];
-  total: number;
-  page: number;
-  totalPages: number;
 }
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -78,9 +75,24 @@ const TabButton = ({
 );
 
 const SkeletonRow = () => (
-  <tr>
-    <td colSpan={5} className="py-24">
-       <SectionLoader text="Sinkronisasi Data..." />
+  <tr className="animate-pulse">
+    <td className="px-6 py-4">
+      <div className="flex items-center gap-3">
+        <div className="w-2.5 h-2.5 rounded-full bg-zinc-100" />
+        <div className="h-4 w-32 bg-zinc-100 rounded" />
+      </div>
+    </td>
+    <td className="px-4 py-4">
+      <div className="h-4 w-12 bg-zinc-100 rounded-full" />
+    </td>
+    <td className="px-4 py-4">
+      <div className="h-4 w-14 bg-zinc-100 rounded" />
+    </td>
+    <td className="px-4 py-4">
+      <div className="h-4 w-20 bg-zinc-100 rounded" />
+    </td>
+    <td className="px-4 py-4">
+      <div className="h-4 w-10 bg-zinc-100 rounded ml-auto" />
     </td>
   </tr>
 );
@@ -215,24 +227,15 @@ const CategoryFormModal = ({ mode, initial, onClose, onSuccess }: CategoryFormMo
     setIsSaving(true);
     try {
       const res = isEdit
-        ? await fetch("/api/backend/kategori", {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: initial!.id, name: name.trim(), type }),
-          })
-        : await fetch("/api/backend/kategori", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: name.trim(), type }), // profile_id null = global
-          });
+        ? await updateCategoryAction({ id: initial!.id, name: name.trim(), type })
+        : await createCategoryAction({ name: name.trim(), type }); // profile_id null = global
 
-      if (res.ok) {
+      if (res.status === "success") {
         toast.success(isEdit ? "Kategori berhasil diperbarui" : "Kategori berhasil ditambahkan");
         onSuccess();
         onClose();
       } else {
-        const err = await res.json();
-        toast.error(err?.error ?? "Terjadi kesalahan");
+        toast.error(res.message ?? "Terjadi kesalahan");
       }
     } catch {
       toast.error("Gagal menghubungi server");
@@ -264,7 +267,7 @@ const CategoryFormModal = ({ mode, initial, onClose, onSuccess }: CategoryFormMo
               placeholder="Contoh: Penjualan Produk"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm font-medium text-[#030037] outline-none focus:ring-2 focus:ring-[#030037]/10 focus:border-zinc-300 transition-all"
+              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm font-medium text-zinc-900 outline-none focus:ring-2 focus:ring-[#030037]/10 focus:border-zinc-300 transition-all"
               autoFocus
             />
           </div>
@@ -319,14 +322,13 @@ const DeleteModal = ({ category, onClose, onSuccess }: DeleteModalProps) => {
   const handleDelete = async () => {
     setIsDeleting(true);
     try {
-      const res = await fetch(`/api/backend/kategori?id=${category.id}`, { method: "DELETE" });
-      if (res.ok) {
+      const res = await deleteCategoryAction(category.id);
+      if (res.status === "success") {
         toast.success("Kategori berhasil dihapus");
         onSuccess();
         onClose();
       } else {
-        const err = await res.json();
-        toast.error(err?.error ?? "Gagal menghapus kategori");
+        toast.error(res.message ?? "Gagal menghapus kategori");
       }
     } catch {
       toast.error("Gagal menghubungi server");
@@ -380,6 +382,11 @@ const DeleteModal = ({ category, onClose, onSuccess }: DeleteModalProps) => {
   );
 };
 
+// TypeBadge helper wrapper untuk menghindari issue penamaan prop type
+const TypeBadgeWrapper = ({ categoryType }: { categoryType: TabType }) => (
+  <TypeBadge type={categoryType} />
+);
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function CategoryManagementPage() {
@@ -416,31 +423,30 @@ export default function CategoryManagementPage() {
   const fetchPage = useCallback(async () => {
     setIsLoading(true);
     try {
-      const params = new URLSearchParams({
-        page:   String(page),
-        limit:  String(PAGE_SIZE),
-        type:   activeTab,
-        ...(debouncedSearch && { search: debouncedSearch }),
-      });
-
-      // Fetch data tab aktif + count tab lainnya secara paralel
       const otherTab = activeTab === "pemasukan" ? "pengeluaran" : "pemasukan";
       const [res, resOther] = await Promise.all([
-        fetch(`/api/backend/kategori?${params}`),
-        fetch(`/api/backend/kategori?page=1&limit=1&type=${otherTab}`),
+        getCategoriesAction({
+          page: page,
+          limit: PAGE_SIZE,
+          type: activeTab,
+          search: debouncedSearch,
+        }),
+        getCategoriesAction({
+          page: 1,
+          limit: 1,
+          type: otherTab,
+        }),
       ]);
 
-      if (res.ok) {
-        const json: PaginatedResponse = await res.json();
-        setRows(json.data);
-        setTotal(json.total);
-        setTotalPages(json.totalPages);
-        setCounts((prev) => ({ ...prev, [activeTab]: json.total }));
+      if (res.status === "success" && res.data) {
+        setRows(res.data as Category[]);
+        setTotal(res.total ?? 0);
+        setTotalPages(res.totalPages ?? 1);
+        setCounts((prev) => ({ ...prev, [activeTab]: res.total ?? 0 }));
       }
 
-      if (resOther.ok) {
-        const j: PaginatedResponse = await resOther.json();
-        setCounts((prev) => ({ ...prev, [otherTab]: j.total }));
+      if (resOther.status === "success" && resOther.total !== undefined) {
+        setCounts((prev) => ({ ...prev, [otherTab]: resOther.total }));
       }
     } catch {
       toast.error("Gagal mengambil data kategori");
@@ -477,7 +483,6 @@ export default function CategoryManagementPage() {
 
   return (
     <>
-      {isLoading && <FullPageLoader />}
       <div className="bg-white px-4 sm:px-6 lg:px-8 pt-3 pb-8 space-y-4">
 
         {/* Page Header */}
@@ -524,7 +529,7 @@ export default function CategoryManagementPage() {
                 placeholder="Cari nama kategori..."
                 value={search}
                 onChange={(e) => handleSearchChange(e.target.value)}
-                className="pl-10 pr-5 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-medium text-black outline-none focus:ring-2 focus:ring-[#030037]/10 focus:border-zinc-300 transition-all w-full sm:w-56"
+                className="pl-10 pr-5 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-medium text-zinc-900 outline-none focus:ring-2 focus:ring-[#030037]/10 focus:border-zinc-300 transition-all w-full sm:w-56"
               />
             </div>
           </div>
@@ -553,7 +558,7 @@ export default function CategoryManagementPage() {
                             <span className="text-sm font-bold text-[#030037]">{cat.name}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-4"><TypeBadge type={cat.type} /></td>
+                        <td className="px-4 py-4"><TypeBadgeWrapper categoryType={cat.type} /></td>
                         <td className="px-4 py-4">
                           <div className="flex items-center gap-1.5">
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />

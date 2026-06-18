@@ -23,6 +23,24 @@ import { toast } from "react-toastify";
 import jsPDF from "jspdf";
 import { getPOSProductsAction, savePOSTransactionAction } from "./actions";
 
+// Bluetooth thermal printer constants
+const BT_SERVICE_UUIDS = [
+  "0000ffe0-0000-1000-8000-00805f9b34fb",
+  "0000ffe5-0000-1000-8000-00805f9b34fb",
+  "000018f0-0000-1000-8000-00805f9b34fb",
+  "0000aabb-0000-1000-8000-00805f9b34fb",
+  "0000ae30-0000-1000-8000-00805f9b34fb",
+  "0000af30-0000-1000-8000-00805f9b34fb",
+  "e7810a71-73ae-499d-8c15-faa9aef0c3f2",
+  "49535441-5254-4745-4e49-555353455256",
+];
+
+const BT_NAME_PREFIXES = [
+  "MTP", "PT", "RP", "Thermal", "58mm", "80mm",
+  "BT_", "Printer", "POS", "Xprinter", "ZJ", "GH",
+  "LP", "GP", "PP", "MA", "BP", "ECO",
+];
+
 interface Product {
   id: string;
   name: string;
@@ -112,9 +130,13 @@ export default function POSForm({
   const [productSearchQuery, setProductSearchQuery] = useState("");
   const [showProductDropdown, setShowProductDropdown] = useState(false);
 
-  useEffect(() => {
+  const checkBluetoothSupport = useCallback(() => {
     setIsBluetoothSupported(typeof window !== "undefined" && !!(navigator as any).bluetooth);
   }, []);
+
+  useEffect(() => {
+    checkBluetoothSupport();
+  }, [checkBluetoothSupport]);
 
   // Searched Products for custom combobox
   const searchedProducts = useMemo(() => {
@@ -423,30 +445,51 @@ export default function POSForm({
     if (!lastTransaction) return;
     try {
       setIsPrintingBt(true);
-      
+
       if (!(navigator as any).bluetooth) {
-        toast.error("Browser Anda tidak mendukung Web Bluetooth. Silakan gunakan Google Chrome.");
+        toast.error("Browser Anda tidak mendukung Web Bluetooth. Silakan gunakan Google Chrome versi terbaru.");
         return;
       }
-      
-      // Request device
+
       const device = await (navigator as any).bluetooth.requestDevice({
         filters: [
-          { services: ["0000ffe0-0000-1000-8000-00805f9b34fb"] },
-          { namePrefix: "MTP" },
-          { namePrefix: "PT" },
-          { namePrefix: "RP" },
-          { namePrefix: "Thermal" }
+          ...BT_SERVICE_UUIDS.map(u => ({ services: [u] })),
+          ...BT_NAME_PREFIXES.map(p => ({ namePrefix: p })),
         ],
-        optionalServices: ["0000ffe0-0000-1000-8000-00805f9b34fb"]
+        optionalServices: BT_SERVICE_UUIDS,
       });
 
-      const server = await device.gatt?.connect();
+      if (!device.gatt) throw new Error("Perangkat tidak mendukung GATT");
+
+      const server = await device.gatt.connect();
       if (!server) throw new Error("Gagal menghubungkan ke printer");
 
-      const service = await server.getPrimaryService("0000ffe0-0000-1000-8000-00805f9b34fb");
-      const characteristics = await service.getCharacteristics();
-      const writeChar = characteristics.find((c: any) => c.properties.write || c.properties.writeWithoutResponse);
+      // Auto-discover write characteristic across all known service UUIDs
+      let writeChar: any = null;
+      for (const uuid of BT_SERVICE_UUIDS) {
+        try {
+          const service = await server.getPrimaryService(uuid);
+          const characteristics = await service.getCharacteristics();
+          writeChar = characteristics.find(
+            (c: any) => c.properties.write || c.properties.writeWithoutResponse
+          );
+          if (writeChar) break;
+        } catch {
+          // Try next UUID
+        }
+      }
+
+      // Fallback: try all available services on device
+      if (!writeChar) {
+        const allServices = await server.getPrimaryServices();
+        for (const service of allServices) {
+          const characteristics = await service.getCharacteristics();
+          writeChar = characteristics.find(
+            (c: any) => c.properties.write || c.properties.writeWithoutResponse
+          );
+          if (writeChar) break;
+        }
+      }
 
       if (!writeChar) throw new Error("Tidak menemukan port tulis data printer");
 
@@ -454,66 +497,76 @@ export default function POSForm({
       const ESC = "\x1b";
       const GS = "\x1d";
       const LF = "\n";
-      
+
       let data = "";
-      data += ESC + "@"; // Init
-      data += ESC + "a" + "\x01"; // Center
-      data += ESC + "!" + "\x10"; // Double height
+      data += ESC + "@";
+      data += ESC + "a" + "\x01";
+      data += ESC + "!" + "\x10";
       data += (profile.business_name || "TOKO UMKM").toUpperCase() + LF;
-      data += ESC + "!" + "\x00"; // Normal
-      
+      data += ESC + "!" + "\x00";
+
       const activeBranchName = branches.find(b => b.id === selectedBranchId)?.name || "Cabang Utama";
       data += activeBranchName + LF;
       data += "--------------------------------" + LF;
-      
-      data += ESC + "a" + "\x00"; // Left
+
+      data += ESC + "a" + "\x00";
       data += `Nota : #${lastTransaction.reference_number}` + LF;
       data += `Tgl  : ${new Date(lastTransaction.transaction_date || "").toLocaleDateString("id-ID")}` + LF;
       data += `Cust : ${lastTransaction.customer_name}` + LF;
       data += `Bayar: ${lastTransaction.payment_method}` + LF;
       data += "--------------------------------" + LF;
-      
+
       lastTransaction.items.forEach((item: CartItem) => {
         const name = item.product.name.slice(0, 18);
         const qtyText = `${item.quantity} x ${formatCurrency(item.product.sell_price).replace("Rp", "").trim()}`;
         const subtotalText = formatCurrency(item.product.sell_price * item.quantity).replace("Rp", "").trim();
-        
+
         data += name + LF;
         const spacesCount = 32 - qtyText.length - subtotalText.length;
         const spaces = " ".repeat(Math.max(1, spacesCount));
         data += qtyText + spaces + subtotalText + LF;
       });
-      
+
       data += "--------------------------------" + LF;
-      
+
       const totalText = "TOTAL :";
       const totalVal = formatCurrency(lastTransaction.items.reduce((sum: number, i: CartItem) => sum + (i.product.sell_price * i.quantity), 0)).replace("Rp", "").trim();
       const totalSpaces = 32 - totalText.length - totalVal.length;
       data += totalText + " ".repeat(Math.max(1, totalSpaces)) + totalVal + LF;
       data += LF;
-      
-      data += ESC + "a" + "\x01"; // Center
+
+      data += ESC + "a" + "\x01";
       data += "Terima kasih atas kunjungan Anda!" + LF;
       data += "SiPetto POS System" + LF;
-      data += LF + LF + LF; // Feed
-      
-      data += GS + "V" + "\x41" + "\x03"; // Cut
-      
+      data += LF + LF + LF;
+
+      data += GS + "V" + "\x41" + "\x03";
+
       const bytes = encoder.encode(data);
-      const chunkSize = 120;
+      const chunkSize = 100;
       for (let i = 0; i < bytes.length; i += chunkSize) {
         const chunk = bytes.slice(i, i + chunkSize);
-        await writeChar.writeValue(chunk);
-        await new Promise(resolve => setTimeout(resolve, 50));
+        try {
+          if (writeChar.writeWithoutResponse) {
+            await writeChar.writeWithoutResponse(chunk);
+          } else if (writeChar.writeValueWithResponse) {
+            await writeChar.writeValueWithResponse(chunk);
+          } else {
+            await writeChar.writeValue(chunk);
+          }
+        } catch {
+          // Fallback: try writeValue if the preferred method fails
+          await writeChar.writeValue(chunk);
+        }
+        await new Promise(resolve => setTimeout(resolve, 30));
       }
-      
+
       toast.success("Nota berhasil dicetak via Bluetooth!");
-      await device.gatt?.disconnect();
+      await device.gatt.disconnect();
     } catch (err: any) {
       console.error(err);
-      if (err.name !== "NotFoundError" && err.message !== "User cancelled the requestDevice() choose device dialog.") {
-        toast.error(`Koneksi Bluetooth gagal: ${err.message || err}`);
-      }
+      if (err.name === "NotFoundError" || err.message?.includes("cancelled") || err.message?.includes("dibatalkan")) return;
+      toast.error(`Gagal cetak Bluetooth: ${err.message || err}`);
     } finally {
       setIsPrintingBt(false);
     }
@@ -745,7 +798,7 @@ export default function POSForm({
                                  className="fixed inset-0 z-10" 
                                  onClick={() => setShowProductDropdown(false)}
                               />
-                              <div className="absolute left-0 right-0 mt-1 bg-white border border-zinc-200 rounded-xl shadow-lg max-h-48 overflow-y-auto z-25 divide-y divide-zinc-100 scrollbar-thin">
+                              <div data-lenis-prevent className="absolute left-0 right-0 mt-1 bg-white border border-zinc-200 rounded-xl shadow-lg max-h-48 overflow-y-auto z-25 divide-y divide-zinc-100 scrollbar-thin">
                                  {searchedProducts.length === 0 ? (
                                     <div className="px-3 py-2 text-xs text-zinc-400 font-bold text-center">
                                        Produk tidak ditemukan
@@ -831,7 +884,7 @@ export default function POSForm({
                   </div>
 
                   <div className="border border-zinc-150 rounded-xl overflow-hidden bg-zinc-50/30 shadow-sm">
-                     <div className="max-h-[350px] overflow-y-auto scrollbar-thin">
+                     <div data-lenis-prevent className="max-h-[350px] overflow-y-auto scrollbar-thin">
                         <table className="w-full text-left border-collapse">
                            <thead>
                               <tr className="bg-zinc-50 border-b border-zinc-150 text-[8px] font-black text-zinc-400 uppercase tracking-widest">
@@ -972,8 +1025,35 @@ export default function POSForm({
                           {isPrintingBt ? "Menghubungkan Printer..." : "Cetak Bluetooth (Direct)"}
                        </button>
                     ) : (
-                       <div className="w-full py-2 bg-amber-50 border border-amber-200 text-amber-800 text-[9px] font-bold text-center rounded-xl px-2">
-                          Printer Bluetooth hanya didukung di Chrome / HTTPS. Gunakan Cetak PDF sebagai alternatif.
+                       <div className="w-full p-3 bg-amber-50 border border-amber-200 text-amber-800 text-[9px] font-bold text-center rounded-xl space-y-1.5">
+                          <p className="text-[10px] leading-tight">
+                            Printer Bluetooth: <span className="text-red-600">Tidak tersedia</span>
+                          </p>
+                          <p className="text-[8px] font-normal opacity-75">
+                            Browser: Chrome | HTTPS
+                          </p>
+                          {navigator.userAgent.includes("Linux") && (
+                            <p className="text-[8px] font-normal leading-tight">
+                              Di Linux, pastikan: &nbsp;
+                              <code className="bg-amber-100 px-1 rounded">sudo apt install bluez</code> &nbsp;
+                              dan user ada di grup <code className="bg-amber-100 px-1 rounded">bluetooth</code>.
+                              Restart Chrome setelahnya.
+                            </p>
+                          )}
+                          <div className="flex gap-1.5 justify-center mt-1">
+                            <button
+                              onClick={checkBluetoothSupport}
+                              className="flex items-center gap-1 bg-amber-100 hover:bg-amber-200 text-amber-700 px-2.5 py-1.5 rounded-lg transition-colors text-[9px]"
+                            >
+                              <Package className="w-2.5 h-2.5" /> Cek Ulang
+                            </button>
+                            <button
+                              onClick={handlePrintReceipt}
+                              className="flex items-center gap-1 bg-amber-200 hover:bg-amber-300 text-amber-900 px-2.5 py-1.5 rounded-lg transition-colors text-[9px]"
+                            >
+                              <Printer className="w-2.5 h-2.5" /> Cetak PDF
+                            </button>
+                          </div>
                        </div>
                     )}
 

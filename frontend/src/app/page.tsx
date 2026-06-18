@@ -1,38 +1,38 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useState, useRef } from "react";
 import {
-  motion,
   AnimatePresence,
   animate,
+  motion,
   useInView,
   type Variants,
 } from "framer-motion";
 import Lenis from "lenis";
 import {
-  Sun,
-  Moon,
   ArrowRight,
-  Layers,
-  ShoppingCart,
-  Shield,
-  Smartphone,
-  Store,
+  ArrowRightLeft,
+  Building,
+  Check,
   ChevronRight,
   Database,
-  Lock,
-  Globe,
-  Plus,
-  Check,
-  Star,
-  ShoppingBag,
-  Menu,
-  X,
-  Building,
-  ArrowRightLeft,
   FileText,
+  Globe,
+  Layers,
+  Lock,
+  Menu,
+  Moon,
+  Plus,
+  Shield,
+  ShoppingBag,
+  ShoppingCart,
+  Smartphone,
+  Star,
+  Store,
+  Sun,
+  X,
 } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 
 // ─── Animation Variants ───────────────────────────────────────────────────────
 const fadeUp: Variants = {
@@ -57,7 +57,11 @@ const slideRight: Variants = {
 
 const scaleIn: Variants = {
   hidden: { opacity: 0, scale: 0.9 },
-  show: { opacity: 1, scale: 1, transition: { duration: 0.5, ease: "easeOut" } },
+  show: {
+    opacity: 1,
+    scale: 1,
+    transition: { duration: 0.5, ease: "easeOut" },
+  },
 };
 
 const staggerContainer: Variants = {
@@ -185,7 +189,11 @@ function IphoneMockup() {
 
         <div className="h-9 bg-white border-b border-zinc-100 px-4 flex justify-between items-center shrink-0 z-30 relative shadow-sm">
           <div className="flex items-center gap-1">
-            <img src="/logo/logo_navbar.png" alt="Logo SiPetto" className="h-4.5 w-auto object-contain" />
+            <img
+              src="/logo/logo_navbar.png"
+              alt="Logo SiPetto"
+              className="h-4.5 w-auto object-contain"
+            />
           </div>
           <div className="relative cursor-pointer p-1">
             <ShoppingCart className="w-3.5 h-3.5 text-zinc-700" />
@@ -208,27 +216,60 @@ function IphoneMockup() {
               >
                 <div className="space-y-2.5">
                   <div className="border-b border-zinc-100 pb-2">
-                    <span className="text-[6.5px] font-extrabold text-blue-600 uppercase tracking-widest block">Mitra UMKM SiPetto</span>
-                    <h5 className="text-[11px] font-black text-slate-800 leading-tight">Kopi Desa Toyoresmi</h5>
-                    <p className="text-[6.5px] text-zinc-700 font-bold mt-0.5">Katalog Produk Resmi &amp; Terpercaya</p>
+                    <span className="text-[6.5px] font-extrabold text-blue-600 uppercase tracking-widest block">
+                      Mitra UMKM SiPetto
+                    </span>
+                    <h5 className="text-[11px] font-black text-slate-800 leading-tight">
+                      Kopi Desa Toyoresmi
+                    </h5>
+                    <p className="text-[6.5px] text-zinc-700 font-bold mt-0.5">
+                      Katalog Produk Resmi &amp; Terpercaya
+                    </p>
                   </div>
                   <div className="space-y-2">
                     {[
-                      { id: "p1", name: "House Blend Coffee Beans (250g)", price: 85000, img: "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=200&auto=format&fit=crop&q=80", tag: "TERLARIS" },
-                      { id: "p2", name: "Signature Butter Croissant Slice", price: 35000, img: "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&auto=format&fit=crop&q=80", tag: "FAVORIT" },
+                      {
+                        id: "p1",
+                        name: "House Blend Coffee Beans (250g)",
+                        price: 85000,
+                        img: "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=200&auto=format&fit=crop&q=80",
+                        tag: "TERLARIS",
+                      },
+                      {
+                        id: "p2",
+                        name: "Signature Butter Croissant Slice",
+                        price: 35000,
+                        img: "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&auto=format&fit=crop&q=80",
+                        tag: "FAVORIT",
+                      },
                     ].map((p) => (
-                      <div key={p.id} className="bg-white border border-zinc-200/60 p-2 rounded-xl flex gap-2 shadow-sm">
-                        <img src={p.img} alt={p.name} className="w-12 h-12 object-cover rounded-lg bg-zinc-100" />
+                      <div
+                        key={p.id}
+                        className="bg-white border border-zinc-200/60 p-2 rounded-xl flex gap-2 shadow-sm"
+                      >
+                        <img
+                          src={p.img}
+                          alt={p.name}
+                          className="w-12 h-12 object-cover rounded-lg bg-zinc-100"
+                        />
                         <div className="flex-1 flex flex-col justify-between min-w-0">
                           <div>
                             <div className="flex justify-between items-start gap-1">
-                              <h6 className="text-[8.5px] font-black text-slate-800 line-clamp-1 leading-none">{p.name}</h6>
-                              <span className="text-[5px] font-bold bg-blue-50 text-blue-600 px-1 rounded shrink-0">{p.tag}</span>
+                              <h6 className="text-[8.5px] font-black text-slate-800 line-clamp-1 leading-none">
+                                {p.name}
+                              </h6>
+                              <span className="text-[5px] font-bold bg-blue-50 text-blue-600 px-1 rounded shrink-0">
+                                {p.tag}
+                              </span>
                             </div>
-                            <span className="text-[7.5px] text-blue-500 font-mono font-black mt-1 block">Rp {p.price.toLocaleString("id-ID")}</span>
+                            <span className="text-[7.5px] text-blue-500 font-mono font-black mt-1 block">
+                              Rp {p.price.toLocaleString("id-ID")}
+                            </span>
                           </div>
                           <div className="flex justify-between items-center pt-1 mt-0.5 border-t border-zinc-50">
-                            <span className="text-[6px] text-zinc-700 font-bold">Stok Ready</span>
+                            <span className="text-[6px] text-zinc-700 font-bold">
+                              Stok Ready
+                            </span>
                             <button className="px-2 py-0.5 rounded bg-blue-600 text-white text-[7.5px] font-black flex items-center gap-0.5 active:scale-95 shadow-sm">
                               <Plus className="w-2 h-2 stroke-[3]" /> Add
                             </button>
@@ -254,30 +295,66 @@ function IphoneMockup() {
               >
                 <div className="space-y-3">
                   <div>
-                    <span className="text-[6.5px] font-extrabold text-blue-600 uppercase tracking-widest block">Keranjang Belanja</span>
-                    <h5 className="text-[11px] font-black text-slate-800 leading-tight">Konfirmasi Pesanan</h5>
+                    <span className="text-[6.5px] font-extrabold text-blue-600 uppercase tracking-widest block">
+                      Keranjang Belanja
+                    </span>
+                    <h5 className="text-[11px] font-black text-slate-800 leading-tight">
+                      Konfirmasi Pesanan
+                    </h5>
                   </div>
                   <div className="bg-white border border-zinc-200/60 p-2 rounded-xl space-y-1.5 shadow-sm text-[7.5px]">
-                    <div className="flex justify-between font-medium"><span>1x House Blend Coffee</span><span className="font-mono font-bold text-slate-800">Rp 85.000</span></div>
-                    <div className="flex justify-between font-medium pb-1.5 border-b border-zinc-100"><span>1x Butter Croissant</span><span className="font-mono font-bold text-slate-800">Rp 35.000</span></div>
-                    <div className="flex justify-between text-slate-800 font-black pt-1"><span>Total Bayar</span><span className="font-mono text-blue-600 text-[8.5px]">Rp 120.000</span></div>
+                    <div className="flex justify-between font-medium">
+                      <span>1x House Blend Coffee</span>
+                      <span className="font-mono font-bold text-slate-800">
+                        Rp 85.000
+                      </span>
+                    </div>
+                    <div className="flex justify-between font-medium pb-1.5 border-b border-zinc-100">
+                      <span>1x Butter Croissant</span>
+                      <span className="font-mono font-bold text-slate-800">
+                        Rp 35.000
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-slate-800 font-black pt-1">
+                      <span>Total Bayar</span>
+                      <span className="font-mono text-blue-600 text-[8.5px]">
+                        Rp 120.000
+                      </span>
+                    </div>
                   </div>
                   <div className="space-y-1.5">
-                    <span className="text-[6px] font-extrabold text-zinc-900 uppercase tracking-wider">Informasi Pengiriman</span>
+                    <span className="text-[6px] font-extrabold text-zinc-900 uppercase tracking-wider">
+                      Informasi Pengiriman
+                    </span>
                     <div className="bg-white border border-zinc-200/60 p-2 rounded-xl space-y-2 shadow-sm">
                       <div className="space-y-0.5">
-                        <label className="text-[5.5px] font-black uppercase text-zinc-900">Nama Penerima</label>
-                        <input type="text" value={buyerName} readOnly className="w-full bg-zinc-50 border border-zinc-100 rounded px-1.5 py-0.5 text-[7px] font-bold text-black outline-none" />
+                        <label className="text-[5.5px] font-black uppercase text-zinc-900">
+                          Nama Penerima
+                        </label>
+                        <input
+                          type="text"
+                          value={buyerName}
+                          readOnly
+                          className="w-full bg-zinc-50 border border-zinc-100 rounded px-1.5 py-0.5 text-[7px] font-bold text-black outline-none"
+                        />
                       </div>
                       <div className="space-y-0.5">
-                        <label className="text-[5.5px] font-black uppercase text-zinc-900">Alamat Kirim</label>
-                        <input type="text" value="Desa Toyoresmi, Kediri" readOnly className="w-full bg-zinc-50 border border-zinc-100 rounded px-1.5 py-0.5 text-[7px] font-bold text-black outline-none" />
+                        <label className="text-[5.5px] font-black uppercase text-zinc-900">
+                          Alamat Kirim
+                        </label>
+                        <input
+                          type="text"
+                          value="Desa Toyoresmi, Kediri"
+                          readOnly
+                          className="w-full bg-zinc-50 border border-zinc-100 rounded px-1.5 py-0.5 text-[7px] font-bold text-black outline-none"
+                        />
                       </div>
                     </div>
                   </div>
                 </div>
                 <div className="w-full bg-emerald-600 text-white rounded-xl py-2 flex items-center justify-center gap-1.5 text-[8.5px] font-black tracking-wide shadow-md cursor-pointer">
-                  <span className="w-2 h-2 rounded-full bg-white animate-pulse" /> Checkout via WhatsApp
+                  <span className="w-2 h-2 rounded-full bg-white animate-pulse" />{" "}
+                  Checkout via WhatsApp
                 </div>
               </motion.div>
             )}
@@ -291,10 +368,16 @@ function IphoneMockup() {
                 className="flex-1 flex flex-col justify-between text-left"
               >
                 <div className="bg-[#075e54] text-white px-3 py-2 flex items-center gap-2 shrink-0">
-                  <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-[8.5px] font-black text-white">KT</div>
+                  <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-[8.5px] font-black text-white">
+                    KT
+                  </div>
                   <div>
-                    <h6 className="text-[8.5px] font-black leading-none text-white">Kopi Desa Toyoresmi (Admin)</h6>
-                    <span className="text-[5.5px] text-emerald-300 font-bold block leading-none">Online &amp; Aktif</span>
+                    <h6 className="text-[8.5px] font-black leading-none text-white">
+                      Kopi Desa Toyoresmi (Admin)
+                    </h6>
+                    <span className="text-[5.5px] text-emerald-300 font-bold block leading-none">
+                      Online &amp; Aktif
+                    </span>
                   </div>
                 </div>
                 <div className="flex-1 bg-[#ece5dd] p-2.5 flex flex-col justify-end space-y-2 min-h-0 overflow-y-auto">
@@ -304,23 +387,36 @@ function IphoneMockup() {
                     className="max-w-[85%] bg-[#dcf8c6] self-end rounded-lg p-2 shadow-sm text-zinc-800 text-[6.5px] leading-relaxed relative"
                   >
                     <p className="font-mono text-zinc-800">
-                      *PESANAN BARU - SIPETTO*<br />
-                      ------------------------<br />
+                      *PESANAN BARU - SIPETTO*
+                      <br />
+                      ------------------------
+                      <br />
                       Nama: *{buyerName}*<br />
-                      Alamat: *Desa Toyoresmi*<br />
-                      Toko: *Kopi Desa Toyoresmi*<br /><br />
-                      Detail Belanjaan:<br />
-                      - 1x House Blend Coffee (Rp 85.000)<br />
-                      - 1x Butter Croissant (Rp 35.000)<br /><br />
-                      *Total: Rp 120.000*<br />
-                      ------------------------<br />
+                      Alamat: *Desa Toyoresmi*
+                      <br />
+                      Toko: *Kopi Desa Toyoresmi*
+                      <br />
+                      <br />
+                      Detail Belanjaan:
+                      <br />- 1x House Blend Coffee (Rp 85.000)
+                      <br />- 1x Butter Croissant (Rp 35.000)
+                      <br />
+                      <br />
+                      *Total: Rp 120.000*
+                      <br />
+                      ------------------------
+                      <br />
                       Mohon segera diproses ya min!
                     </p>
-                    <span className="text-[5px] text-zinc-600 font-bold text-right block mt-1">09:42 ✓✓</span>
+                    <span className="text-[5px] text-zinc-600 font-bold text-right block mt-1">
+                      09:42 ✓✓
+                    </span>
                   </motion.div>
                 </div>
                 <div className="bg-[#f4f4f4] p-1.5 flex gap-1.5 items-center shrink-0 border-t border-zinc-200">
-                  <div className="flex-1 bg-white border border-zinc-200 rounded-full px-2 py-1 text-[7px] text-zinc-600 font-medium">Ketik pesan pesanan...</div>
+                  <div className="flex-1 bg-white border border-zinc-200 rounded-full px-2 py-1 text-[7px] text-zinc-600 font-medium">
+                    Ketik pesan pesanan...
+                  </div>
                   <div className="w-6 h-6 rounded-full bg-[#075e54] flex items-center justify-center text-white shrink-0">
                     <ArrowRight className="w-3 h-3 text-white" />
                   </div>
@@ -366,7 +462,6 @@ function BentoCard({
           whileHover={{ rotate: 10, scale: 1.05 }}
           className="w-10 h-10 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center transition-all duration-300 text-white"
         >
-
           {icon}
         </motion.div>
         <div>
@@ -375,8 +470,12 @@ function BentoCard({
               {badge}
             </span>
           )}
-          <h3 className="text-base font-bold text-white tracking-tight group-hover:text-yellow-300 transition-colors">{title}</h3>
-          <p className="text-white text-xs leading-relaxed mt-1.5 font-medium">{desc}</p>
+          <h3 className="text-base font-bold text-white tracking-tight group-hover:text-yellow-300 transition-colors">
+            {title}
+          </h3>
+          <p className="text-white text-xs leading-relaxed mt-1.5 font-medium">
+            {desc}
+          </p>
         </div>
       </div>
     </motion.div>
@@ -395,7 +494,7 @@ export default function LandingPage() {
   useEffect(() => {
     const lenis = new Lenis({
       duration: 1.2,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      easing: (t) => Math.min(1, 1.001 - 2 ** (-10 * t)),
       orientation: "vertical",
       gestureOrientation: "vertical",
       smoothWheel: true,
@@ -423,13 +522,16 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased overflow-x-hidden selection:bg-blue-500/25 selection:text-blue-400 relative">
-
       {/* ── GRADIENT BACKGROUND ── */}
-      <div className="fixed inset-0 z-0 pointer-events-none bg-[#030037]" style={{ overflow: "clip" }}>
+      <div
+        className="fixed inset-0 z-0 pointer-events-none bg-[#030037]"
+        style={{ overflow: "clip" }}
+      >
         <div
           className="absolute inset-0 z-0"
           style={{
-            background: 'linear-gradient(135deg, #030037 0%, #0f2166 20%, #1a56db 50%, #0ea5e9 80%, #06b6d4 100%)'
+            background:
+              "linear-gradient(135deg, #030037 0%, #0f2166 20%, #1a56db 50%, #0ea5e9 80%, #06b6d4 100%)",
           }}
         />
         {/* Ambient glow overlays */}
@@ -437,15 +539,15 @@ export default function LandingPage() {
         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-cyan-400/20 blur-[100px] rounded-full animate-pulse delay-700 z-0 pointer-events-none" />
       </div>
 
-
       {/* ── STICKY GLASS NAVBAR ── */}
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-        scrolled
-          ? "bg-white/75 backdrop-blur-2xl border-b border-zinc-200/50 shadow-[0_4px_20px_rgba(0,0,0,0.05)] py-3.5"
-          : "bg-white/35 backdrop-blur-md border-b border-white/20 py-6"
-      }`}>
+      <nav
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+          scrolled
+            ? "bg-white/75 backdrop-blur-2xl border-b border-zinc-200/50 shadow-[0_4px_20px_rgba(0,0,0,0.05)] py-3.5"
+            : "bg-white/35 backdrop-blur-md border-b border-white/20 py-6"
+        }`}
+      >
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between relative">
-          
           {/* Logo on Left */}
           <div className="flex-1 flex justify-start">
             <Link href="/" className="flex items-center gap-2 group shrink-0">
@@ -487,7 +589,11 @@ export default function LandingPage() {
               className="p-2.5 rounded-xl border border-zinc-200/50 hover:border-zinc-200/80 bg-white/40 hover:bg-white/70 backdrop-blur-md transition-all cursor-pointer text-zinc-800"
               title="Ganti Tema"
             >
-              {theme === "dark" ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-zinc-800" />}
+              {theme === "dark" ? (
+                <Sun className="w-4 h-4 text-amber-500" />
+              ) : (
+                <Moon className="w-4 h-4 text-zinc-800" />
+              )}
             </button>
             <Link
               href="/login"
@@ -510,10 +616,21 @@ export default function LandingPage() {
               onClick={toggleTheme}
               className="p-2 rounded-lg bg-white/40 border border-zinc-200/50 text-zinc-800"
             >
-              {theme === "dark" ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4" />}
+              {theme === "dark" ? (
+                <Sun className="w-4 h-4 text-amber-500" />
+              ) : (
+                <Moon className="w-4 h-4" />
+              )}
             </button>
-            <button onClick={() => setMobileMenu(!mobileMenu)} className="p-2 text-zinc-800">
-              {mobileMenu ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            <button
+              onClick={() => setMobileMenu(!mobileMenu)}
+              className="p-2 text-zinc-800"
+            >
+              {mobileMenu ? (
+                <X className="w-5 h-5" />
+              ) : (
+                <Menu className="w-5 h-5" />
+              )}
             </button>
           </div>
         </div>
@@ -567,82 +684,285 @@ export default function LandingPage() {
       </nav>
 
       {/* ── HERO SECTION ── */}
-      <section className="relative pt-28 pb-10 px-6 md:px-12 max-w-7xl mx-auto z-10 flex flex-col items-center justify-center text-center">
-        <div className="space-y-5 max-w-3xl flex flex-col items-center">
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.05, ease: "easeOut" }}
-            className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-blue-500/10 bg-blue-500/5 text-[9px] font-bold text-blue-400 shadow-inner"
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
-            Sippeto Core v2.0 • Infrastruktur Keuangan &amp; Katalog UMKM
-          </motion.div>
-
-          <motion.h1
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, delay: 0.15, ease: "easeOut" }}
-            className="font-extrabold text-3xl sm:text-4xl md:text-5xl tracking-tight leading-[1.15] text-white"
-          >
-            Kelola Keuangan Bisnis <br />
-            <span className="text-yellow-400">Bersama Sippeto</span>
-          </motion.h1>
-
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.25, ease: "easeOut" }}
-            className="text-white text-xs md:text-sm leading-relaxed max-w-xl mx-auto font-medium"
-          >
-            Platform modern untuk mendigitalkan kasir POS, menyinkronkan stok antar-cabang,
-            mencatat jurnal laba-rugi keuangan, serta meluncurkan katalog produk terintegrasi WhatsApp Order instan.
-          </motion.p>
-
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45, delay: 0.35, ease: "easeOut" }}
-            className="flex flex-wrap justify-center gap-3 pt-1"
-          >
-            <Link
-              href="/register"
-              className="group inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-xl shadow-blue-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all text-xs cursor-pointer"
+      <section className="relative pt-32 pb-16 px-6 md:px-12 max-w-7xl mx-auto z-10">
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-14 items-center">
+          {/* ── LEFT COLUMN: BRANDING ── */}
+          <div className="space-y-5 text-center lg:text-left">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.05, ease: "easeOut" }}
+              className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-blue-500/10 bg-blue-500/5 text-[9px] font-bold text-blue-400 shadow-inner"
             >
-              Daftarkan Bisnis Anda
-              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform text-white" />
-            </Link>
-            <a
-              href="#pos"
-              onClick={(e) => {
-                e.preventDefault();
-                lenisInstance?.scrollTo("#pos");
-              }}
-              className="inline-flex items-center gap-2 px-5 py-2.5 border border-white/10 hover:border-white/20 text-white font-semibold bg-white/5 hover:bg-white/10 rounded-xl transition-all text-xs shadow-sm cursor-pointer"
-            >
-              Coba Simulator POS
-            </a>
-          </motion.div>
+              <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
+              Sippeto Core v2.0 • Infrastruktur Keuangan &amp; Katalog UMKM
+            </motion.div>
 
+            <motion.h1
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, delay: 0.15, ease: "easeOut" }}
+              className="font-extrabold text-3xl sm:text-4xl md:text-5xl tracking-tight leading-[1.15] text-white"
+            >
+              Kelola Keuangan Bisnis <br />
+              <span className="text-yellow-400">Bersama Sippeto</span>
+            </motion.h1>
+
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.25, ease: "easeOut" }}
+              className="text-white text-xs md:text-sm leading-relaxed max-w-xl font-medium"
+            >
+              Platform modern untuk mendigitalkan kasir POS, menyinkronkan stok
+              antar-cabang, mencatat jurnal laba-rugi keuangan, serta
+              meluncurkan katalog produk terintegrasi WhatsApp Order instan.
+            </motion.p>
+
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, delay: 0.35, ease: "easeOut" }}
+              className="flex flex-wrap justify-center lg:justify-start gap-3 pt-1"
+            >
+              <Link
+                href="/register"
+                className="group inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-xl shadow-blue-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all text-xs cursor-pointer"
+              >
+                Daftarkan Bisnis Anda
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform text-white" />
+              </Link>
+              <a
+                href="#pos"
+                onClick={(e) => {
+                  e.preventDefault();
+                  lenisInstance?.scrollTo("#pos");
+                }}
+                className="inline-flex items-center gap-2 px-5 py-2.5 border border-white/10 hover:border-white/20 text-white font-semibold bg-white/5 hover:bg-white/10 rounded-xl transition-all text-xs shadow-sm cursor-pointer"
+              >
+                Coba Simulator POS
+              </a>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.5, ease: "easeOut" }}
+              className="pt-8 border-t border-white/10 mt-8 flex flex-wrap justify-center lg:justify-start items-center gap-x-7 gap-y-3 text-slate-200 text-xs w-full"
+            >
+              {[
+                {
+                  icon: <Database className="w-3.5 h-3.5 text-cyan-300" />,
+                  label: "Prisma Client ORM",
+                },
+                {
+                  icon: <Lock className="w-3.5 h-3.5 text-cyan-300" />,
+                  label: "Row Level Security (RLS)",
+                },
+                {
+                  icon: <Globe className="w-3.5 h-3.5 text-cyan-300" />,
+                  label: "Katalog Publik Siap Rilis",
+                },
+              ].map((b, i) => (
+                <div key={i} className="flex items-center gap-1.5">
+                  {b.icon}
+                  <span className="text-white font-semibold text-xs">
+                    {b.label}
+                  </span>
+                </div>
+              ))}
+            </motion.div>
+          </div>
+
+          {/* ── RIGHT COLUMN: DASHBOARD MOCKUP ── */}
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.5, ease: "easeOut" }}
-            className="pt-8 border-t border-white/10 mt-8 flex flex-wrap justify-center items-center gap-x-7 gap-y-3 text-slate-200 text-xs w-full max-w-2xl"
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.7, delay: 0.3, ease: "easeOut" }}
+            className="relative flex items-center justify-center"
           >
-            {[
-              { icon: <Database className="w-3.5 h-3.5 text-cyan-300" />, label: "Prisma Client ORM" },
-              { icon: <Lock className="w-3.5 h-3.5 text-cyan-300" />, label: "Row Level Security (RLS)" },
-              { icon: <Globe className="w-3.5 h-3.5 text-cyan-300" />, label: "Katalog Publik Siap Rilis" },
-            ].map((b, i) => (
-              <div key={i} className="flex items-center gap-1.5">
-                {b.icon}
-                <span className="text-white font-semibold text-xs">{b.label}</span>
+            <div className="w-full max-w-[580px] relative">
+              {/* Glass card mockup */}
+              <div className="relative rounded-2xl border border-white/15 bg-slate-950/60 backdrop-blur-2xl p-4 shadow-2xl overflow-hidden">
+                {/* Top bar */}
+                <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/10">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+                      <Layers className="w-3.5 h-3.5 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-white leading-none">
+                        SIPPETO
+                      </p>
+                      <p className="text-[7px] text-blue-300 font-semibold">
+                        Dashboard Keuangan
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-white/10 border border-white/10 flex items-center justify-center">
+                      <div className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse" />
+                    </div>
+                    <div className="w-6 h-6 rounded-full bg-slate-700 border border-white/10 flex items-center justify-center text-[8px] text-white font-black">
+                      BS
+                    </div>
+                  </div>
+                </div>
+
+                {/* Stats row */}
+                <div className="grid grid-cols-3 gap-2 mb-3">
+                  <div className="rounded-xl bg-white/5 border border-white/10 p-2.5">
+                    <p className="text-[7px] text-blue-300 font-bold uppercase tracking-wider">
+                      Penjualan
+                    </p>
+                    <p className="text-xs font-black text-white font-mono mt-0.5">
+                      Rp 82,5M
+                    </p>
+                    <span className="text-[7px] text-emerald-400 font-bold">
+                      +28.4%
+                    </span>
+                  </div>
+                  <div className="rounded-xl bg-white/5 border border-white/10 p-2.5">
+                    <p className="text-[7px] text-blue-300 font-bold uppercase tracking-wider">
+                      Pesanan
+                    </p>
+                    <p className="text-xs font-black text-white font-mono mt-0.5">
+                      1,250
+                    </p>
+                    <span className="text-[7px] text-emerald-400 font-bold">
+                      +12.3%
+                    </span>
+                  </div>
+                  <div className="rounded-xl bg-white/5 border border-white/10 p-2.5">
+                    <p className="text-[7px] text-blue-300 font-bold uppercase tracking-wider">
+                      Toko Aktif
+                    </p>
+                    <p className="text-xs font-black text-white font-mono mt-0.5">
+                      8 Cabang
+                    </p>
+                    <span className="text-[7px] text-yellow-400 font-bold">
+                      Stabil
+                    </span>
+                  </div>
+                </div>
+
+                {/* Chart area */}
+                <div className="rounded-xl bg-white/5 border border-white/10 p-3 mb-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[8px] text-blue-300 font-bold uppercase tracking-wider">
+                      Grafik Pendapatan
+                    </p>
+                    <div className="flex gap-1">
+                      <div className="px-1.5 py-0.5 rounded bg-blue-600 text-[6px] font-bold text-white">
+                        7H
+                      </div>
+                      <div className="px-1.5 py-0.5 rounded bg-white/10 text-[6px] font-bold text-white/60">
+                        30H
+                      </div>
+                    </div>
+                  </div>
+                  <svg viewBox="0 0 260 60" className="w-full h-12">
+                    <defs>
+                      <linearGradient
+                        id="chartGradHero"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="0%"
+                          stopColor="#10b981"
+                          stopOpacity="0.35"
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor="#10b981"
+                          stopOpacity="0"
+                        />
+                      </linearGradient>
+                    </defs>
+                    <path
+                      d="M 5 50 Q 30 48, 50 40 Q 70 32, 90 35 Q 110 38, 130 25 Q 150 12, 170 18 Q 190 24, 210 10 Q 230 -4, 255 8"
+                      fill="none"
+                      stroke="#10b981"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                    <path
+                      d="M 5 50 Q 30 48, 50 40 Q 70 32, 90 35 Q 110 38, 130 25 Q 150 12, 170 18 Q 190 24, 210 10 Q 230 -4, 255 8 L 255 60 L 5 60 Z"
+                      fill="url(#chartGradHero)"
+                      opacity="0.6"
+                    />
+                    <circle cx="210" cy="10" r="3" fill="#10b981" />
+                  </svg>
+                </div>
+
+                {/* Bottom rows - recent transactions */}
+                <div className="space-y-1.5">
+                  <p className="text-[7px] text-blue-300 font-bold uppercase tracking-wider mb-1.5">
+                    Transaksi Terbaru
+                  </p>
+                  {[
+                    {
+                      name: "Kopi Aroma Nusantara",
+                      amount: "Rp 2,450,000",
+                      status: "Berhasil",
+                    },
+                    {
+                      name: "Bakery Pastry Mantap",
+                      amount: "Rp 980,000",
+                      status: "Berhasil",
+                    },
+                    {
+                      name: "Toko Sembako Jaya",
+                      amount: "Rp 3,200,000",
+                      status: "Diproses",
+                    },
+                  ].map((tx, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between rounded-lg bg-white/[0.03] border border-white/5 p-2"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 rounded-md bg-white/10 border border-white/10 flex items-center justify-center text-[7px] text-white font-black">
+                          {tx.name
+                            .split(" ")
+                            .map((w) => w[0])
+                            .slice(0, 2)
+                            .join("")}
+                        </div>
+                        <span className="text-[9px] text-white font-semibold">
+                          {tx.name}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[9px] text-white font-mono font-bold">
+                          {tx.amount}
+                        </span>
+                        <span
+                          className={`text-[7px] ml-2 font-bold ${tx.status === "Berhasil" ? "text-emerald-400" : "text-yellow-400"}`}
+                        >
+                          {tx.status}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            ))}
-          </motion.div>
 
+              {/* Floating decorative card */}
+              <div className="absolute -top-3 -right-3 w-24 h-16 rounded-xl bg-gradient-to-br from-cyan-400/10 to-blue-500/10 border border-white/15 backdrop-blur-xl p-2.5 flex flex-col justify-center shadow-lg hidden lg:flex">
+                <p className="text-[6px] text-blue-300 font-bold uppercase tracking-wider">
+                  Uptime
+                </p>
+                <p className="text-sm font-black text-emerald-400">99.9%</p>
+                <p className="text-[6px] text-white/40 font-semibold">
+                  SLA Server
+                </p>
+              </div>
+            </div>
+          </motion.div>
         </div>
       </section>
 
@@ -652,15 +972,26 @@ export default function LandingPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-950/65 border border-white/15 rounded-2xl p-4 md:p-6 backdrop-blur-2xl shadow-xl">
             {[
               { value: 1250, suffix: "+", label: "Toko Aktif Terdaftar" },
-              { value: 45, prefix: "Rp ", suffix: "M+", label: "Volume Transaksi" },
+              {
+                value: 45,
+                prefix: "Rp ",
+                suffix: "M+",
+                label: "Volume Transaksi",
+              },
               { value: 8, label: "Integrasi Cabang Toko" },
               { value: 99, suffix: "%", label: "SLA Up-time Server" },
             ].map((item, i) => (
               <div key={i} className="text-center space-y-0.5">
                 <div className="text-xl md:text-2xl font-extrabold text-white font-mono tracking-tight">
-                  <Counter value={item.value} prefix={item.prefix} suffix={item.suffix} />
+                  <Counter
+                    value={item.value}
+                    prefix={item.prefix}
+                    suffix={item.suffix}
+                  />
                 </div>
-                <span className="text-[9px] text-white uppercase tracking-widest block font-bold">{item.label}</span>
+                <span className="text-[9px] text-white uppercase tracking-widest block font-bold">
+                  {item.label}
+                </span>
               </div>
             ))}
           </div>
@@ -668,18 +999,29 @@ export default function LandingPage() {
       </section>
 
       {/* ── SECTION: IPHONE CATALOG SIMULATOR ── */}
-      <section id="pos" className="py-12 px-6 md:px-12 max-w-7xl mx-auto z-10 relative">
+      <section
+        id="pos"
+        className="py-12 px-6 md:px-12 max-w-7xl mx-auto z-10 relative"
+      >
         <div className="grid lg:grid-cols-12 gap-6 lg:gap-8 items-center bg-slate-950/65 border border-white/15 rounded-2xl p-5 md:p-8 shadow-2xl backdrop-blur-2xl">
-          <AnimSection variant={slideLeft} className="lg:col-span-7 space-y-4 text-left flex flex-col items-start">
+          <AnimSection
+            variant={slideLeft}
+            className="lg:col-span-7 space-y-4 text-left flex flex-col items-start"
+          >
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/15 bg-white/5 text-[8px] font-extrabold uppercase tracking-wider text-blue-300">
               E-Catalog &amp; WhatsApp Order
             </span>
             <h2 className="font-extrabold text-2xl md:text-3xl text-white leading-tight">
               Katalog Toko Online <br />
-              <span className="text-yellow-400">Terintegrasi WhatsApp Order</span>
+              <span className="text-yellow-400">
+                Terintegrasi WhatsApp Order
+              </span>
             </h2>
             <p className="text-white text-xs leading-relaxed max-w-lg">
-              Dapatkan subdomain toko digital instan untuk memajang seluruh produk aktif Anda. Pembeli dapat langsung memesan produk, mengisi data diri, dan melakukan checkout yang langsung terkirim secara otomatis ke WhatsApp Admin Anda dengan rapi dan aman.
+              Dapatkan subdomain toko digital instan untuk memajang seluruh
+              produk aktif Anda. Pembeli dapat langsung memesan produk, mengisi
+              data diri, dan melakukan checkout yang langsung terkirim secara
+              otomatis ke WhatsApp Admin Anda dengan rapi dan aman.
             </p>
             <motion.div
               variants={staggerFast}
@@ -693,7 +1035,11 @@ export default function LandingPage() {
                 "Anti-Spam Honeypot (Proteksi formulir pesanan dari bot spammer)",
                 "Sinkronisasi Inventori Cabang (Stok produk terupdate sesuai data cabang)",
               ].map((item, i) => (
-                <motion.div key={i} variants={fadeUp} className="flex gap-2 items-center">
+                <motion.div
+                  key={i}
+                  variants={fadeUp}
+                  className="flex gap-2 items-center"
+                >
                   <div className="w-4 h-4 rounded bg-white/10 border border-white/15 flex items-center justify-center shrink-0">
                     <Check className="w-2.5 h-2.5 text-yellow-400" />
                   </div>
@@ -709,7 +1055,10 @@ export default function LandingPage() {
             </Link>
           </AnimSection>
 
-          <AnimSection variant={slideRight} className="lg:col-span-5 flex justify-center items-center relative py-2">
+          <AnimSection
+            variant={slideRight}
+            className="lg:col-span-5 flex justify-center items-center relative py-2"
+          >
             <div className="absolute -inset-4 rounded-3xl bg-blue-500/8 blur-3xl pointer-events-none" />
             <IphoneMockup />
           </AnimSection>
@@ -717,17 +1066,25 @@ export default function LandingPage() {
       </section>
 
       {/* ── SECTION: BENTO FEATURE GRID ── */}
-      <section id="features" className="py-20 px-6 md:px-12 max-w-7xl mx-auto z-10 relative">
+      <section
+        id="features"
+        className="py-20 px-6 md:px-12 max-w-7xl mx-auto z-10 relative"
+      >
         <div className="space-y-12">
-          <AnimSection variant={fadeUp} className="text-center max-w-2xl mx-auto space-y-3">
+          <AnimSection
+            variant={fadeUp}
+            className="text-center max-w-2xl mx-auto space-y-3"
+          >
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-[9px] font-extrabold uppercase tracking-wider text-blue-300">
               ARSITEKTUR &amp; FITUR UTAMA
             </span>
             <h2 className="font-extrabold text-3xl md:text-4xl text-white">
-              Satu Dashboard, <span className="text-yellow-400">Ribuan Kemudahan</span>
+              Satu Dashboard,{" "}
+              <span className="text-yellow-400">Ribuan Kemudahan</span>
             </h2>
             <p className="text-white text-xs md:text-sm">
-              Kami menyatukan pembukuan kas, logistik stok produk, dan etalase toko online publik dalam infrastruktur SaaS yang aman.
+              Kami menyatukan pembukuan kas, logistik stok produk, dan etalase
+              toko online publik dalam infrastruktur SaaS yang aman.
             </p>
           </AnimSection>
 
@@ -743,7 +1100,7 @@ export default function LandingPage() {
               icon={<Shield className="w-5 h-5 text-blue-400" />}
               badge="KEAMANAN DATABASE"
               title="Isolasi Data Tenant (Row Level Security)"
-              desc="Keamanan pembukuan keuangan toko Anda adalah prioritas utama kami. Melalui kebijakan Supabase RLS, setiap data transaksi, produk, dan laporan keuangan dilindungi ketat di tingkat database, memastikan bahwa tidak ada kebocoran atau akses tidak sah dari pihak luar."
+              desc="Keamanan pembukuan keuangan toko Anda adalah prioritas utama kami. Setiap data transaksi, produk, dan laporan keuangan dilindungi ketat di tingkat database dengan isolasi data per tenant, memastikan bahwa tidak ada kebocoran atau akses tidak sah dari pihak luar."
             />
             <BentoCard
               className="md:col-span-4"
@@ -785,20 +1142,30 @@ export default function LandingPage() {
       </section>
 
       {/* ── SECTION: CATALOG SHOWCASE ── */}
-      <section id="catalog" className="py-20 px-6 md:px-12 max-w-7xl mx-auto z-10 relative">
+      <section
+        id="catalog"
+        className="py-20 px-6 md:px-12 max-w-7xl mx-auto z-10 relative"
+      >
         <AnimSection variant={scaleIn}>
           <div className="bg-slate-950/65 border border-white/15 rounded-3xl p-6 md:p-10 shadow-2xl space-y-12 backdrop-blur-xl relative">
             <div className="absolute top-0 left-0 w-40 h-40 bg-blue-500/5 blur-[80px]" />
 
-            <AnimSection variant={fadeUp} className="text-center max-w-2xl mx-auto space-y-3">
+            <AnimSection
+              variant={fadeUp}
+              className="text-center max-w-2xl mx-auto space-y-3"
+            >
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-white/15 bg-white/5 text-[9px] font-extrabold uppercase tracking-wider text-blue-300">
                 Demo Katalog Online Publik
               </span>
               <h2 className="font-extrabold text-2xl md:text-3xl text-white">
-                Produk Unggulan <span className="text-blue-400 drop-shadow-[0_0_12px_rgba(59,130,246,0.35)]">Kami</span>
+                Produk Unggulan{" "}
+                <span className="text-blue-400 drop-shadow-[0_0_12px_rgba(59,130,246,0.35)]">
+                  Kami
+                </span>
               </h2>
               <p className="text-white text-xs md:text-sm">
-                Ini adalah etalase modern, bersih, dan super cepat yang akan diakses oleh calon pembeli Anda secara publik tanpa perlu login.
+                Ini adalah etalase modern, bersih, dan super cepat yang akan
+                diakses oleh calon pembeli Anda secara publik tanpa perlu login.
               </p>
             </AnimSection>
 
@@ -810,16 +1177,40 @@ export default function LandingPage() {
               className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 relative z-10 max-w-5xl mx-auto"
             >
               {[
-                { id: "p1", name: "House Blend Coffee Beans (250g)", price: 85000, img: "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=400&auto=format&fit=crop&q=80", cat: "F&B / KOPI SHOP", tag: "TERLARIS", badge: "from-blue-600 to-indigo-700" },
-                { id: "p2", name: "Signature Butter Croissant Slice", price: 35000, img: "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400&auto=format&fit=crop&q=80", cat: "BAKERY / MAKANAN", tag: "FAVORIT", badge: "from-blue-600 to-indigo-700" },
-                { id: "p3", name: "Premium Flanel Shirt Casual Fit", price: 185000, img: "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=400&auto=format&fit=crop&q=80", cat: "RITEL / FASHION", tag: "BARU", badge: "from-blue-600 to-indigo-700" },
+                {
+                  id: "p1",
+                  name: "House Blend Coffee Beans (250g)",
+                  price: 85000,
+                  img: "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=400&auto=format&fit=crop&q=80",
+                  cat: "F&B / KOPI SHOP",
+                  tag: "TERLARIS",
+                  badge: "from-blue-600 to-indigo-700",
+                },
+                {
+                  id: "p2",
+                  name: "Signature Butter Croissant Slice",
+                  price: 35000,
+                  img: "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400&auto=format&fit=crop&q=80",
+                  cat: "BAKERY / MAKANAN",
+                  tag: "FAVORIT",
+                  badge: "from-blue-600 to-indigo-700",
+                },
+                {
+                  id: "p3",
+                  name: "Premium Flanel Shirt Casual Fit",
+                  price: 185000,
+                  img: "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=400&auto=format&fit=crop&q=80",
+                  cat: "RITEL / FASHION",
+                  tag: "BARU",
+                  badge: "from-blue-600 to-indigo-700",
+                },
               ].map((prod) => (
                 <motion.div
-                   key={prod.id}
-                   variants={fadeUp}
-                   whileHover={{ y: -4, scale: 1.015 }}
-                   transition={{ type: "spring", stiffness: 200, damping: 18 }}
-                   className="group border border-white/10 bg-slate-950/60 p-3 rounded-2xl hover:border-white/25 hover:bg-slate-950/80 hover:shadow-[0_8px_32px_rgba(30,64,175,0.25)] transition-all duration-300 flex flex-col justify-between"
+                  key={prod.id}
+                  variants={fadeUp}
+                  whileHover={{ y: -4, scale: 1.015 }}
+                  transition={{ type: "spring", stiffness: 200, damping: 18 }}
+                  className="group border border-white/10 bg-slate-950/60 p-3 rounded-2xl hover:border-white/25 hover:bg-slate-950/80 hover:shadow-[0_8px_32px_rgba(30,64,175,0.25)] transition-all duration-300 flex flex-col justify-between"
                 >
                   <div className="space-y-2.5 text-left">
                     <div className="relative h-28 sm:h-36 rounded-xl overflow-hidden bg-slate-900">
@@ -828,13 +1219,19 @@ export default function LandingPage() {
                         alt={prod.name}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
-                      <span className={`absolute top-2 left-2 px-2 py-0.5 rounded text-[8px] font-black text-white bg-gradient-to-r ${prod.badge} shadow-md`}>
+                      <span
+                        className={`absolute top-2 left-2 px-2 py-0.5 rounded text-[8px] font-black text-white bg-gradient-to-r ${prod.badge} shadow-md`}
+                      >
                         {prod.tag}
                       </span>
                     </div>
                     <div className="space-y-1">
-                      <span className="text-[8px] font-bold text-blue-300 tracking-wider block uppercase">{prod.cat}</span>
-                      <h4 className="text-[11px] sm:text-xs font-bold text-white line-clamp-2 min-h-[30px] leading-snug">{prod.name}</h4>
+                      <span className="text-[8px] font-bold text-blue-300 tracking-wider block uppercase">
+                        {prod.cat}
+                      </span>
+                      <h4 className="text-[11px] sm:text-xs font-bold text-white line-clamp-2 min-h-[30px] leading-snug">
+                        {prod.name}
+                      </h4>
                       <div className="flex items-center gap-1 text-[9px] text-yellow-400">
                         <Star className="w-2.5 h-2.5 fill-current" />
                         <span className="font-bold">4.9</span>
@@ -843,7 +1240,9 @@ export default function LandingPage() {
                     </div>
                   </div>
                   <div className="pt-2 border-t border-white/10 mt-3 flex items-center justify-between">
-                    <span className="text-xs font-mono font-extrabold text-blue-400">Rp {prod.price.toLocaleString("id-ID")}</span>
+                    <span className="text-xs font-mono font-extrabold text-blue-400">
+                      Rp {prod.price.toLocaleString("id-ID")}
+                    </span>
                     <button
                       onClick={() => handleSimulatePurchase(prod.name)}
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-[9px] font-black text-white shadow-md active:scale-95 transition-all cursor-pointer"
@@ -859,9 +1258,15 @@ export default function LandingPage() {
       </section>
 
       {/* ── SECTION: HOW IT WORKS ── */}
-      <section id="how" className="py-20 px-6 md:px-12 max-w-7xl mx-auto z-10 relative">
+      <section
+        id="how"
+        className="py-20 px-6 md:px-12 max-w-7xl mx-auto z-10 relative"
+      >
         <div className="grid lg:grid-cols-12 gap-8 lg:gap-12 items-center bg-slate-950/65 border border-white/15 rounded-3xl p-6 md:p-10 shadow-2xl backdrop-blur-xl">
-          <AnimSection variant={slideLeft} className="lg:col-span-7 space-y-6 text-left">
+          <AnimSection
+            variant={slideLeft}
+            className="lg:col-span-7 space-y-6 text-left"
+          >
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-white/15 bg-white/5 text-[9px] font-extrabold uppercase tracking-wider text-blue-300">
               Panduan Aktivasi Toko
             </span>
@@ -870,7 +1275,8 @@ export default function LandingPage() {
               <span className="text-yellow-400">Untuk Mulai Berjualan</span>
             </h2>
             <p className="text-white text-xs md:text-sm">
-              Proses onboarding yang dirancang efisien dan minimalis agar pemilik bisnis bisa segera fokus melayani transaksi.
+              Proses onboarding yang dirancang efisien dan minimalis agar
+              pemilik bisnis bisa segera fokus melayani transaksi.
             </p>
 
             <motion.div
@@ -881,24 +1287,47 @@ export default function LandingPage() {
               className="space-y-4 pt-3"
             >
               {[
-                { step: "01", title: "Registrasi Akun UMKM", desc: "Buat profil bisnis Anda di SiPetto dengan mengisi formulir singkat dan atur subdomain nama toko." },
-                { step: "02", title: "Setup Cabang & Produk", desc: "Daftarkan cabang-cabang bisnis Anda, masukkan inventori produk beserta harga dasar & harga jual." },
-                { step: "03", title: "Bagikan Katalog & Transaksi POS", desc: "Mulai melayani kasir POS offline di cabang, serta bagikan tautan etalase toko digital ke pelanggan umum." },
+                {
+                  step: "01",
+                  title: "Registrasi Akun UMKM",
+                  desc: "Buat profil bisnis Anda di SiPetto dengan mengisi formulir singkat dan atur subdomain nama toko.",
+                },
+                {
+                  step: "02",
+                  title: "Setup Cabang & Produk",
+                  desc: "Daftarkan cabang-cabang bisnis Anda, masukkan inventori produk beserta harga dasar & harga jual.",
+                },
+                {
+                  step: "03",
+                  title: "Bagikan Katalog & Transaksi POS",
+                  desc: "Mulai melayani kasir POS offline di cabang, serta bagikan tautan etalase toko digital ke pelanggan umum.",
+                },
               ].map((item, i) => (
-                <motion.div key={i} variants={fadeUp} className="flex gap-4 items-start group">
+                <motion.div
+                  key={i}
+                  variants={fadeUp}
+                  className="flex gap-4 items-start group"
+                >
                   <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-white/10 border border-white/15 text-yellow-400 flex items-center justify-center font-mono text-xs font-bold group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 transition-all duration-300">
                     {item.step}
                   </div>
                   <div>
-                    <h4 className="font-bold text-white text-xs md:text-sm mb-0.5 group-hover:text-blue-400 transition-colors">{item.title}</h4>
-                    <p className="text-slate-100 text-xs leading-relaxed max-w-lg">{item.desc}</p>
+                    <h4 className="font-bold text-white text-xs md:text-sm mb-0.5 group-hover:text-blue-400 transition-colors">
+                      {item.title}
+                    </h4>
+                    <p className="text-slate-100 text-xs leading-relaxed max-w-lg">
+                      {item.desc}
+                    </p>
                   </div>
                 </motion.div>
               ))}
             </motion.div>
           </AnimSection>
 
-          <AnimSection variant={slideRight} className="lg:col-span-5 relative flex justify-center">
+          <AnimSection
+            variant={slideRight}
+            className="lg:col-span-5 relative flex justify-center"
+          >
             <div className="w-full max-w-sm p-6 rounded-2xl border border-white/15 bg-slate-950/65 backdrop-blur-md shadow-xl text-left space-y-4">
               <h4 className="text-[10px] font-bold text-slate-200 tracking-wider uppercase flex items-center gap-1.5">
                 <Store className="w-3.5 h-3.5 text-blue-300" />
@@ -906,8 +1335,16 @@ export default function LandingPage() {
               </h4>
               <div className="space-y-2.5">
                 {[
-                  { n: "Kopi Aroma Nusantara", u: "sipetto.id/store/kopiaroma", l: "KA" },
-                  { n: "Bakery Pastry Mantap", u: "sipetto.id/store/pastrymantap", l: "BP" },
+                  {
+                    n: "Kopi Aroma Nusantara",
+                    u: "sipetto.id/store/kopiaroma",
+                    l: "KA",
+                  },
+                  {
+                    n: "Bakery Pastry Mantap",
+                    u: "sipetto.id/store/pastrymantap",
+                    l: "BP",
+                  },
                 ].map((t, idx) => (
                   <motion.div
                     key={idx}
@@ -922,8 +1359,12 @@ export default function LandingPage() {
                         {t.l}
                       </div>
                       <div className="leading-tight">
-                        <span className="text-[11px] font-bold text-white block truncate max-w-[150px]">{t.n}</span>
-                        <span className="text-yellow-400 font-mono text-[9px] font-semibold">{t.u}</span>
+                        <span className="text-[11px] font-bold text-white block truncate max-w-[150px]">
+                          {t.n}
+                        </span>
+                        <span className="text-yellow-400 font-mono text-[9px] font-semibold">
+                          {t.u}
+                        </span>
                       </div>
                     </div>
                     <ChevronRight className="w-4 h-4 text-white/70" />
@@ -931,7 +1372,9 @@ export default function LandingPage() {
                 ))}
               </div>
               <div className="p-3.5 rounded-xl bg-slate-950/50 border border-white/10 text-[9px] leading-relaxed text-white font-medium">
-                Setiap subdomain publik otomatis menampilkan katalog terupdate tanpa mengganggu data pembukuan admin tenant (keamanan terisolasi via Supabase RLS).
+                Setiap subdomain publik otomatis menampilkan katalog terupdate
+                tanpa mengganggu data pembukuan admin tenant — keamanan
+                terisolasi di tingkat database per tenant.
               </div>
             </div>
           </AnimSection>
@@ -963,7 +1406,9 @@ export default function LandingPage() {
               transition={{ delay: 0.1 }}
               className="text-white text-xs md:text-sm max-w-lg mx-auto leading-relaxed font-medium"
             >
-              Hentikan pencatatan manual di buku kas kertas yang rentan hilang. Optimalkan operasional kasir cabang dan perluas jangkauan pasar online Anda sekarang.
+              Hentikan pencatatan manual di buku kas kertas yang rentan hilang.
+              Optimalkan operasional kasir cabang dan perluas jangkauan pasar
+              online Anda sekarang.
             </motion.p>
             <motion.div
               variants={fadeUp}
@@ -999,13 +1444,20 @@ export default function LandingPage() {
                 <Layers className="w-3.5 h-3.5 text-white" />
               </div>
               <span className="text-[11px] md:text-xs font-semibold text-blue-100/60">
-                © 2026 <strong>SiPetto</strong>. Sistem Pembukuan Finansial &amp; Katalog UMKM Indonesia.
+                © 2026 <strong>SiPetto</strong>. Sistem Pembukuan Finansial
+                &amp; Katalog UMKM Indonesia.
               </span>
             </div>
             <div className="flex items-center gap-6 text-[11px] md:text-xs text-blue-100/60 font-semibold">
-              <a href="#" className="hover:text-blue-300 transition-colors">Kebijakan Privasi</a>
-              <a href="#" className="hover:text-blue-300 transition-colors">Ketentuan Layanan</a>
-              <a href="#" className="hover:text-blue-300 transition-colors">Bantuan</a>
+              <a href="#" className="hover:text-blue-300 transition-colors">
+                Kebijakan Privasi
+              </a>
+              <a href="#" className="hover:text-blue-300 transition-colors">
+                Ketentuan Layanan
+              </a>
+              <a href="#" className="hover:text-blue-300 transition-colors">
+                Bantuan
+              </a>
             </div>
           </div>
         </footer>
@@ -1024,7 +1476,9 @@ export default function LandingPage() {
               <Check className="w-4 h-4 stroke-[3]" />
             </div>
             <div className="flex-1 min-w-0">
-              <span className="text-[8px] font-black uppercase tracking-wider text-yellow-400">Keranjang Simulasi</span>
+              <span className="text-[8px] font-black uppercase tracking-wider text-yellow-400">
+                Keranjang Simulasi
+              </span>
               <p className="text-xs font-bold text-white truncate">{notif}</p>
             </div>
           </motion.div>
@@ -1040,7 +1494,9 @@ export default function LandingPage() {
             exit={{ opacity: 0, scale: 0.8, y: 20 }}
             className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 px-4 py-2.5 rounded-2xl shadow-xl hover:scale-[1.03] active:scale-[0.98] transition-all cursor-pointer font-bold"
             onClick={() => {
-              alert(`Order simulasi katalog Anda berisi ${cartCount} item siap dikirimkan ke WhatsApp Toko via API Redirect secure.`);
+              alert(
+                `Order simulasi katalog Anda berisi ${cartCount} item siap dikirimkan ke WhatsApp Toko via API Redirect secure.`,
+              );
             }}
           >
             <div className="relative shrink-0">
@@ -1050,13 +1506,16 @@ export default function LandingPage() {
               </span>
             </div>
             <div className="flex flex-col text-left">
-              <span className="text-[8px] font-black uppercase tracking-wider text-slate-900 leading-none">Catalog Order</span>
-              <span className="text-[10px] font-extrabold leading-tight">Simulasi WhatsApp Order</span>
+              <span className="text-[8px] font-black uppercase tracking-wider text-slate-900 leading-none">
+                Catalog Order
+              </span>
+              <span className="text-[10px] font-extrabold leading-tight">
+                Simulasi WhatsApp Order
+              </span>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-
     </div>
   );
 }

@@ -8,9 +8,13 @@ import {
   X, TriangleAlert,
   CreditCard, ToggleLeft, ToggleRight,
 } from "lucide-react";
-import FullPageLoader from "@/components/layout/FullPageLoader";
-import SectionLoader from "@/components/layout/SectionLoader";
 import { toast } from "react-toastify";
+import {
+  getPaymentMethodsAction,
+  createPaymentMethodAction,
+  updatePaymentMethodAction,
+  deletePaymentMethodAction
+} from "@/app/actions/transaction";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -22,17 +26,9 @@ interface PaymentMethod {
   created_at?: string;
 }
 
-interface PaginatedResponse {
-  data: PaymentMethod[];
-  total: number;
-  page: number;
-  totalPages: number;
-}
-
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE = 10;
-const API       = "/api/backend/payment_kategori";
 
 // ─── Reusable UI ─────────────────────────────────────────────────────────────
 
@@ -48,9 +44,21 @@ const StatusBadge = ({ active }: { active: boolean }) => (
 );
 
 const SkeletonRow = () => (
-  <tr>
-    <td colSpan={4} className="py-24">
-       <SectionLoader text="Sinkronisasi Data..." />
+  <tr className="animate-pulse">
+    <td className="px-6 py-4">
+      <div className="flex items-center gap-3">
+        <div className="w-7 h-7 rounded-lg bg-zinc-100" />
+        <div className="h-4 w-28 bg-zinc-100 rounded" />
+      </div>
+    </td>
+    <td className="px-4 py-4">
+      <div className="h-4 w-12 bg-zinc-100 rounded-full" />
+    </td>
+    <td className="px-4 py-4">
+      <div className="h-4 w-20 bg-zinc-100 rounded" />
+    </td>
+    <td className="px-4 py-4">
+      <div className="h-4 w-10 bg-zinc-100 rounded ml-auto" />
     </td>
   </tr>
 );
@@ -159,24 +167,15 @@ const PaymentFormModal = ({ mode, initial, onClose, onSuccess }: FormModalProps)
     setIsSaving(true);
     try {
       const res = isEdit
-        ? await fetch(API, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: initial!.id, name: name.trim(), is_active: isActive }),
-          })
-        : await fetch(API, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: name.trim(), is_active: isActive }), // profile_id null = global
-          });
+        ? await updatePaymentMethodAction({ id: initial!.id, name: name.trim(), is_active: isActive })
+        : await createPaymentMethodAction({ name: name.trim() }); // is_active default true
 
-      if (res.ok) {
+      if (res.status === "success") {
         toast.success(isEdit ? "Metode pembayaran diperbarui" : "Metode pembayaran ditambahkan");
         onSuccess();
         onClose();
       } else {
-        const err = await res.json();
-        toast.error(err?.error ?? "Terjadi kesalahan");
+        toast.error(res.message ?? "Terjadi kesalahan");
       }
     } catch {
       toast.error("Gagal menghubungi server");
@@ -211,27 +210,29 @@ const PaymentFormModal = ({ mode, initial, onClose, onSuccess }: FormModalProps)
               placeholder="Contoh: Transfer Bank, QRIS, Tunai"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm font-medium text-[#030037] outline-none focus:ring-2 focus:ring-[#030037]/10 focus:border-zinc-300 transition-all"
+              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm font-medium text-zinc-900 outline-none focus:ring-2 focus:ring-[#030037]/10 focus:border-zinc-300 transition-all"
               autoFocus
             />
           </div>
 
           {/* Status Toggle */}
-          <div className="flex items-center justify-between p-4 bg-zinc-50 border border-zinc-200 rounded-xl">
-            <div>
-              <p className="text-sm font-bold text-[#030037]">Status Aktif</p>
-              <p className="text-[10px] text-zinc-400 mt-0.5">Metode ini akan tersedia untuk digunakan</p>
+          {isEdit && (
+            <div className="flex items-center justify-between p-4 bg-zinc-50 border border-zinc-200 rounded-xl">
+              <div>
+                <p className="text-sm font-bold text-[#030037]">Status Aktif</p>
+                <p className="text-[10px] text-zinc-400 mt-0.5">Metode ini akan tersedia untuk digunakan</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsActive((v: boolean) => !v)}
+                className="flex-shrink-0 transition-all"
+              >
+                {isActive
+                  ? <ToggleRight className="w-9 h-9 text-emerald-500" />
+                  : <ToggleLeft className="w-9 h-9 text-zinc-300" />}
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setIsActive((v) => !v)}
-              className="flex-shrink-0 transition-all"
-            >
-              {isActive
-                ? <ToggleRight className="w-9 h-9 text-emerald-500" />
-                : <ToggleLeft className="w-9 h-9 text-zinc-300" />}
-            </button>
-          </div>
+          )}
 
           {/* Actions */}
           <div className="flex gap-2 pt-1">
@@ -264,14 +265,13 @@ const DeleteModal = ({ method, onClose, onSuccess }: DeleteModalProps) => {
   const handleDelete = async () => {
     setIsDeleting(true);
     try {
-      const res = await fetch(`${API}?id=${method.id}`, { method: "DELETE" });
-      if (res.ok) {
+      const res = await deletePaymentMethodAction(method.id);
+      if (res.status === "success") {
         toast.success("Metode pembayaran berhasil dihapus");
         onSuccess();
         onClose();
       } else {
-        const err = await res.json();
-        toast.error(err?.error ?? "Gagal menghapus");
+        toast.error(res.message ?? "Gagal menghapus");
       }
     } catch {
       toast.error("Gagal menghubungi server");
@@ -363,18 +363,15 @@ export default function PaymentMethodPage() {
   const fetchPage = useCallback(async () => {
     setIsLoading(true);
     try {
-      const params = new URLSearchParams({
-        page:  String(page),
-        limit: String(PAGE_SIZE),
-        ...(debouncedSearch && { search: debouncedSearch }),
+      const res = await getPaymentMethodsAction({
+        page: page,
+        limit: PAGE_SIZE,
+        search: debouncedSearch,
       });
-
-      const res = await fetch(`${API}?${params}`);
-      if (res.ok) {
-        const json: PaginatedResponse = await res.json();
-        setRows(json.data);
-        setTotal(json.total);
-        setTotalPages(json.totalPages);
+      if (res.status === "success" && res.data) {
+        setRows(res.data);
+        setTotal(res.total ?? 0);
+        setTotalPages(res.totalPages ?? 1);
       }
     } catch {
       toast.error("Gagal mengambil data metode pembayaran");
@@ -404,7 +401,6 @@ export default function PaymentMethodPage() {
 
   return (
     <>
-      {isLoading && <FullPageLoader />}
       <div className="bg-white px-4 sm:px-6 lg:px-8 pt-3 pb-8 space-y-4">
 
         {/* Page Header */}
@@ -458,7 +454,7 @@ export default function PaymentMethodPage() {
                 placeholder="Cari nama metode..."
                 value={search}
                 onChange={(e) => handleSearchChange(e.target.value)}
-                className="pl-10 pr-5 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-medium text-black outline-none focus:ring-2 focus:ring-[#030037]/10 focus:border-zinc-300 transition-all w-full sm:w-56"
+                className="pl-10 pr-5 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-medium text-zinc-900 outline-none focus:ring-2 focus:ring-[#030037]/10 focus:border-zinc-300 transition-all w-full sm:w-56"
               />
             </div>
           </div>
@@ -478,7 +474,7 @@ export default function PaymentMethodPage() {
                 {isLoading
                   ? Array.from({ length: PAGE_SIZE }).map((_, i) => <SkeletonRow key={i} />)
                   : rows.length > 0
-                  ? rows.map((method) => (
+                  ? rows.map((method: PaymentMethod) => (
                       <tr key={method.id} className="bg-zinc-50 border-b border-zinc-100 hover:bg-white transition-colors">
                         {/* Nama */}
                         <td className="px-6 py-4">

@@ -170,7 +170,7 @@ export default function SalesHistoryTable({
         dateStart,
         dateEnd,
         page,
-        limit: 15
+        limit: 5
       });
 
       if (res.status === "success" && res.data) {
@@ -209,6 +209,9 @@ export default function SalesHistoryTable({
 
   // E-Catalog Orders State
   const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersPage, setOrdersPage] = useState(1);
+  const [ordersTotalPages, setOrdersTotalPages] = useState(1);
+  const [ordersTotal, setOrdersTotal] = useState(0);
   const [searchQueryOnline, setSearchQueryOnline] = useState("");
   const [onlineStatusFilter, setOnlineStatusFilter] = useState<"ALL" | "PENDING" | "SUCCESS" | "CANCELLED">("ALL");
   const [expandedOrders, setExpandedOrders] = useState<Record<string, boolean>>({});
@@ -230,30 +233,67 @@ export default function SalesHistoryTable({
     message: "",
   });
 
-  // Fetch E-Catalog Orders (Selalu silent tanpa loading spinner)
-  const fetchOrders = async () => {
+  // Fetch paginated E-Catalog Orders
+  const fetchOrders = async (page = 1, search = "", status = "ALL") => {
     try {
-      const res = await fetch("/api/backend/tenant/orders");
+      const params = new URLSearchParams({ page: String(page), limit: "5" });
+      if (search) params.set("search", search);
+      if (status && status !== "ALL") params.set("status", status);
+      const res = await fetch(`/api/backend/tenant/orders?${params.toString()}`);
       if (res.ok) {
-        const data = await res.json();
-        setOrders(data);
-        const pendingCount = (data as Order[]).filter(o => o.status === "PENDING").length;
-        setPendingOrdersCount(pendingCount);
+        const result = await res.json();
+        setOrders(result.data || []);
+        setOrdersPage(result.page || 1);
+        setOrdersTotalPages(result.totalPages || 1);
+        setOrdersTotal(result.total || 0);
+        // Hitung total PENDING dari response
+        if (result.page === 1 && search === "" && (!status || status === "ALL")) {
+          setPendingOrdersCount(prev => prev);
+        }
       }
     } catch {
       console.error("Kesalahan jaringan pesanan online.");
     }
   };
 
+  // Fetch count of PENDING orders separately on mount
   useEffect(() => {
-    fetchOrders();
+    const fetchPendingCount = async () => {
+      try {
+        const res = await fetch("/api/backend/tenant/orders?limit=1&status=PENDING");
+        if (res.ok) {
+          const result = await res.json();
+          setPendingOrdersCount(result.total || 0);
+        }
+      } catch {}
+    };
+    fetchPendingCount();
   }, []);
 
   useEffect(() => {
     if (activeTab === "online") {
-      fetchOrders();
+      fetchOrders(1, searchQueryOnline, onlineStatusFilter);
     }
   }, [activeTab]);
+
+  const onlineSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const handleOnlineSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQueryOnline(value);
+    if (onlineSearchTimeoutRef.current) clearTimeout(onlineSearchTimeoutRef.current);
+    onlineSearchTimeoutRef.current = setTimeout(() => {
+      fetchOrders(1, value, onlineStatusFilter);
+    }, 400);
+  };
+
+  const handleOnlineStatusFilter = (status: "ALL" | "PENDING" | "SUCCESS" | "CANCELLED") => {
+    setOnlineStatusFilter(status);
+    fetchOrders(1, searchQueryOnline, status);
+  };
+
+  const handleOrdersPageChange = (newPage: number) => {
+    fetchOrders(newPage, searchQueryOnline, onlineStatusFilter);
+  };
 
   const triggerUpdateStatus = (orderId: string, reference: string, newStatus: "SUCCESS" | "CANCELLED") => {
     const message = newStatus === "SUCCESS"
@@ -283,7 +323,7 @@ export default function SalesHistoryTable({
       const data = await res.json();
       if (res.ok) {
         toast.success(newStatus === "SUCCESS" ? "Pembayaran berhasil dikonfirmasi & stok berkurang!" : "Pesanan berhasil dibatalkan.");
-        fetchOrders();
+        fetchOrders(1, searchQueryOnline, onlineStatusFilter);
         router.refresh();
       } else {
         toast.error(data.error || "Gagal memperbarui status pesanan.");
@@ -298,15 +338,6 @@ export default function SalesHistoryTable({
   const toggleExpandOrder = (orderId: string) => {
     setExpandedOrders(prev => ({ ...prev, [orderId]: !prev[orderId] }));
   };
-
-  const filteredOrders = orders.filter(order => {
-    const matchesStatus = onlineStatusFilter === "ALL" || order.status === onlineStatusFilter;
-    const matchesSearch = 
-      order.reference_number.toLowerCase().includes(searchQueryOnline.toLowerCase()) ||
-      order.customer_name.toLowerCase().includes(searchQueryOnline.toLowerCase()) ||
-      order.customer_phone.includes(searchQueryOnline);
-    return matchesStatus && matchesSearch;
-  });
 
   const [selectedTx, setSelectedTx] = useState<SaleTransaction | null>(null);
 
@@ -762,7 +793,7 @@ export default function SalesHistoryTable({
                 type="text"
                 placeholder="Cari No. Referensi atau Nama Pelanggan..."
                 value={searchQueryOnline}
-                onChange={(e) => setSearchQueryOnline(e.target.value)}
+                onChange={handleOnlineSearchChange}
                 className="w-full bg-zinc-50 border border-zinc-200 text-black p-2.5 pl-9 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-bold text-xs"
               />
             </div>
@@ -775,7 +806,7 @@ export default function SalesHistoryTable({
                 return (
                   <button
                     key={status}
-                    onClick={() => setOnlineStatusFilter(status)}
+                    onClick={() => handleOnlineStatusFilter(status)}
                     className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all select-none border shrink-0 ${
                       isActive 
                         ? "bg-[#030037] border-[#030037] text-white shadow-md shadow-[#030037]/10" 
@@ -790,7 +821,7 @@ export default function SalesHistoryTable({
           </div>
 
           {/* Orders Content Area */}
-          {filteredOrders.length === 0 ? (
+          {orders.length === 0 ? (
             <div className="bg-white rounded-2xl border border-zinc-100 p-12 text-center shadow-sm flex flex-col items-center justify-center gap-3">
               <div className="p-3 bg-zinc-50 rounded-2xl text-zinc-300">
                 <ShoppingBag className="w-10 h-10" />
@@ -800,7 +831,7 @@ export default function SalesHistoryTable({
             </div>
           ) : (
             <div className="flex flex-col gap-4">
-              {filteredOrders.map((order) => {
+              {orders.map((order) => {
                 const isExpanded = !!expandedOrders[order.id];
                 const isPending = order.status === "PENDING";
                 const isSuccess = order.status === "SUCCESS";
@@ -986,6 +1017,34 @@ export default function SalesHistoryTable({
               })}
             </div>
           )}
+
+          {/* Pagination for Online Orders */}
+          {ordersTotalPages > 1 && (
+            <div className="px-5 py-4 border-t border-zinc-100 flex items-center justify-between gap-4 bg-white rounded-2xl shadow-sm">
+              <span className="text-[10px] font-bold text-zinc-400">
+                Menampilkan {orders.length} dari {ordersTotal} pesanan
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  disabled={ordersPage <= 1}
+                  onClick={() => handleOrdersPageChange(ordersPage - 1)}
+                  className="p-2 bg-zinc-50 border border-zinc-200 rounded-lg hover:bg-zinc-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5 text-zinc-600" />
+                </button>
+                <span className="text-xs font-black text-zinc-800 px-2">
+                  {ordersPage} / {ordersTotalPages}
+                </span>
+                <button
+                  disabled={ordersPage >= ordersTotalPages}
+                  onClick={() => handleOrdersPageChange(ordersPage + 1)}
+                  className="p-2 bg-zinc-50 border border-zinc-200 rounded-lg hover:bg-zinc-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                >
+                  <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )}
 
@@ -1047,7 +1106,7 @@ export default function SalesHistoryTable({
             </div>
 
             {/* Items List */}
-            <div className="px-6 py-4 max-h-64 overflow-y-auto space-y-2">
+            <div data-lenis-prevent className="px-6 py-4 max-h-64 overflow-y-auto space-y-2">
               {selectedTx.transaction_items.map((item, idx) => {
                 const qty = item.quantity || 1;
                 const unitPrice = Math.round(item.amount / qty);

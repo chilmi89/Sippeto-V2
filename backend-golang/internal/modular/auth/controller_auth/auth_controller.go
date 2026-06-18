@@ -35,7 +35,7 @@ func (ctrl *AuthController) Login(c *gin.Context) {
 	}
 
 	// Set HTTP-Only Cookie untuk Refresh Token (Valid 7 Hari)
-	c.SetCookie("refresh_token", resp.RefreshToken, 60*60*24*7, "/", "", false, true)
+	c.SetCookie("refresh_token", resp.RefreshToken, 60*60*24*7, "/", "", true, true)
 
 	c.JSON(http.StatusOK, resp)
 }
@@ -67,6 +67,9 @@ func (ctrl *AuthController) Refresh(c *gin.Context) {
 		return
 	}
 
+	// Set cookie token baru agar browser otomatis memperbarui
+	c.SetCookie("token", resp.AccessToken, 60*60*24, "/", "", true, true)
+
 	c.JSON(http.StatusOK, resp)
 }
 
@@ -79,7 +82,7 @@ func (ctrl *AuthController) ForgotPassword(c *gin.Context) {
 		return
 	}
 
-	token, err := ctrl.svc.GenerateResetToken(c.Request.Context(), req.Email)
+	_, err := ctrl.svc.GenerateResetToken(c.Request.Context(), req.Email)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
@@ -87,11 +90,9 @@ func (ctrl *AuthController) ForgotPassword(c *gin.Context) {
 		return
 	}
 
-	// Di lingkungan production, token dikirim via email.
-	// Untuk kemudahan testing/dev, token dikembalikan di response JSON.
-	c.JSON(http.StatusOK, dto_auth.ForgotPasswordResponse{
-		Message: "Token reset password berhasil dibuat. Gunakan token ini untuk mereset password.",
-		Token:   token,
+	// Token dikirim via email (implementasi mailer terpisah).
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Jika email terdaftar, token reset password telah dikirim.",
 	})
 }
 
@@ -119,12 +120,28 @@ func (ctrl *AuthController) ResetPassword(c *gin.Context) {
 
 func (ctrl *AuthController) Logout(c *gin.Context) {
 	// Hancurkan cookie auth dengan set expired (maxAge -1)
-	c.SetCookie("token", "", -1, "/", "", false, true)
-	c.SetCookie("role_name", "", -1, "/", "", false, false)
-	c.SetCookie("refresh_token", "", -1, "/", "", false, true)
+	c.SetCookie("token", "", -1, "/", "", true, true)
+	c.SetCookie("role_name", "", -1, "/", "", true, false)
+	c.SetCookie("refresh_token", "", -1, "/", "", true, true)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Logout berhasil.",
 	})
+}
+
+func (ctrl *AuthController) Register(c *gin.Context) {
+	var req dto_auth.RegisterRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Nama, email, dan password wajib diisi."})
+		return
+	}
+
+	resp, err := ctrl.svc.Register(c.Request.Context(), req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, resp)
 }
 

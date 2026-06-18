@@ -9,8 +9,8 @@ Dokumen ini berfungsi sebagai instruksi kerja dan panduan aturan bagi developer/
 *   **Framework Utama:** Next.js (App Router)
 *   **Styling:** Tailwind CSS & Lucide Icons
 *   **Database ORM:** Prisma Client (`src/generated/prisma`)
-*   **Backend / Database Engine:** Supabase PostgreSQL dengan Row Level Security (RLS)
-*   **Autentikasi:** Supabase Auth (dikelola via middleware dan profiles)
+*   **Backend Engine:** Golang (Gin Framework) dengan PostgreSQL (Bun ORM)
+*   **Autentikasi:** JWT (dikelola via middleware di Golang)
 
 ### 📂 Pembagian Rute & Folder Utama:
 *   `src/app/backend/admin/` : Halaman dashboard untuk Super Admin/Owner SiPetto (monitoring server, tenant, dan transaksi global).
@@ -23,11 +23,9 @@ Dokumen ini berfungsi sebagai instruksi kerja dan panduan aturan bagi developer/
 
 ## 2. ATURAN PENGEMBANGAN (DEVELOPMENT RULES)
 
-### 🔒 Keamanan Database & RLS (Row Level Security)
-1.  **Isolasi Data Tenant:** Setiap tabel yang berisi data spesifik milik tenant (seperti transaksi, kategori, cabang, dan produk) wajib memiliki kolom `profile_id` yang terhubung ke `public.profiles(id)`.
-2.  **RLS Policies:** Pastikan RLS diaktifkan di Supabase untuk setiap tabel baru.
-    *   Tenant hanya boleh melihat/mengubah data miliknya sendiri: `auth.uid() = profile_id`.
-    *   Pengunjung umum (publik) hanya boleh melakukan operasi `SELECT` (baca) pada data tertentu seperti katalog produk aktif (`is_active = true`), tanpa hak akses tulis/hapus.
+### 🔒 Keamanan Database
+1.  **Isolasi Data Tenant:** Setiap tabel yang berisi data spesifik milik tenant (seperti transaksi, kategori, cabang, dan produk) wajib memiliki kolom `profile_id` yang terhubung ke `profiles(id)`.
+2.  **Akses Data:** Tenant hanya boleh melihat/mengubah data miliknya sendiri. Pengunjung umum (publik) hanya boleh membaca data tertentu seperti katalog produk aktif.
 
 ### 🗄️ Manajemen Skema Database
 1.  **Dilarang Melakukan Destructive Migrate:** Jangan jalankan `npx prisma migrate dev` atau `--force` yang dapat menghapus database produksi/development yang aktif.
@@ -61,14 +59,10 @@ Setiap penambahan fitur baru di backend Go harus ditempatkan di dalam folder man
 5.  **`controller_<fitur>`** (Contoh: `controller_role`): Handler HTTP Gin yang memproses request payload, memanggil service, dan mengirimkan HTTP response secara minimalis tanpa validasi yang kompleks.
 6.  **`router_<fitur>`** (Contoh: `router_role`): Setup routing group Gin (seperti `/api/...`) dan menyuntikkan (dependency injection) controller, service, dan repository terkait.
 
-### 🔌 Panduan Migrasi Bertahap (Hybrid Migration)
-Untuk memindahkan API Next.js ke Golang secara bertahap tanpa merusak frontend:
-1.  **Gunakan Proxying di Next.js API Route**:
-    Jangan langsung mengganti seluruh URL pemanggilan di component frontend. Cukup ubah isi dari file Next.js API Route (`src/app/api/.../route.ts`) menjadi fungsi proxy sederhana yang mem-forward request menggunakan `fetch` ke server Go backend (`http://localhost:8080/api/...`).
-2.  **Kirimkan Token Autentikasi**:
-    Pastikan Next.js API proxy meneruskan token autentikasi (diambil dari cookie `token`) ke Go backend melalui header `Authorization: Bearer <token>`.
-3.  **Verifikasi Independen**:
-    Setelah fungsionalitas dipastikan berjalan lancar melalui proxy, rute pemanggilan di frontend dapat diubah secara langsung ke URL backend jika diperlukan di masa depan.
+### 🔌 Panduan Migrasi Penuh & Larangan Keras Prisma
+1.  **Dilarang Keras Impor Prisma di Frontend:** Seluruh folder frontend (seperti `src/app/actions/*` atau UI components) tidak boleh mengimpor `@/lib/prisma` atau menggunakan Prisma client langsung untuk manipulasi/pembacaan database.
+2.  **Transisi Penuh ke Golang API:** Pindahkan semua kode query database ke backend Golang, dan ubah Server Actions di frontend agar memanggil endpoint backend Golang menggunakan `fetch` (meneruskan token cookie via header `Authorization: Bearer <token>`).
+3.  **Hapus API Routes Lama:** Setelah sebuah API Route Next.js dipindahkan ke Golang backend, hapus folder rute tersebut secara total dari `src/app/api/backend/` untuk mencegah kebingungan kode.
 
 ### 🗄️ Aturan Penulisan Query SQL di Go
 1.  **Gunakan Raw SQL Syntax**: Sesuai dengan aturan proyek, hindari penggunaan ORM relations builders yang rumit. Gunakan `db.NewRaw()` atau `db.QueryContext()` untuk mengeksekusi sintaksis `SELECT`, `INSERT`, `UPDATE`, dan `DELETE` secara eksplisit agar query mudah dibaca dan dioptimalkan.
@@ -85,7 +79,7 @@ Untuk memindahkan API Next.js ke Golang secara bertahap tanpa merusak frontend:
 
 ### FASE 1: MASTER DATA, MULTI-CABANG, & BACKEND PRODUK
 - [ ] **Skema Database (Pusat & Cabang):**
-  - [ ] Buat tabel master `products` di database Supabase (menghubungkan ke `profiles` dan `categories`).
+  - [ ] Buat tabel master `products` di database PostgreSQL (menghubungkan ke `profiles` dan `categories`).
   - [ ] Buat tabel `product_stocks` untuk melacak stok fisik produk per masing-masing cabang (`branches`).
   - [ ] Buat tabel `stock_mutations` untuk mencatat riwayat transfer stok antar-cabang, restock, maupun penyesuaian stok.
   - [ ] Perbarui tabel existing `profiles` dengan menambahkan kolom `username` (untuk subdomain/katalog publik).
@@ -95,7 +89,7 @@ Untuk memindahkan API Next.js ke Golang secara bertahap tanpa merusak frontend:
 - [ ] **Rute API CRUD:**
   - [ ] Buat API CRUD produk di `/api/backend/tenant/products` (khusus data produk tingkat pusat/owner).
   - [ ] Buat API alokasi & mutasi stok di `/api/backend/tenant/stocks` (untuk transfer barang antar cabang dan manajemen stok masuk/keluar).
-  - [ ] Hubungkan unggah gambar produk ke Supabase Storage.
+  - [ ] Hubungkan unggah gambar produk ke MinIO Storage.
 
 ### FASE 2: DASHBOARD MANAGEMENT & POS INTEGRASI MULTI-CABANG
 - [ ] **UI Kelola Produk & Cabang:**
@@ -119,7 +113,7 @@ Untuk memindahkan API Next.js ke Golang secara bertahap tanpa merusak frontend:
 
 ### FASE 5: INTEGRASI CHECKOUT SEMI-OTOMATIS & KONFIRMASI ADMIN
 - [ ] **Skema Database Pesanan (Orders):**
-  - [ ] Buat tabel `orders` di Supabase untuk menampung data pesanan masuk dari E-Catalog sebelum dikonfirmasi (kolom: id, profile_id, branch_id, reference_number, customer_name, customer_phone, customer_address, payment_method, total_price, status ['PENDING', 'SUCCESS', 'CANCELLED']).
+  - [ ] Buat tabel `orders` di PostgreSQL untuk menampung data pesanan masuk dari E-Catalog sebelum dikonfirmasi (kolom: id, profile_id, branch_id, reference_number, customer_name, customer_phone, customer_address, payment_method, total_price, status ['PENDING', 'SUCCESS', 'CANCELLED']).
   - [ ] Buat tabel `order_items` untuk detail produk belanjaan (kolom: id, order_id, product_id, quantity, price).
 - [ ] **API Endpoint Simpan Pesanan:**
   - [ ] Buat API Route `/api/store/checkout` untuk mencatat pesanan baru berstatus `PENDING` di database pada saat pembeli melakukan checkout dari etalase toko.

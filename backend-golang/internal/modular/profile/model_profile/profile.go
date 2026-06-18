@@ -1,6 +1,7 @@
 package model_profile
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/uptrace/bun"
@@ -22,6 +23,7 @@ type Profile struct {
 	Bio          *string    `bun:"bio" json:"bio"`
 	Password     string     `bun:"password" json:"-"`
 	IsActive     bool       `bun:"is_active,default:true" json:"is_active"`
+	Metadata     json.RawMessage `bun:"metadata,type:jsonb" json:"metadata"`
 	CreatedAt    time.Time  `bun:"created_at,default:current_timestamp" json:"created_at"`
 	UpdatedAt    time.Time  `bun:"updated_at,default:current_timestamp" json:"updated_at"`
 	BranchID     *string    `bun:"branch_id,type:uuid" json:"branch_id"`

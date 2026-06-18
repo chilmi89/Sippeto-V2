@@ -112,7 +112,7 @@ export const Sidebar = () => {
           </button>
         </div>
 
-        <nav className="flex-1 space-y-1.5 overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <nav data-lenis-prevent className="flex-1 space-y-1.5 overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {navItems.map((item) => {
             const hasSubItems = item.subItems && item.subItems.length > 0;
             const isSubMenuOpen = openSubMenus[item.label];

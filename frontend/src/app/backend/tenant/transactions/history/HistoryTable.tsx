@@ -454,7 +454,7 @@ export default function HistoryTable({
                  </button>
               </div>
 
-              <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
+              <div data-lenis-prevent className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 border-b border-zinc-100 pb-6">
                     <div className="space-y-1">
                        <span className="text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em]">Pemasukan</span>

@@ -1,18 +1,32 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { 
-    Search, 
-    Filter, 
-    Package, 
-    Layers, 
-    DollarSign, 
-    Eye, 
-    AlertCircle,
+import React, { useEffect, useState, useTransition } from "react";
+import {
+    Search,
+    Filter,
+    Package,
+    Layers,
+    Eye,
     Building2,
-    BarChart3
+    BarChart3,
+    RefreshCw
 } from "lucide-react";
-import SectionLoader from "@/components/layout/SectionLoader";
+import { getProductsAction } from "@/app/actions/product";
+
+interface ProductStock {
+    id: string;
+    stock: number;
+}
+
+interface ProductCategory {
+    name: string;
+}
+
+interface ProductProfile {
+    business_name: string | null;
+    full_name: string | null;
+    email: string;
+}
 
 interface Product {
     id: string;
@@ -25,41 +39,29 @@ interface Product {
     image_url: string | null;
     is_active: boolean;
     created_at: string;
-    product_categories: {
-        name: string;
-    } | null;
-    profiles: {
-        business_name: string | null;
-        full_name: string | null;
-        email: string;
-    };
-    product_stocks: {
-        id: string;
-        stock: number;
-    }[];
+    product_categories: ProductCategory | null;
+    profiles: ProductProfile | null;
+    product_stocks: ProductStock[];
 }
 
 export default function AdminProductsPage() {
     const [products, setProducts] = useState<Product[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [isPending, startTransition] = useTransition();
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedTenant, setSelectedTenant] = useState("all");
     const [selectedStatus, setSelectedStatus] = useState("all");
 
-    // Fetch data produk global
-    const fetchProducts = async () => {
-        try {
-            setLoading(true);
-            const res = await fetch("/api/backend/products");
-            if (res.ok) {
-                const json = await res.json();
-                setProducts(json.data || []);
+    const fetchProducts = () => {
+        startTransition(async () => {
+            const result = await getProductsAction();
+            if (result.error) {
+                setError(result.error);
+            } else {
+                setProducts((result.data as Product[]) || []);
+                setError(null);
             }
-        } catch (error) {
-            console.error("Error fetching products:", error);
-        } finally {
-            setLoading(false);
-        }
+        });
     };
 
     useEffect(() => {
@@ -73,16 +75,16 @@ export default function AdminProductsPage() {
 
     // Filter produk berdasarkan input pencarian dan filter dropdown
     const filteredProducts = products.filter((p) => {
-        const matchesSearch = 
-            p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        const matchesSearch =
+            p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             (p.profiles?.business_name && p.profiles.business_name.toLowerCase().includes(searchQuery.toLowerCase()));
 
         const tenantName = p.profiles?.business_name || p.profiles?.full_name || "Tanpa Nama";
         const matchesTenant = selectedTenant === "all" || tenantName === selectedTenant;
 
-        const matchesStatus = 
-            selectedStatus === "all" || 
-            (selectedStatus === "active" && p.is_active) || 
+        const matchesStatus =
+            selectedStatus === "all" ||
+            (selectedStatus === "active" && p.is_active) ||
             (selectedStatus === "inactive" && !p.is_active);
 
         return matchesSearch && matchesTenant && matchesStatus;
@@ -99,12 +101,22 @@ export default function AdminProductsPage() {
                     <h1 className="text-2xl font-bold tracking-tight text-white font-heading">Monitoring Produk Global</h1>
                     <p className="text-sm text-white/60">Lihat dan awasi katalog produk yang dijual oleh seluruh Tenant/UMKM di dalam sistem.</p>
                 </div>
-                <div className="flex items-center gap-3 bg-white/5 border border-white/10 px-4 py-2.5 rounded-2xl">
-                    <BarChart3 className="w-5 h-5 text-emerald-400" />
-                    <div>
-                        <span className="text-[10px] text-white/40 block leading-none font-bold uppercase tracking-wider">Total Produk Terdaftar</span>
-                        <span className="text-sm font-bold text-white leading-none">{products.length} Items</span>
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 bg-white/5 border border-white/10 px-4 py-2.5 rounded-2xl">
+                        <BarChart3 className="w-5 h-5 text-emerald-400" />
+                        <div>
+                            <span className="text-[10px] text-white/40 block leading-none font-bold uppercase tracking-wider">Total Produk Terdaftar</span>
+                            <span className="text-sm font-bold text-white leading-none">{products.length} Items</span>
+                        </div>
                     </div>
+                    <button
+                        onClick={fetchProducts}
+                        disabled={isPending}
+                        className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-white/50 hover:text-emerald-400 hover:border-emerald-500/30 transition-all disabled:opacity-50"
+                        title="Refresh"
+                    >
+                        <RefreshCw className={`w-4 h-4 ${isPending ? "animate-spin" : ""}`} />
+                    </button>
                 </div>
             </div>
 
@@ -112,9 +124,9 @@ export default function AdminProductsPage() {
             <div className="bg-white/5 border border-white/10 p-4 rounded-2xl flex flex-col lg:flex-row gap-4 items-center">
                 <div className="relative w-full lg:flex-1">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-                    <input 
-                        type="text" 
-                        placeholder="Cari nama produk atau nama toko..." 
+                    <input
+                        type="text"
+                        placeholder="Cari nama produk atau nama toko..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="w-full bg-white/5 border border-white/10 pl-11 pr-4 py-3 rounded-xl text-sm focus:outline-none focus:border-primary transition-all text-white placeholder-white/30"
@@ -123,7 +135,7 @@ export default function AdminProductsPage() {
                 <div className="flex flex-wrap md:flex-nowrap gap-3 w-full lg:w-auto">
                     <div className="flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-2 rounded-xl w-full md:w-auto">
                         <Building2 className="w-4 h-4 text-white/40" />
-                        <select 
+                        <select
                             value={selectedTenant}
                             onChange={(e) => setSelectedTenant(e.target.value)}
                             className="bg-transparent border-0 text-white text-xs font-semibold focus:outline-none cursor-pointer w-full md:w-44"
@@ -137,7 +149,7 @@ export default function AdminProductsPage() {
 
                     <div className="flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-2 rounded-xl w-full md:w-auto">
                         <Filter className="w-4 h-4 text-white/40" />
-                        <select 
+                        <select
                             value={selectedStatus}
                             onChange={(e) => setSelectedStatus(e.target.value)}
                             className="bg-transparent border-0 text-white text-xs font-semibold focus:outline-none cursor-pointer w-full md:w-36"
@@ -152,9 +164,43 @@ export default function AdminProductsPage() {
 
             {/* Products Table Card */}
             <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-                {loading ? (
-                    <div className="p-12">
-                        <SectionLoader />
+                {error ? (
+                    <div className="p-12 text-center flex flex-col items-center gap-3">
+                        <div className="p-4 bg-rose-500/10 rounded-full text-rose-400">
+                            <Package className="w-12 h-12" />
+                        </div>
+                        <h3 className="text-lg font-bold text-white">Gagal Memuat Data</h3>
+                        <p className="text-sm text-white/50">{error}</p>
+                        <button onClick={fetchProducts} className="mt-2 px-4 py-2 bg-emerald-500/20 text-emerald-400 rounded-xl text-sm font-bold hover:bg-emerald-500/30 transition-all">
+                            Coba Lagi
+                        </button>
+                    </div>
+                ) : isPending ? (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="border-b border-white/10 bg-white/5 text-[10px] uppercase tracking-wider font-bold text-white/50">
+                                    <th className="py-4 px-6">Info Produk</th>
+                                    <th className="py-4 px-6">Tenant/Toko</th>
+                                    <th className="py-4 px-6">Kategori</th>
+                                    <th className="py-4 px-6 text-right">Harga Modal</th>
+                                    <th className="py-4 px-6 text-right">Harga Jual</th>
+                                    <th className="py-4 px-6 text-center">Stok Global</th>
+                                    <th className="py-4 px-6 text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {Array.from({ length: 5 }).map((_, i) => (
+                                    <tr key={i} className="border-b border-white/5">
+                                        {Array.from({ length: 7 }).map((_, j) => (
+                                            <td key={j} className="py-5 px-6">
+                                                <div className="h-4 bg-white/5 rounded-lg animate-pulse" />
+                                            </td>
+                                        ))}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
                 ) : filteredProducts.length === 0 ? (
                     <div className="p-12 text-center flex flex-col items-center gap-3">
@@ -186,10 +232,10 @@ export default function AdminProductsPage() {
                                             <td className="py-4 px-6 font-bold">
                                                 <div className="flex items-center gap-3">
                                                     {product.image_url ? (
-                                                        <img 
-                                                            src={product.image_url} 
-                                                            alt={product.name} 
-                                                            className="w-10 h-10 object-cover rounded-lg border border-white/10 shrink-0" 
+                                                        <img
+                                                            src={product.image_url}
+                                                            alt={product.name}
+                                                            className="w-10 h-10 object-cover rounded-lg border border-white/10 shrink-0"
                                                         />
                                                     ) : (
                                                         <div className="w-10 h-10 bg-white/5 rounded-lg flex items-center justify-center text-white/30 shrink-0">
@@ -239,8 +285,8 @@ export default function AdminProductsPage() {
                                             </td>
                                             <td className="py-4 px-6 text-center">
                                                 <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-black tracking-wide uppercase ${
-                                                    product.is_active 
-                                                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" 
+                                                    product.is_active
+                                                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                                                         : "bg-white/5 text-white/40 border border-white/10"
                                                 }`}>
                                                     {product.is_active ? "Aktif" : "Nonaktif"}

@@ -7,6 +7,7 @@ import {
   Image as ImageIcon, Save, Copy, Check, ExternalLink, Globe, MessageSquare, Share2
 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { uploadFileAction } from '@/app/actions/upload';
 
 interface Profile {
   id: string;
@@ -87,11 +88,9 @@ const ProfileTenantPage = () => {
         const fd = new FormData();
         fd.append('file', file);
         if (oldUrl) fd.append('old_url', oldUrl);
-        const endpoint = type === 'avatar' ? '/api/upload/avatar' : type === 'banner' ? '/api/upload/banner' : '/api/upload/payment-qr';
-        const res = await fetch(endpoint, { method: 'POST', body: fd });
-        const data = await res.json();
-        if (!res.ok || !data.url) throw new Error(data.error || `Gagal unggah ${type}`);
-        return data.url;
+        const result = await uploadFileAction(fd, type);
+        if ('error' in result || !result.url) throw new Error(result.error || `Gagal unggah ${type}`);
+        return result.url;
     };
 
     const handleUpdate = async (e?: React.FormEvent) => {
@@ -108,9 +107,9 @@ const ProfileTenantPage = () => {
                 } catch (err: any) { toast.error(err.message); setUploadingFiles(false); setLoading(false); return; }
                 setUploadingFiles(false);
             }
-            const res = await fetch('/api/umkm', {
+            const res = await fetch('/api/backend/tenant-umkm', {
                 method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: profile?.id, ...editData, avatar_url: avUrl, banner_url: bnUrl, payment_qr: qrUrl }),
+                body: JSON.stringify({ ...editData, avatar_url: avUrl, banner_url: bnUrl, payment_qr: qrUrl }),
             });
             const data = await res.json();
             if (res.ok) { toast.success("Profil berhasil diperbarui!"); setIsEditing(false); setAvatarFile(null); setBannerFile(null); setQrFile(null); fetchProfile(); }
@@ -133,11 +132,10 @@ const ProfileTenantPage = () => {
         const newHideAddress = !currentMeta.hide_checkout_address;
         
         try {
-            const res = await fetch('/api/umkm', {
+            const res = await fetch('/api/backend/tenant-umkm', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    id: profile.id,
                     metadata: {
                         ...currentMeta,
                         hide_checkout_address: newHideAddress

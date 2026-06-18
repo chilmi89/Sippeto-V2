@@ -1,177 +1,74 @@
 "use server";
 
-import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
-import prisma from "@/lib/prisma";
+
+const GOLANG_BASE = process.env.BACKEND_API_URL || "http://localhost:8080/api";
+
+async function getHeaders() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("token")?.value;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  return headers;
+}
 
 export async function getWeeklyReportData(selectedBranchId = "all") {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("token")?.value;
-    if (!token) {
-      return { status: "error", message: "Tidak terautentikasi" };
-    }
+    const headers = await getHeaders();
 
-    const secret = process.env.JWT_SECRET || "your-secret-key";
-    let decoded: { id: string };
-    try {
-      decoded = jwt.verify(token, secret) as { id: string };
-    } catch {
-      return { status: "error", message: "Token tidak valid" };
-    }
-
-    const profileId = decoded.id;
-
-    // 1. Ambil profile
-    const profile = await prisma.profiles.findUnique({
-      where: { id: profileId },
-      select: {
-        id: true,
-        full_name: true,
-        business_name: true,
-        email: true,
-        branch_id: true,
-      },
+    // 1. Ambil profile & tenant info dari Golang
+    const profileRes = await fetch(`${GOLANG_BASE}/tenant-umkm`, {
+      method: "GET",
+      headers,
+      next: { revalidate: 0 }
     });
+    if (!profileRes.ok) {
+      return { status: "error", message: "Gagal memuat profil bisnis dari server Go" };
+    }
+    const profileData = await profileRes.json();
+    const profile = profileData.profile;
 
     if (!profile) {
       return { status: "error", message: "Profil tidak ditemukan" };
     }
 
-    // Tentukan tenantOwnerId
-    let tenantOwnerId = profile.id;
-    let forcedBranchId = selectedBranchId;
+    // Tentukan tenantOwnerId & userBranchId
+    const tenantOwnerId = profile.tenant_owner_id || profile.id;
+    const userBranchId = profile.branch_id || null;
 
-    if (profile.branch_id) {
-      const branch = await prisma.branches.findUnique({
-        where: { id: profile.branch_id },
-        select: { tenant_id: true },
-      });
-      if (branch) {
-        tenantOwnerId = branch.tenant_id;
-      }
-      forcedBranchId = profile.branch_id;
-    }
-
-    // 2. Fetch Branches
-    let branches = await prisma.branches.findMany({
-      where: { tenant_id: tenantOwnerId },
-      orderBy: { name: "asc" },
-      select: {
-        id: true,
-        name: true,
-      },
+    // 2. Fetch Branches dari Golang
+    const branchesRes = await fetch(`${GOLANG_BASE}/branches`, {
+      method: "GET",
+      headers,
+      next: { revalidate: 0 }
     });
-
-    if (branches.length === 0) {
-      const newBranch = await prisma.branches.create({
-        data: {
-          tenant_id: tenantOwnerId,
-          name: "Pusat",
-          is_active: true,
-        },
-      });
-      branches = [{ id: newBranch.id, name: newBranch.name }];
+    if (!branchesRes.ok) {
+      return { status: "error", message: "Gagal memuat data cabang dari server Go" };
     }
+    const branchesData = await branchesRes.json();
+    const branches = branchesData.data || [];
 
-    // 3. Tentukan branch ID yang akan difilter
-    const activeBranchId = profile.branch_id
-      ? forcedBranchId
-      : selectedBranchId;
+    // Tentukan branch ID yang akan difilter
+    const activeBranchId = userBranchId ? userBranchId : selectedBranchId;
 
-    const txWhere = {
-      profile_id: tenantOwnerId,
-    } as {
-      profile_id: string;
-      branch_id?: string;
-    };
-
-    if (activeBranchId && activeBranchId !== "all") {
-      txWhere.branch_id = activeBranchId;
-    }
-
-    // Fetch transactions
-    const transactions = await prisma.transaction_groups.findMany({
-      where: txWhere,
-      orderBy: { transaction_date: "asc" },
-      select: {
-        transaction_date: true,
-        total_income: true,
-        total_expense: true,
-        net_balance: true,
-      },
+    // 3. Ambil data penjualan (weekly) dari Golang
+    const query = new URLSearchParams({
+      type: "weekly",
+      branch_id: activeBranchId,
     });
-
-    // Grouping untuk "weekly"
-    const groupedData: Record<
-      string,
-      {
-        period: string;
-        total_income: number;
-        total_expense: number;
-        net_balance: number;
-      }
-    > = {};
-
-    const getPeriodKey = (date: Date) => {
-      const d = new Date(date);
-      const year = d.getFullYear();
-      const firstDayOfYear = new Date(year, 0, 1);
-      const pastDaysOfYear = (d.getTime() - firstDayOfYear.getTime()) / 86400000;
-      const weekNum = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
-      return `${year}-W${weekNum.toString().padStart(2, "0")}`;
-    };
-
-    const today = new Date();
-    // Pre-fill 5 minggu terakhir
-    for (let i = 4; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - (i * 7));
-      const period = getPeriodKey(d);
-      groupedData[period] = {
-        period,
-        total_income: 0,
-        total_expense: 0,
-        net_balance: 0,
-      };
+    const reportRes = await fetch(`${GOLANG_BASE}/reports/sales?${query.toString()}`, {
+      method: "GET",
+      headers,
+      next: { revalidate: 0 }
+    });
+    if (!reportRes.ok) {
+      return { status: "error", message: "Gagal memuat laporan penjualan mingguan dari server Go" };
     }
-
-    const summary = {
-      total_income: 0,
-      total_expense: 0,
-      net_balance: 0,
-    };
-
-    for (const tx of transactions) {
-      if (!tx.transaction_date) continue;
-
-      const period = getPeriodKey(tx.transaction_date);
-
-      if (!groupedData[period]) {
-        groupedData[period] = {
-          period,
-          total_income: 0,
-          total_expense: 0,
-          net_balance: 0,
-        };
-      }
-
-      const income = Number(tx.total_income || 0);
-      const expense = Number(tx.total_expense || 0);
-      const net = Number(tx.net_balance || 0);
-
-      groupedData[period].total_income += income;
-      groupedData[period].total_expense += expense;
-      groupedData[period].net_balance += net;
-
-      summary.total_income += income;
-      summary.total_expense += expense;
-      summary.net_balance += net;
-    }
-
-    const data = Object.values(groupedData).sort((a, b) =>
-      a.period.localeCompare(b.period)
-    );
+    const reportData = await reportRes.json();
 
     return {
       status: "success",
@@ -180,18 +77,17 @@ export async function getWeeklyReportData(selectedBranchId = "all") {
         full_name: profile.full_name,
         business_name: profile.business_name,
         email: profile.email,
-        branch_id: profile.branch_id,
+        branch_id: userBranchId,
         tenant_owner_id: tenantOwnerId,
       },
       branches,
       selectedBranchId: activeBranchId,
-      userBranchId: profile.branch_id,
-      data,
-      summary,
+      userBranchId: userBranchId,
+      data: reportData.data || [],
+      summary: reportData.summary || { total_income: 0, total_expense: 0, net_balance: 0 },
     };
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Failed to load report data";
+    const errorMessage = error instanceof Error ? error.message : "Failed to load report data";
     console.error("Server Action getWeeklyReportData Error:", error);
     return {
       status: "error",

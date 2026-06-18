@@ -1,7 +1,21 @@
 "use server";
 
-import prisma from "@/lib/prisma";
+import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+
+const GOLANG_BASE = process.env.BACKEND_API_URL || "http://localhost:8080/api";
+
+async function getHeaders() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("token")?.value;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  return headers;
+}
 
 export async function updateProfileAction(payload: {
   id: string;
@@ -16,6 +30,7 @@ export async function updateProfileAction(payload: {
   payment_qr?: string | null;
 }) {
   try {
+    const headers = await getHeaders();
     const {
       id,
       full_name,
@@ -33,7 +48,7 @@ export async function updateProfileAction(payload: {
       return { status: "error", message: "ID Profile tidak ditemukan" };
     }
 
-    // Validasi keunikan dan format username
+    // Validasi format username di frontend sebelum dikirim
     let cleanUsername: string | null = null;
     if (username !== undefined && username !== null) {
       const trimmed = username.trim().toLowerCase();
@@ -44,45 +59,37 @@ export async function updateProfileAction(payload: {
             message: "Username hanya boleh berisi huruf kecil, angka, dan tanda hubung (-).",
           };
         }
-        const existing = await prisma.profiles.findFirst({
-          where: {
-            username: trimmed,
-            id: { not: id },
-          },
-        });
-        if (existing) {
-          return {
-            status: "error",
-            message: "Username toko ini sudah digunakan oleh UMKM lain. Silakan pilih username lain.",
-          };
-        }
         cleanUsername = trimmed;
       }
     }
 
-    // Cari role Owner untuk memastikan role di-upgrade jika belum
-    const ownerRole = await prisma.roles.findUnique({
-      where: { name: "Owner" },
+    // Siapkan body request untuk API Golang
+    const body = {
+      full_name,
+      business_name,
+      phone_number,
+      address,
+      bio,
+      avatar_url,
+      banner_url,
+      username: cleanUsername,
+      payment_qr,
+    };
+
+    // Kirim request ke backend Golang
+    const res = await fetch(`${GOLANG_BASE}/tenant-umkm`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify(body),
     });
 
-    const updated = await prisma.profiles.update({
-      where: { id },
-      data: {
-        full_name: full_name ?? undefined,
-        business_name: business_name ?? null,
-        phone_number: phone_number ?? null,
-        address: address ?? null,
-        bio: bio ?? null,
-        avatar_url: avatar_url ?? undefined,
-        banner_url: banner_url ?? undefined,
-        username: cleanUsername,
-        role_id: ownerRole?.id,
-        payment_qr: payment_qr !== undefined ? payment_qr : undefined,
-      },
-    });
+    const data = await res.json();
+    if (!res.ok) {
+      return { status: "error", message: data.error || "Gagal memperbarui profil." };
+    }
 
     revalidatePath("/backend/tenant/profile");
-    return { status: "success", data: updated };
+    return { status: "success", data };
   } catch (error) {
     console.error("updateProfileAction error:", error);
     return { status: "error", message: "Gagal memperbarui profil." };

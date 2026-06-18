@@ -27,10 +27,11 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// 2. Verifikasi token menggunakan JWT_SECRET
 		secret := os.Getenv("JWT_SECRET")
 		if secret == "" {
-			secret = "your-secret-key"
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Konfigurasi server tidak valid."})
+			c.Abort()
+			return
 		}
 
 		token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {

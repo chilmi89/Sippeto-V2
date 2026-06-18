@@ -1,77 +1,57 @@
-import React, { Suspense } from "react";
-import prisma from "@/lib/prisma";
+import React from "react";
 import { notFound } from "next/navigation";
-import { unstable_cache } from "next/cache";
 import StorefrontClient from "@/components/store/StorefrontClient";
 import StoreHero from "@/components/store/StoreHero";
 
-// ─── Cache TTL: 5 menit (data toko jarang berubah) ───────────────────────────
-const fetchStoreDataDirect = async (username: string) => {
-  const profile = await prisma.profiles.findUnique({
-    where: { username },
-    select: {
-      id: true,
-      business_name: true,
-      full_name: true,
-      email: true,
-      phone_number: true,
-      address: true,
-      avatar_url: true,
-      banner_url: true,
-      bio: true,
-      username: true,
-      created_at: true,
-      payment_qr: true,
-      metadata: true,
-    },
+const GOLANG_BASE = process.env.GOLANG_BASE || "http://localhost:8080";
+
+// ─── Fetch langsung ke Go backend (Server Component) ──────────────────────────
+const getStoreData = async (username: string) => {
+  const res = await fetch(`${GOLANG_BASE}/api/public/store/${username}`, {
+    cache: "no-store",
   });
 
-  if (!profile) return null;
+  if (!res.ok) return null;
 
-  const [rawProducts, rawBranches] = await Promise.all([
-    prisma.products.findMany({
-      where: { profile_id: profile.id, is_active: true },
-      select: {
-        id: true,
-        profile_id: true,
-        category_id: true,
-        name: true,
-        description: true,
-        base_price: true,
-        sell_price: true,
-        image_url: true,
-        is_active: true,
-        product_categories: { select: { name: true } },
-        product_stocks: { select: { stock: true, branch_id: true } },
-      },
-      orderBy: { name: "asc" },
-    }),
-    prisma.branches.findMany({
-      where: { tenant_id: profile.id, is_active: true },
-      select: {
-        id: true,
-        name: true,
-        address: true,
-        phone_number: true,
-        payment_qr: true,
-      },
-      orderBy: { name: "asc" },
-    }),
-  ]);
-
-  return { profile, rawProducts, rawBranches };
+  const json = await res.json();
+  return json as {
+    profile: {
+      id: string;
+      business_name: string | null;
+      full_name: string | null;
+      email: string;
+      phone_number: string | null;
+      address: string | null;
+      avatar_url: string | null;
+      banner_url: string | null;
+      bio: string | null;
+      username: string | null;
+      created_at: string;
+      payment_qr: string | null;
+      metadata: unknown;
+    };
+    products: Array<{
+      id: string;
+      profile_id: string;
+      category_id: string | null;
+      name: string;
+      description: string | null;
+      base_price: number;
+      sell_price: number;
+      image_url: string | null;
+      is_active: boolean;
+      product_categories: { name: string } | null;
+      product_stocks: Array<{ stock: number; branch_id: string }>;
+    }>;
+    branches: Array<{
+      id: string;
+      name: string;
+      address: string | null;
+      phone_number: string | null;
+      payment_qr: string | null;
+    }>;
+  };
 };
-
-const getStoreDataCached = unstable_cache(
-  fetchStoreDataDirect,
-  // Cache key berdasarkan username
-  ["store-data"],
-  { revalidate: 300, tags: ["store"] } // 5 menit
-);
-
-const getStoreData = process.env.NODE_ENV === "development"
-  ? fetchStoreDataDirect
-  : getStoreDataCached;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Params = Promise<{ username: string }>;
@@ -109,9 +89,8 @@ export default async function StorePage({ params }: { params: Params }) {
 
   if (!data) notFound();
 
-  const { profile, rawProducts, rawBranches } = data;
+  const { profile, products, branches } = data;
 
-  // Serialize Decimal → number agar bisa dikirim ke client component
   const serializedProfile = {
     id: profile.id,
     business_name: profile.business_name,
@@ -123,32 +102,26 @@ export default async function StorePage({ params }: { params: Params }) {
     banner_url: profile.banner_url,
     bio: profile.bio,
     username: profile.username,
-    created_at: profile.created_at
-      ? (typeof profile.created_at === "string"
-          ? profile.created_at
-          : (profile.created_at instanceof Date
-              ? profile.created_at.toISOString()
-              : new Date(profile.created_at as any).toISOString()))
-      : null,
+    created_at: profile.created_at ?? null,
     payment_qr: profile.payment_qr,
     metadata: profile.metadata,
   };
 
-  const serializedProducts = rawProducts.map((p) => ({
+  const serializedProducts = products.map((p) => ({
     id: p.id,
     profile_id: p.profile_id,
     category_id: p.category_id,
     name: p.name,
     description: p.description,
-    base_price: Number(p.base_price),
-    sell_price: Number(p.sell_price),
+    base_price: p.base_price,
+    sell_price: p.sell_price,
     image_url: p.image_url,
-    is_active: p.is_active ?? true,
+    is_active: p.is_active,
     product_categories: p.product_categories ? { name: p.product_categories.name } : null,
     product_stocks: p.product_stocks.map((s) => ({ stock: s.stock, branch_id: s.branch_id })),
   }));
 
-  const serializedBranches = rawBranches.map((b) => ({
+  const serializedBranches = branches.map((b) => ({
     id: b.id,
     name: b.name,
     address: b.address,

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useSidebar } from "@/lib/context/SidebarContext";
+import { fetchMeOnce } from "@/lib/auth/fetchMe";
 import {
   LayoutDashboard,
   Store,
@@ -87,15 +88,13 @@ export const TenantSidebar = () => {
   // 1. Fetch data user sekali saat mount
   useEffect(() => {
     setMounted(true);
-    fetch("/api/auth/me")
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
+    fetchMeOnce().then(data => {
         if (data) {
           if (data.branch_id) {
-            setUserBranchId(data.branch_id);
+            setUserBranchId(data.branch_id as string);
           }
           if (data.permissions) {
-            setUserPermissions(data.permissions);
+            setUserPermissions(data.permissions as string[]);
           }
         }
         setLoadingPermissions(false);
@@ -167,7 +166,7 @@ export const TenantSidebar = () => {
         </div>
 
         {/* Navigation */}
-        <nav className={`flex-1 space-y-2 overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${isOpen ? "" : "flex flex-col items-center"}`}>
+        <nav data-lenis-prevent className={`flex-1 space-y-2 overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${isOpen ? "" : "flex flex-col items-center"}`}>
           {tenantNavItems
             .filter((item) => {
               if (userBranchId && item.href === "/backend/tenant/branches") {

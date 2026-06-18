@@ -78,11 +78,9 @@ export const NotificationDropdown = () => {
     }
   }, []);
 
-  // Fetch saat mount dan setiap 60 detik (polling)
+  // Fetch saat mount (sekali aja, polling dihapus)
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 60_000);
-    return () => clearInterval(interval);
   }, [fetchNotifications]);
 
   // Tutup dropdown jika klik di luar
@@ -101,13 +99,13 @@ export const NotificationDropdown = () => {
   const unreadCount = Math.max(0, totalCount - seenCount);
   const hasUnread = unreadCount > 0;
 
-  // Handler buka/tutup dropdown — saat buka, tandai semua sudah terbaca
+  // Handler buka/tutup dropdown — saat buka, refresh data + tandai sudah terbaca
   const handleToggle = () => {
     setIsOpen((prev) => {
       const willOpen = !prev;
       if (willOpen) {
-        // Tandai semua notifikasi saat ini sebagai sudah dilihat
         setSeenCount(totalCount);
+        fetchNotifications(); // refresh saat user mau lihat
       }
       return willOpen;
     });
