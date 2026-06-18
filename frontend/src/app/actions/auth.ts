@@ -2,7 +2,8 @@
 
 import { cookies } from "next/headers";
 
-const BACKEND_API_URL = process.env.BACKEND_API_URL || "http://localhost:8080";
+const BACKEND_URL = process.env.BACKEND_API_URL || "http://localhost:8080";
+const BACKEND_API_URL = BACKEND_URL.endsWith("/api") ? BACKEND_URL.slice(0, -4) : BACKEND_URL;
 
 interface LoginPayload {
   email?: string;
