@@ -17,6 +17,7 @@
 *.sw?
 
 # Local Environment Variables
+/.env
 /frontend/.env
 /frontend/.env.local
 /frontend/.env.development.local

@@ -98,6 +98,7 @@ export default function ProductsTable({
     const [formSellPrice, setFormSellPrice] = useState<number | "">(0);
     const [formIsActive, setFormIsActive] = useState(true);
     const [formImageUrl, setFormImageUrl] = useState("");
+    const [pendingFile, setPendingFile] = useState<File | null>(null);
     
     // Dynamic branch stock state
     const [branchStocksInput, setBranchStocksInput] = useState<{ [branchId: string]: { stock: number | ""; min_stock: number | "" } }>({});
@@ -122,38 +123,51 @@ export default function ProductsTable({
         return matchesSearch && matchesCategory && matchesOwner;
     });
 
-    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const uploadImageToMinio = async (file: File): Promise<string> => {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const params = new URLSearchParams({ bucket: "product" });
+        if (formName) params.set("name", formName);
+        if (profile?.business_name) params.set("tenant", profile.business_name);
+
+        const res = await fetch(`/api/backend/storage/upload?${params}`, {
+            method: "POST",
+            body: formData,
+        });
+
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || `Gagal mengunggah gambar (Status: ${res.status})`);
+        }
+
+        const json = await res.json();
+        if (!json?.data?.url) {
+            throw new Error("Respons server tidak valid.");
+        }
+        return json.data.url;
+    };
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const fileList = e.target.files;
         if (!fileList || fileList.length === 0) return;
         const file = fileList[0];
 
-        try {
-            setUploadingImage(true);
-            const formData = new FormData();
-            formData.append("file", file);
-            if (formImageUrl) {
-                formData.append("old_url", formImageUrl);
-            }
-
-            const res = await fetch("/api/upload/product", {
-                method: "POST",
-                body: formData
-            });
-
-            if (res.ok) {
-                const data = await res.json();
-                setFormImageUrl(data.url);
-                toast.success("Gambar berhasil diunggah");
-            } else {
-                const errData = await res.json();
-                toast.error(errData.error || "Gagal mengunggah gambar.");
-            }
-        } catch (error) {
-            console.error("Upload error:", error);
-            toast.error("Kesalahan koneksi saat mengunggah gambar.");
-        } finally {
-            setUploadingImage(false);
+        // Revoke blob URL sebelumnya
+        if (pendingFile && formImageUrl.startsWith("blob:")) {
+            URL.revokeObjectURL(formImageUrl);
         }
+
+        // Preview lokal saja, upload menyusul saat submit
+        const previewUrl = URL.createObjectURL(file);
+        setFormImageUrl(previewUrl);
+        setPendingFile(file);
+    };
+
+    const closeModal = () => {
+        if (formImageUrl.startsWith("blob:")) URL.revokeObjectURL(formImageUrl);
+        setPendingFile(null);
+        setIsModalOpen(false);
     };
 
     const openCreateModal = () => {
@@ -165,6 +179,7 @@ export default function ProductsTable({
         setFormSellPrice("");
         setFormIsActive(true);
         setFormImageUrl("");
+        setPendingFile(null);
         
         const initialStocks: any = {};
         branches.forEach(b => {
@@ -188,6 +203,7 @@ export default function ProductsTable({
             setFormSellPrice(Number(product.sell_price));
             setFormIsActive(product.is_active);
             setFormImageUrl(product.image_url || "");
+            setPendingFile(null);
 
             const existingStocks: any = {};
             branches.forEach(b => {
@@ -225,6 +241,22 @@ export default function ProductsTable({
         try {
             setActionLoading(true);
 
+            // Upload gambar ke MinIO jika ada file yang belum diupload
+            let finalImageUrl = formImageUrl;
+            if (pendingFile) {
+                setUploadingImage(true);
+                try {
+                    finalImageUrl = await uploadImageToMinio(pendingFile);
+                } catch (uploadErr) {
+                    toast.error(uploadErr instanceof Error ? uploadErr.message : "Gagal mengunggah gambar.");
+                    setActionLoading(false);
+                    setUploadingImage(false);
+                    return;
+                } finally {
+                    setUploadingImage(false);
+                }
+            }
+
             if (modalMode === "create") {
                 const branchStocksArray = Object.keys(branchStocksInput).map(bId => ({
                     branch_id: bId,
@@ -240,14 +272,14 @@ export default function ProductsTable({
                     description: formDescription || null,
                     base_price: formBasePrice === "" ? 0 : formBasePrice,
                     sell_price: formSellPrice === "" ? 0 : formSellPrice,
-                    image_url: formImageUrl || null,
+                    image_url: finalImageUrl || null,
                     is_active: formIsActive,
                     branch_stocks: branchStocksArray
                 });
 
                 if (res.status === "success") {
                     toast.success("Produk berhasil dibuat");
-                    setIsModalOpen(false);
+                    closeModal();
                     router.refresh();
                 } else {
                     toast.error(res.message || "Gagal membuat produk.");
@@ -270,14 +302,14 @@ export default function ProductsTable({
                     description: formDescription || null,
                     base_price: formBasePrice === "" ? 0 : formBasePrice,
                     sell_price: formSellPrice === "" ? 0 : formSellPrice,
-                    image_url: formImageUrl || null,
+                    image_url: finalImageUrl || null,
                     is_active: formIsActive,
                     branch_stocks: branchStocksArray
                 });
 
                 if (res.status === "success") {
                     toast.success("Produk berhasil diperbarui");
-                    setIsModalOpen(false);
+                    closeModal();
                     router.refresh();
                 } else {
                     toast.error(res.message || "Gagal memperbarui produk.");
@@ -305,7 +337,7 @@ export default function ProductsTable({
 
                 if (res.status === "success") {
                     toast.success("Stok cabang berhasil diperbarui");
-                    setIsModalOpen(false);
+                    closeModal();
                     router.refresh();
                 } else {
                     toast.error(res.message || "Gagal memperbarui stok cabang");
@@ -576,13 +608,13 @@ export default function ProductsTable({
                                 {modalMode === "edit" && `Edit Produk: ${selectedProduct?.name}`}
                                 {modalMode === "adjust_stock" && `Penyesuaian Stok Cabang: ${selectedProduct?.name}`}
                             </h3>
-                            <button onClick={() => setIsModalOpen(false)} className="p-2 text-zinc-400 hover:text-zinc-650 hover:bg-zinc-100 rounded-xl transition-colors">
+                            <button onClick={closeModal} className="p-2 text-zinc-400 hover:text-zinc-650 hover:bg-zinc-100 rounded-xl transition-colors">
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
 
                         {/* Modal Body */}
-                        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5 text-black">
+                        <form onSubmit={handleSubmit} data-lenis-prevent className="flex-1 overflow-y-auto p-6 space-y-5 text-black">
                             {modalMode !== "adjust_stock" ? (
                                 <>
                                     {/* Baris 1: Nama Produk */}
@@ -639,12 +671,16 @@ export default function ProductsTable({
                                                         htmlFor="product-image-upload"
                                                         className="px-3.5 py-2 bg-white border border-zinc-200 text-black hover:bg-zinc-50 hover:text-black transition-all font-bold text-xs rounded-lg cursor-pointer inline-flex items-center justify-center shadow-sm"
                                                     >
-                                                        {uploadingImage ? "Mengunggah..." : "Pilih Gambar"}
+                                                        Pilih Gambar
                                                     </label>
                                                     {formImageUrl && (
                                                         <button
                                                             type="button"
-                                                            onClick={() => setFormImageUrl("")}
+                                                            onClick={() => {
+                                                                if (formImageUrl.startsWith("blob:")) URL.revokeObjectURL(formImageUrl);
+                                                                setFormImageUrl("");
+                                                                setPendingFile(null);
+                                                            }}
                                                             className="text-left text-[9px] text-rose-500 font-extrabold hover:underline"
                                                         >
                                                             Hapus Gambar

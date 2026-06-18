@@ -1,10 +1,15 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Store, Plus, Edit2, Trash2, MapPin, Phone, CheckCircle, XCircle } from "lucide-react";
-import FullPageLoader from "@/components/layout/FullPageLoader";
-import SectionLoader from "@/components/layout/SectionLoader";
+import {
+    getBranchesAction,
+    createBranchAction,
+    updateBranchAction,
+    deleteBranchAction
+} from "@/app/actions/branch";
+import { uploadFileAction } from "@/app/actions/upload";
 
 interface Branch {
     id: string;
@@ -30,7 +35,7 @@ export default function BranchesPage() {
     const router = useRouter();
     const [profile, setProfile] = useState<any>(null);
     const [branches, setBranches] = useState<Branch[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isPending, startTransition] = useTransition();
     const [isSaving, setIsSaving] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
     const [hasPermission, setHasPermission] = useState(true);
@@ -74,10 +79,9 @@ export default function BranchesPage() {
         const fd = new FormData();
         fd.append('file', file);
         if (oldUrl) fd.append('old_url', oldUrl);
-        const res = await fetch('/api/upload/payment-qr', { method: 'POST', body: fd });
-        const data = await res.json();
-        if (!res.ok || !data.url) throw new Error(data.error || 'Gagal mengunggah QR Code');
-        return data.url;
+        const result = await uploadFileAction(fd, 'qr');
+        if ('error' in result || !result.url) throw new Error(result.error || 'Gagal mengunggah QR Code');
+        return result.url;
     };
 
     const fetchProfileAndBranches = async () => {
@@ -88,7 +92,6 @@ export default function BranchesPage() {
                 
                 if (userData.permissions && !userData.permissions.includes("kelola_cabang")) {
                     setHasPermission(false);
-                    setIsLoading(false);
                     return;
                 }
             }
@@ -105,21 +108,22 @@ export default function BranchesPage() {
 
                 setProfile(profileData.profile);
                 
-                const branchesRes = await fetch(`/api/backend/branches?tenant_id=${profileData.profile.id}`);
-                if (branchesRes.ok) {
-                    const branchesData = await branchesRes.json();
-                    setBranches(branchesData.data || []);
+                const res = await getBranchesAction(profileData.profile.id);
+                if (res.success) {
+                    setBranches(res.data || []);
+                } else {
+                    setErrorMessage(res.error || "Gagal mengambil data cabang.");
                 }
             }
         } catch (err) {
             console.error("Gagal memuat data cabang:", err);
-        } finally {
-            setIsLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchProfileAndBranches();
+        startTransition(async () => {
+            await fetchProfileAndBranches();
+        });
     }, []);
 
     const openAddModal = () => {
@@ -179,48 +183,41 @@ export default function BranchesPage() {
             }
 
             if (modalMode === "add") {
-                const res = await fetch("/api/backend/branches", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        tenant_id: profile.id,
-                        name: formName,
-                        address: formAddress,
-                        phone_number: formPhone,
-                        manager_name: formManagerName || undefined,
-                        manager_email: formManagerEmail || undefined,
-                        manager_password: formManagerPassword || undefined,
-                        payment_qr: qrUrl || null
-                    })
+                const res = await createBranchAction({
+                    tenant_id: profile.id,
+                    name: formName,
+                    address: formAddress,
+                    phone_number: formPhone,
+                    manager_name: formManagerName || undefined,
+                    manager_email: formManagerEmail || undefined,
+                    manager_password: formManagerPassword || undefined,
+                    payment_qr: qrUrl || null
                 });
 
-                const json = await res.json();
-                if (res.ok) {
-                    await fetchProfileAndBranches();
+                if (res.success) {
+                    startTransition(async () => {
+                        await fetchProfileAndBranches();
+                    });
                     setIsOpenModal(false);
                 } else {
-                    setErrorMessage(json.error || "Gagal membuat cabang");
+                    setErrorMessage(res.error || "Gagal membuat cabang");
                 }
             } else {
-                const res = await fetch("/api/backend/branches", {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        id: selectedBranchId,
-                        name: formName,
-                        address: formAddress,
-                        phone_number: formPhone,
-                        is_active: formIsActive,
-                        payment_qr: qrUrl || null
-                    })
+                const res = await updateBranchAction(selectedBranchId!, {
+                    name: formName,
+                    address: formAddress,
+                    phone_number: formPhone,
+                    is_active: formIsActive,
+                    payment_qr: qrUrl || null
                 });
 
-                const json = await res.json();
-                if (res.ok) {
-                    await fetchProfileAndBranches();
+                if (res.success) {
+                    startTransition(async () => {
+                        await fetchProfileAndBranches();
+                    });
                     setIsOpenModal(false);
                 } else {
-                    setErrorMessage(json.error || "Gagal memperbarui cabang");
+                    setErrorMessage(res.error || "Gagal memperbarui cabang");
                 }
             }
         } catch (err) {
@@ -236,11 +233,11 @@ export default function BranchesPage() {
         if (!window.confirm("Apakah Anda yakin ingin menghapus cabang ini? Semua transaksi terkait akan terpengaruh.")) return;
 
         try {
-            const res = await fetch(`/api/backend/branches?id=${id}`, {
-                method: "DELETE"
-            });
-            if (res.ok) {
+            const res = await deleteBranchAction(id);
+            if (res.success) {
                 setBranches(prev => prev.filter(b => b.id !== id));
+            } else {
+                alert(res.error || "Gagal menghapus cabang");
             }
         } catch (err) {
             console.error("Gagal menghapus cabang:", err);
@@ -249,16 +246,13 @@ export default function BranchesPage() {
 
     const handleToggleStatus = async (branch: Branch) => {
         try {
-            const res = await fetch("/api/backend/branches", {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    id: branch.id,
-                    is_active: !branch.is_active
-                })
+            const res = await updateBranchAction(branch.id, {
+                is_active: !branch.is_active
             });
-            if (res.ok) {
+            if (res.success) {
                 setBranches(prev => prev.map(b => b.id === branch.id ? { ...b, is_active: !b.is_active } : b));
+            } else {
+                alert(res.error || "Gagal mengubah status cabang");
             }
         } catch (err) {
             console.error("Gagal mengubah status cabang:", err);
@@ -283,8 +277,6 @@ export default function BranchesPage() {
 
     return (
         <div className="w-full flex flex-col gap-6 py-2 pb-20 px-4 sm:px-6">
-            {isLoading && <FullPageLoader />}
-
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 py-2">
                 <div>
@@ -322,7 +314,27 @@ export default function BranchesPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-zinc-100">
-                            {branches.length > 0 ? (
+                            {isPending ? (
+                                Array.from({ length: 3 }).map((_, i) => (
+                                    <tr key={i} className="hover:bg-zinc-50/50 transition-all duration-200">
+                                        <td className="px-6 py-5">
+                                            <div className="h-4 bg-zinc-100 rounded-lg animate-pulse w-3/4" />
+                                        </td>
+                                        <td className="px-6 py-5">
+                                            <div className="h-4 bg-zinc-100 rounded-lg animate-pulse w-1/2" />
+                                        </td>
+                                        <td className="px-6 py-5 text-center">
+                                            <div className="h-4 bg-zinc-100 rounded-lg animate-pulse w-12 mx-auto" />
+                                        </td>
+                                        <td className="px-6 py-5 text-center">
+                                            <div className="h-4 bg-zinc-100 rounded-lg animate-pulse w-16 mx-auto" />
+                                        </td>
+                                        <td className="px-6 py-5 text-right">
+                                            <div className="h-4 bg-zinc-100 rounded-lg animate-pulse w-16 ml-auto" />
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : branches.length > 0 ? (
                                 branches.map((branch) => (
                                     <tr key={branch.id} className="hover:bg-zinc-50/50 transition-all duration-200 group">
                                         <td className="px-6 py-5">
@@ -418,7 +430,7 @@ export default function BranchesPage() {
                             ) : (
                                 <tr>
                                     <td colSpan={5} className="px-6 py-16 text-center text-zinc-400 text-sm font-medium italic">
-                                        {isLoading ? <SectionLoader text="Memuat daftar cabang..." /> : "Belum ada cabang terdaftar."}
+                                        Belum ada cabang terdaftar.
                                     </td>
                                 </tr>
                             )}
@@ -443,7 +455,7 @@ export default function BranchesPage() {
                                 <XCircle className="w-5 h-5" />
                             </button>
                         </div>
-                        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto min-h-0 flex flex-col">
+                        <form onSubmit={handleSubmit} data-lenis-prevent className="flex-1 overflow-y-auto min-h-0 flex flex-col">
                             <div className="p-6 space-y-4 flex-1">
                                 {errorMessage && (
                                     <div className="bg-rose-50 border border-rose-100 text-rose-600 px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider">
@@ -459,7 +471,7 @@ export default function BranchesPage() {
                                                 Informasi Cabang / Toko
                                             </h3>
                                             <div className="space-y-1.5">
-                                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Nama Cabang *</label>
+                                                <label className="text-xs font-bold text-zinc-900 uppercase tracking-widest">Nama Cabang *</label>
                                                 <input
                                                     type="text"
                                                     required
@@ -470,7 +482,7 @@ export default function BranchesPage() {
                                                 />
                                             </div>
                                             <div className="space-y-1.5">
-                                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Telepon / HP</label>
+                                                <label className="text-xs font-bold text-zinc-900 uppercase tracking-widest">Telepon / HP</label>
                                                 <input
                                                     type="text"
                                                     value={formPhone}
@@ -480,7 +492,7 @@ export default function BranchesPage() {
                                                 />
                                             </div>
                                             <div className="space-y-1.5">
-                                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Alamat Fisik</label>
+                                                <label className="text-xs font-bold text-zinc-900 uppercase tracking-widest">Alamat Fisik</label>
                                                 <textarea
                                                     value={formAddress}
                                                     onChange={(e) => setFormAddress(e.target.value)}
@@ -490,7 +502,7 @@ export default function BranchesPage() {
                                                 />
                                             </div>
                                             <div className="space-y-1.5 pt-2">
-                                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest block">QR Code Pembayaran Cabang</label>
+                                                <label className="text-xs font-bold text-zinc-900 uppercase tracking-widest block">QR Code Pembayaran Cabang</label>
                                                 <div className="flex items-center gap-3 bg-zinc-50 p-3 rounded-xl border border-zinc-100">
                                                     <div className="w-14 h-14 rounded-lg bg-white border border-zinc-200 flex items-center justify-center overflow-hidden shrink-0">
                                                         {qrPreview ? (
@@ -519,7 +531,7 @@ export default function BranchesPage() {
                                                 Akun Pengelola / Franchisee (Login)
                                             </h3>
                                             <div className="space-y-1.5">
-                                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Nama Lengkap Pengelola *</label>
+                                                <label className="text-xs font-bold text-zinc-900 uppercase tracking-widest">Nama Lengkap Pengelola *</label>
                                                 <input
                                                     type="text"
                                                     required
@@ -530,7 +542,7 @@ export default function BranchesPage() {
                                                 />
                                             </div>
                                             <div className="space-y-1.5">
-                                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Email Login *</label>
+                                                <label className="text-xs font-bold text-zinc-900 uppercase tracking-widest">Email Login *</label>
                                                 <input
                                                     type="email"
                                                     required
@@ -541,7 +553,7 @@ export default function BranchesPage() {
                                                 />
                                             </div>
                                             <div className="space-y-1.5">
-                                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Password Login *</label>
+                                                <label className="text-xs font-bold text-zinc-900 uppercase tracking-widest">Password Login *</label>
                                                 <input
                                                     type="password"
                                                     required
@@ -557,7 +569,7 @@ export default function BranchesPage() {
                                     // Mode Edit (Single Column)
                                     <div className="space-y-4">
                                         <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Nama Cabang *</label>
+                                            <label className="text-xs font-bold text-zinc-900 uppercase tracking-widest">Nama Cabang *</label>
                                             <input
                                                 type="text"
                                                 required
@@ -568,7 +580,7 @@ export default function BranchesPage() {
                                             />
                                         </div>
                                         <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Telepon / HP</label>
+                                            <label className="text-xs font-bold text-zinc-900 uppercase tracking-widest">Telepon / HP</label>
                                             <input
                                                 type="text"
                                                 value={formPhone}
@@ -578,7 +590,7 @@ export default function BranchesPage() {
                                             />
                                         </div>
                                         <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Alamat Fisik</label>
+                                            <label className="text-xs font-bold text-zinc-900 uppercase tracking-widest">Alamat Fisik</label>
                                             <textarea
                                                 value={formAddress}
                                                 onChange={(e) => setFormAddress(e.target.value)}
@@ -588,7 +600,7 @@ export default function BranchesPage() {
                                             />
                                         </div>
                                         <div className="space-y-1.5 pt-1">
-                                            <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest block">QR Code Pembayaran Cabang</label>
+                                            <label className="text-xs font-bold text-zinc-900 uppercase tracking-widest block">QR Code Pembayaran Cabang</label>
                                             <div className="flex items-center gap-3 bg-zinc-50 p-3 rounded-xl border border-zinc-100">
                                                 <div className="w-14 h-14 rounded-lg bg-white border border-zinc-200 flex items-center justify-center overflow-hidden shrink-0">
                                                     {qrPreview ? (
@@ -617,7 +629,7 @@ export default function BranchesPage() {
                                                 onChange={(e) => setFormIsActive(e.target.checked)}
                                                 className="w-4 h-4 text-primary border-zinc-300 rounded focus:ring-primary"
                                             />
-                                            <label htmlFor="branch_active" className="text-xs font-bold text-zinc-700 uppercase tracking-wider cursor-pointer">
+                                            <label htmlFor="branch_active" className="text-xs font-bold text-zinc-900 uppercase tracking-wider cursor-pointer">
                                                 Cabang ini Aktif
                                             </label>
                                         </div>

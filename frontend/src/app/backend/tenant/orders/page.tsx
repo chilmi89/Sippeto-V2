@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-toastify";
 import SectionLoader from "@/components/layout/SectionLoader";
+import { getOrdersAction, updateOrderStatusAction } from "@/app/actions/order";
 
 interface OrderItem {
   id: string;
@@ -45,12 +46,11 @@ export default function TenantOrdersPage() {
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/backend/tenant/orders");
-      if (res.ok) {
-        const data = await res.json();
-        setOrders(data);
+      const res = await getOrdersAction();
+      if (res.status === "success") {
+        setOrders(res.data || []);
       } else {
-        toast.error("Gagal mengambil daftar pesanan.");
+        toast.error(res.message || "Gagal mengambil daftar pesanan.");
       }
     } catch {
       toast.error("Kesalahan jaringan.");
@@ -97,17 +97,12 @@ export default function TenantOrdersPage() {
 
     setActionLoading(prev => ({ ...prev, [orderId]: true }));
     try {
-      const res = await fetch("/api/backend/tenant/orders", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: orderId, status: newStatus }),
-      });
-      const data = await res.json();
-      if (res.ok) {
+      const res = await updateOrderStatusAction({ id: orderId, status: newStatus });
+      if (res.status === "success") {
         toast.success(newStatus === "SUCCESS" ? "Pembayaran berhasil dikonfirmasi & stok berkurang!" : "Pesanan berhasil dibatalkan.");
         fetchOrders();
       } else {
-        toast.error(data.error || "Gagal memperbarui status pesanan.");
+        toast.error(res.message || "Gagal memperbarui status pesanan.");
       }
     } catch {
       toast.error("Kesalahan jaringan saat memproses aksi.");

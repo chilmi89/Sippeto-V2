@@ -16,9 +16,8 @@ import {
   ChevronDown,
   Edit2
 } from "lucide-react";
-import FullPageLoader from "@/components/layout/FullPageLoader";
-import SectionLoader from "@/components/layout/SectionLoader";
 import { toast } from "react-toastify";
+import { getUsersAction, createUserAction, updateUserAction, deleteUserAction } from "@/app/actions/user";
 
 // Type definition berdasarkan Schema Prisma kita
 interface User {
@@ -39,7 +38,6 @@ interface Role {
 const UsersPage = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
   // Modal states
@@ -58,15 +56,11 @@ const UsersPage = () => {
 
   const fetchUsers = async () => {
     try {
-      setLoading(true);
-      const res = await fetch("/api/backend/users");
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Gagal mengambil data");
-      setUsers(json.data || []);
+      const res = await getUsersAction();
+      if (res.error) throw new Error(res.error);
+      setUsers(res.data || []);
     } catch (error: any) {
       toast.error(error.message);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -116,24 +110,18 @@ const UsersPage = () => {
     setSubmitting(true);
     try {
       const isEdit = modalMode === "edit";
-      const url = isEdit ? `/api/backend/users/${formData.id}` : "/api/backend/users";
-      const method = isEdit ? "PUT" : "POST";
-      
       const payload: any = { ...formData };
       if (isEdit && !payload.password) {
         delete payload.password; // Hindari mengirim password kosong jika tidak diubah
       }
       
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
+      const res = isEdit 
+        ? await updateUserAction(formData.id, payload)
+        : await createUserAction(payload);
+        
+      if (res.error) throw new Error(res.error);
       
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Gagal menyimpan data");
-      
-      toast.success(json.message || `User berhasil ${isEdit ? "selesai diedit" : "ditambahkan"}`);
+      toast.success(res.message || `User berhasil ${isEdit ? "selesai diedit" : "ditambahkan"}`);
       setIsModalOpen(false);
       fetchUsers();
     } catch (error: any) {
@@ -147,11 +135,8 @@ const UsersPage = () => {
     if (!confirm(`Apakah Anda yakin ingin menghapus sistem akses untuk user ${name}?`)) return;
 
     try {
-      const res = await fetch(`/api/backend/users/${id}`, {
-        method: "DELETE",
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Gagal menghapus user");
+      const res = await deleteUserAction(id);
+      if (res.error) throw new Error(res.error);
       
       toast.success("User berhasil dihapus");
       fetchUsers();
@@ -170,7 +155,6 @@ const UsersPage = () => {
 
   return (
     <div className="flex flex-col gap-8 w-full max-w-full pb-8 animate-in fade-in duration-500">
-      {(loading || submitting) && <FullPageLoader />}
       
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -225,13 +209,7 @@ const UsersPage = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-50">
-              {loading ? (
-                <tr>
-                  <td colSpan={5} className="py-24">
-                     <SectionLoader text="Sinkronisasi Database..." />
-                  </td>
-                </tr>
-              ) : filteredUsers.length === 0 ? (
+              {filteredUsers.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-8 py-20 text-center">
                     <div className="flex flex-col items-center gap-3">
@@ -338,7 +316,7 @@ const UsersPage = () => {
             </div>
             
             <form onSubmit={handleFormSubmit} className="flex flex-col flex-1 overflow-hidden">
-              <div className="p-8 overflow-y-auto flex-1 bg-white">
+              <div data-lenis-prevent className="p-8 overflow-y-auto flex-1 bg-white">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {/* Kolom Kiri */}
                   <div className="space-y-6">

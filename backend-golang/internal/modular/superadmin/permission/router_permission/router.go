@@ -1,6 +1,7 @@
 package router_permission
 
 import (
+	"backend-golang/internal/middleware"
 	"backend-golang/internal/modular/superadmin/permission/controller_permission"
 	"backend-golang/internal/modular/superadmin/permission/repository_permission"
 	"backend-golang/internal/modular/superadmin/permission/service_permission"
@@ -15,6 +16,7 @@ func SetupRouter(r *gin.Engine, db *bun.DB) {
 	ctrl := controller_permission.NewPermissionController(svc)
 
 	api := r.Group("/api")
+	api.Use(middleware.AuthMiddleware(), middleware.RequireRole("superadmin"))
 	{
 		api.GET("/permission", ctrl.GetPermissions)
 		api.POST("/permission", ctrl.CreatePermission)

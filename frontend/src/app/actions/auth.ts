@@ -2,6 +2,8 @@
 
 import { cookies } from "next/headers";
 
+const BACKEND_API_URL = process.env.BACKEND_API_URL || "http://localhost:8080";
+
 interface LoginPayload {
   email?: string;
   password?: string;
@@ -9,8 +11,7 @@ interface LoginPayload {
 
 export async function loginAction(payload: LoginPayload) {
   try {
-    // Memanggil API login pada Go backend
-    const res = await fetch("http://localhost:8080/api/auth/login", {
+    const res = await fetch(`${BACKEND_API_URL}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -24,16 +25,24 @@ export async function loginAction(payload: LoginPayload) {
 
     const cookieStore = await cookies();
 
-    // Set cookie token secara HTTP-Only di server Next.js
     cookieStore.set("token", data.token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
-      maxAge: 60 * 60 * 24, // 1 hari
+      maxAge: 60 * 60 * 24,
       path: "/",
     });
 
-    // Set cookie role_name agar middleware & UI dapat membaca
+    if (data.refresh_token) {
+      cookieStore.set("refresh_token", data.refresh_token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 60 * 60 * 24 * 7,
+        path: "/",
+      });
+    }
+
     cookieStore.set("role_name", data.user?.role_name || "", {
       httpOnly: false,
       secure: process.env.NODE_ENV === "production",
@@ -46,5 +55,44 @@ export async function loginAction(payload: LoginPayload) {
   } catch (err) {
     console.error("Login Action Error:", err);
     return { error: "Gagal terhubung ke server backend Go." };
+  }
+}
+
+export async function refreshTokenAction() {
+  try {
+    const cookieStore = await cookies();
+    const refreshToken = cookieStore.get("refresh_token")?.value;
+
+    if (!refreshToken) {
+      return { error: "Refresh token tidak ditemukan." };
+    }
+
+    const res = await fetch(`${BACKEND_API_URL}/api/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+
+    if (!res.ok) {
+      cookieStore.delete("token");
+      cookieStore.delete("role_name");
+      cookieStore.delete("refresh_token");
+      return { error: "Sesi habis, silakan login ulang." };
+    }
+
+    const data = await res.json();
+
+    cookieStore.set("token", data.access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 60 * 60 * 24,
+      path: "/",
+    });
+
+    return { success: true };
+  } catch (err) {
+    console.error("Refresh Token Action Error:", err);
+    return { error: "Gagal memperbarui token sesi." };
   }
 }

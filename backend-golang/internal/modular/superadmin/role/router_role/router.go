@@ -1,6 +1,7 @@
 package router_role
 
 import (
+	"backend-golang/internal/middleware"
 	"backend-golang/internal/modular/superadmin/role/controller_role"
 	"backend-golang/internal/modular/superadmin/role/repository_role"
 	"backend-golang/internal/modular/superadmin/role/service_role"
@@ -17,6 +18,7 @@ func SetupRouter(r *gin.Engine, db *bun.DB) {
 
 	// Definisikan rute API
 	api := r.Group("/api")
+	api.Use(middleware.AuthMiddleware(), middleware.RequireRole("superadmin"))
 	{
 		api.GET("/role", ctrl.GetRoles)
 		api.POST("/role", ctrl.CreateRole)

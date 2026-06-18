@@ -1,15 +1,19 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useTransition } from "react";
 import {
   Plus, Trash2, Edit3,
   Search, CheckCircle2, AlertCircle,
   ChevronLeft, ChevronRight,
-  X, TriangleAlert, Building2, Package, LayoutGrid
+  X, TriangleAlert, Building2, LayoutGrid
 } from "lucide-react";
-import FullPageLoader from "@/components/layout/FullPageLoader";
-import SectionLoader from "@/components/layout/SectionLoader";
 import { toast } from "react-toastify";
+import {
+  getCategoriesAction,
+  createCategoryAction,
+  updateCategoryAction,
+  deleteCategoryAction
+} from "@/app/actions/product";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -84,9 +88,11 @@ const TabButton = ({
 
 const SkeletonRow = () => (
   <tr>
-    <td colSpan={5} className="py-24">
-       <SectionLoader text="Sinkronisasi Data..." />
-    </td>
+    {Array.from({ length: 5 }).map((_, i) => (
+      <td key={i} className="px-6 py-5">
+        <div className="h-4 bg-zinc-100 rounded-lg animate-pulse" />
+      </td>
+    ))}
   </tr>
 );
 
@@ -213,24 +219,15 @@ const CategoryFormModal = ({ mode, initial, onClose, onSuccess }: CategoryFormMo
     setIsSaving(true);
     try {
       const res = isEdit
-        ? await fetch("/api/backend/product-categories", {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: initial!.id, name: name.trim() }),
-          })
-        : await fetch("/api/backend/product-categories", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: name.trim() }), // profile_id null = global
-          });
+        ? await updateCategoryAction(initial!.id, name.trim())
+        : await createCategoryAction({ name: name.trim(), profile_id: null }); // profile_id null = global
 
-      if (res.ok) {
+      if (res.success) {
         toast.success(isEdit ? "Kategori produk berhasil diperbarui" : "Kategori produk berhasil ditambahkan");
         onSuccess();
         onClose();
       } else {
-        const err = await res.json();
-        toast.error(err?.error ?? "Terjadi kesalahan");
+        toast.error(res.error ?? "Terjadi kesalahan");
       }
     } catch {
       toast.error("Gagal menghubungi server");
@@ -295,14 +292,13 @@ const DeleteModal = ({ category, onClose, onSuccess }: DeleteModalProps) => {
   const handleDelete = async () => {
     setIsDeleting(true);
     try {
-      const res = await fetch(`/api/backend/product-categories?id=${category.id}`, { method: "DELETE" });
-      if (res.ok) {
+      const res = await deleteCategoryAction(category.id);
+      if (res.success) {
         toast.success("Kategori produk berhasil dihapus");
         onSuccess();
         onClose();
       } else {
-        const err = await res.json();
-        toast.error(err?.error ?? "Gagal menghapus kategori");
+        toast.error(res.error ?? "Gagal menghapus kategori");
       }
     } catch {
       toast.error("Gagal menghubungi server");
@@ -363,7 +359,7 @@ export default function CategoryManagementPage() {
   const [total, setTotal]         = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [counts, setCounts]       = useState({ all: 0, global: 0, tenant: 0 });
-  const [isLoading, setIsLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
 
   // Filter / pagination state
   const [activeTab, setActiveTab]   = useState<ScopeType>("all");
@@ -387,49 +383,38 @@ export default function CategoryManagementPage() {
     }, 300);
   };
 
-  // Fetch paginated data
-  const fetchPage = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const params = new URLSearchParams({
-        page:   String(page),
-        limit:  String(PAGE_SIZE),
-        scope:  activeTab,
-        ...(debouncedSearch && { search: debouncedSearch }),
-      });
+  // Fetch paginated data via Server Action
+  const fetchPage = useCallback(() => {
+    const otherTab1 = activeTab === "all" ? "global" : "all";
+    const otherTab2 = activeTab === "tenant" ? "global" : "tenant";
 
-      // Ambil data untuk tab saat ini dan tab lainnya untuk menghitung total item masing-masing tab secara paralel
-      const otherTab1 = activeTab === "all" ? "global" : "all";
-      const otherTab2 = activeTab === "tenant" ? "global" : "tenant";
+    startTransition(async () => {
+      try {
+        const [res, resOther1, resOther2] = await Promise.all([
+          getCategoriesAction({ page, limit: PAGE_SIZE, scope: activeTab as "all" | "global" | "tenant", search: debouncedSearch || undefined }),
+          getCategoriesAction({ page: 1, limit: 1, scope: otherTab1 as "all" | "global" | "tenant" }),
+          getCategoriesAction({ page: 1, limit: 1, scope: otherTab2 as "all" | "global" | "tenant" }),
+        ]);
 
-      const [res, resOther1, resOther2] = await Promise.all([
-        fetch(`/api/backend/product-categories?${params}`),
-        fetch(`/api/backend/product-categories?page=1&limit=1&scope=${otherTab1}`),
-        fetch(`/api/backend/product-categories?page=1&limit=1&scope=${otherTab2}`),
-      ]);
+        if (res.success && res.data) {
+          setRows(res.data as Category[]);
+          setTotal(res.total ?? 0);
+          setTotalPages(res.totalPages ?? 1);
+          setCounts((prev) => ({ ...prev, [activeTab]: res.total ?? 0 }));
+        } else if (res.error) {
+          toast.error(res.error);
+        }
 
-      if (res.ok) {
-        const json: PaginatedResponse = await res.json();
-        setRows(json.data);
-        setTotal(json.total);
-        setTotalPages(json.totalPages);
-        setCounts((prev) => ({ ...prev, [activeTab]: json.total }));
+        if (resOther1.success) {
+          setCounts((prev) => ({ ...prev, [otherTab1]: resOther1.total ?? 0 }));
+        }
+        if (resOther2.success) {
+          setCounts((prev) => ({ ...prev, [otherTab2]: resOther2.total ?? 0 }));
+        }
+      } catch {
+        toast.error("Gagal mengambil data kategori produk");
       }
-
-      if (resOther1.ok) {
-        const j = await resOther1.json();
-        setCounts((prev) => ({ ...prev, [otherTab1]: j.total }));
-      }
-
-      if (resOther2.ok) {
-        const j = await resOther2.json();
-        setCounts((prev) => ({ ...prev, [otherTab2]: j.total }));
-      }
-    } catch {
-      toast.error("Gagal mengambil data kategori produk");
-    } finally {
-      setIsLoading(false);
-    }
+    });
   }, [page, activeTab, debouncedSearch]);
 
   useEffect(() => { fetchPage(); }, [fetchPage]);
@@ -460,7 +445,6 @@ export default function CategoryManagementPage() {
 
   return (
     <>
-      {isLoading && <FullPageLoader />}
       <div className="bg-white px-4 sm:px-6 lg:px-8 pt-3 pb-8 space-y-4">
 
         {/* Page Header */}
@@ -528,7 +512,7 @@ export default function CategoryManagementPage() {
                 </tr>
               </thead>
               <tbody>
-                {isLoading
+                {isPending
                   ? Array.from({ length: PAGE_SIZE }).map((_, i) => <SkeletonRow key={i} />)
                   : rows.length > 0
                   ? rows.map((cat) => (

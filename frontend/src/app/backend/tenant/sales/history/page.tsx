@@ -19,7 +19,7 @@ export default async function SalesHistoryPage(props: PageProps) {
     dateStart: searchParams.dateStart,
     dateEnd: searchParams.dateEnd,
     page: searchParams.page ? Number(searchParams.page) : 1,
-    limit: 15
+    limit: 5
   });
 
   if (result.status === "error") {

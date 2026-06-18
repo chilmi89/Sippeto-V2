@@ -27,6 +27,7 @@ import {
   Tooltip, 
   ResponsiveContainer 
 } from 'recharts';
+import { getDashboardStatsAction } from "@/app/actions/dashboard";
 
 interface StatsData {
   label: string;
@@ -64,9 +65,9 @@ export default function AdminDashboardPage() {
     
     const fetchData = async () => {
       try {
-        const [authRes, statsRes] = await Promise.all([
+        const [authRes, statsData] = await Promise.all([
           fetch("/api/auth/me"),
-          fetch("/api/backend/admin/dashboard/stats")
+          getDashboardStatsAction()
         ]);
 
         if (authRes.ok) {
@@ -74,13 +75,12 @@ export default function AdminDashboardPage() {
           setCurrentUser(authData);
         }
 
-        if (statsRes.ok) {
-          const stats = await statsRes.json();
-          setMainStats(stats.mainStats);
-          setChartData(stats.chartData);
-          setActivities(stats.activities);
+        if (statsData.status === "success" && statsData.data) {
+          setMainStats(statsData.data.mainStats || []);
+          setChartData(statsData.data.chartData || []);
+          setActivities(statsData.data.activities || []);
         } else {
-          setError("Gagal memuat statistik dashboard");
+          setError(statsData.message || "Gagal memuat statistik dashboard");
         }
       } catch (err) {
         console.error("Fetch dashboard error:", err);

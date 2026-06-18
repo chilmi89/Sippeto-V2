@@ -386,7 +386,7 @@ export default function RbacPage() {
                     </div>
 
                     {/* Modal Content */}
-                    <div className="flex-1 overflow-y-auto p-10 custom-scrollbar bg-zinc-50/30">
+                    <div data-lenis-prevent className="flex-1 overflow-y-auto p-10 custom-scrollbar bg-zinc-50/30">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {filteredPermissionsForModal.length === 0 ? (
                                 <div className="col-span-full py-24 text-center">

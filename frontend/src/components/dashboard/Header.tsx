@@ -5,6 +5,7 @@ import { Search, User, Menu, LogOut, ChevronDown, Settings } from "lucide-react"
 import { useSidebar } from "@/lib/context/SidebarContext";
 import { useRouter } from "next/navigation";
 import { NotificationDropdown } from "@/components/dashboard/NotificationDropdown";
+import { fetchMeOnce } from "@/lib/auth/fetchMe";
 
 interface CurrentUser {
   id: string;
@@ -22,10 +23,7 @@ export const DashboardHeader = () => {
 
   // Fetch data user yang sedang login
   useEffect(() => {
-    fetch("/api/auth/me")
-      .then(res => res.ok ? res.json() : null)
-      .then(data => { if (data) setCurrentUser(data); })
-      .catch(() => {});
+    fetchMeOnce().then(data => { if (data) setCurrentUser(data as unknown as CurrentUser); });
   }, []);
 
   // Tutup dropdown jika klik di luar

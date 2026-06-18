@@ -33,11 +33,28 @@ type ForgotPasswordRequest struct {
 
 type ForgotPasswordResponse struct {
 	Message string `json:"message"`
-	Token   string `json:"token,omitempty"` // Dikembalikan untuk testing/dev
 }
 
 type ResetPasswordRequest struct {
 	Token       string `json:"token" binding:"required"`
-	NewPassword string `json:"new_password" binding:"required"`
+	NewPassword string `json:"new_password" binding:"required,min=8"`
 }
+
+type RegisterRequest struct {
+	Nama     string `json:"nama" binding:"required"`
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required,min=8"`
+}
+
+type RegisteredUser struct {
+	ID    string `json:"id"`
+	Nama  string `json:"nama"`
+	Email string `json:"email"`
+}
+
+type RegisterResponse struct {
+	Message string         `json:"message"`
+	User    RegisteredUser `json:"user"`
+}
+
 

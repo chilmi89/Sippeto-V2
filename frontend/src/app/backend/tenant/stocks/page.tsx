@@ -1,12 +1,12 @@
 import React from "react";
-import { getStocksPageData } from "./actions";
+import { getStocksPageDataAction } from "@/app/actions/stock";
 import StocksTable from "./StocksTable";
 import { AlertTriangle } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 export default async function TenantStocksPage() {
-    const data = await getStocksPageData();
+    const data = await getStocksPageDataAction();
 
     if (data.status === "error") {
         return (

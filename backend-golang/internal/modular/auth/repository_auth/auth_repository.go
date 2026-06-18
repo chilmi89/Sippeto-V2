@@ -12,6 +12,7 @@ import (
 type AuthRepository interface {
 	FindByEmail(ctx context.Context, email string) (*model_auth.Profile, error)
 	UpdatePassword(ctx context.Context, email string, hashedPassword string) error
+	CreateProfile(ctx context.Context, id, fullName, email, hashedPassword string) error
 }
 
 type authRepository struct {
@@ -46,4 +47,11 @@ func (r *authRepository) UpdatePassword(ctx context.Context, email string, hashe
 	_, err := r.db.NewRaw(query, hashedPassword, email).Exec(ctx)
 	return err
 }
+
+func (r *authRepository) CreateProfile(ctx context.Context, id, fullName, email, hashedPassword string) error {
+	query := "INSERT INTO profiles (id, full_name, email, password, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, true, NOW(), NOW())"
+	_, err := r.db.NewRaw(query, id, fullName, email, hashedPassword).Exec(ctx)
+	return err
+}
+
 

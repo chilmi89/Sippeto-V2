@@ -1,6 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
+const BACKEND_API_URL = process.env.BACKEND_API_URL || "http://localhost:8080";
 
 async function getHeaders() {
   const cookieStore = await cookies();
@@ -17,7 +18,7 @@ async function getHeaders() {
 export async function getPermissionsAction() {
   try {
     const headers = await getHeaders();
-    const res = await fetch("http://localhost:8080/api/permission", {
+    const res = await fetch(`${BACKEND_API_URL}/api/permission`, {
       method: "GET",
       headers,
       next: { revalidate: 0 },
@@ -37,7 +38,7 @@ export async function getPermissionsAction() {
 export async function getPermissionByIDAction(id: string) {
   try {
     const headers = await getHeaders();
-    const res = await fetch(`http://localhost:8080/api/permission/${id}`, {
+    const res = await fetch(`${BACKEND_API_URL}/api/permission/${id}`, {
       method: "GET",
       headers,
       next: { revalidate: 0 },
@@ -57,7 +58,7 @@ export async function getPermissionByIDAction(id: string) {
 export async function createPermissionAction(name: string) {
   try {
     const headers = await getHeaders();
-    const res = await fetch("http://localhost:8080/api/permission", {
+    const res = await fetch(`${BACKEND_API_URL}/api/permission`, {
       method: "POST",
       headers,
       body: JSON.stringify({ name }),
@@ -77,7 +78,7 @@ export async function createPermissionAction(name: string) {
 export async function updatePermissionAction(id: string, name: string) {
   try {
     const headers = await getHeaders();
-    const res = await fetch(`http://localhost:8080/api/permission/${id}`, {
+    const res = await fetch(`${BACKEND_API_URL}/api/permission/${id}`, {
       method: "PATCH",
       headers,
       body: JSON.stringify({ name }),
@@ -97,7 +98,7 @@ export async function updatePermissionAction(id: string, name: string) {
 export async function deletePermissionAction(id: string) {
   try {
     const headers = await getHeaders();
-    const res = await fetch(`http://localhost:8080/api/permission/${id}`, {
+    const res = await fetch(`${BACKEND_API_URL}/api/permission/${id}`, {
       method: "DELETE",
       headers,
     });

@@ -27,6 +27,7 @@ Please read and follow the custom development guidelines, architecture rules, an
 4. **Buat Server Actions**: Buat file action baru di `src/app/actions/<fitur>.ts` untuk membungkus komunikasi fetch ke backend Golang. Ambil cookie `token` dari `cookies()` Next.js dan masukkan ke header `Authorization: Bearer <token>`.
 5. **Refaktor Halaman UI**: Hubungkan halaman UI (`page.tsx` terkait) dengan Server Actions yang baru dibuat untuk memicu aksi database/API.
 6. **Optimasi UI (Tanpa Loader Memblokir)**: Selalu hilangkan visual loader animatif yang memblokir layar (`FullPageLoader`, `SectionLoader`, dll.). Render data langsung atau tampilkan error/kosong secara instan agar user experience terasa cepat.
+7. **Larangan Impor Prisma di Frontend**: Dilarang keras menggunakan Prisma Client (`@/lib/prisma` atau `new PrismaClient()`) langsung di frontend (termasuk Server Actions atau halaman UI). Semua interaksi database harus bermigrasi ke backend Golang. Rute API Routes Next.js yang telah dimigrasi wajib dihapus total.
 
 
 
