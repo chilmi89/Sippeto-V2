@@ -3,6 +3,7 @@
 import { Lenis as LenisWrapper } from "lenis/react";
 import type React from "react";
 import { useEffect, useState } from "react";
+import RoleGuard from "@/components/auth/RoleGuard";
 import SessionGuard from "@/components/auth/SessionGuard";
 import { DashboardHeader } from "@/components/dashboard/Header";
 import { TenantSidebar } from "@/components/dashboard/TenantSidebar";
@@ -50,8 +51,10 @@ export default function TenantLayout({
 }) {
   return (
     <SidebarProvider>
-      <TenantLayoutContent>{children}</TenantLayoutContent>
-      <SessionGuard />
+      <RoleGuard>
+        <TenantLayoutContent>{children}</TenantLayoutContent>
+        <SessionGuard />
+      </RoleGuard>
     </SidebarProvider>
   );
 }
