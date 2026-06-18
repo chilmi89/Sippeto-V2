@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"log"
 	"os"
 	"time"
 
@@ -30,6 +31,11 @@ func InitDB() (*bun.DB, error) {
 
 	if err := db.Ping(); err != nil {
 		return nil, err
+	}
+
+	log.Println("Menjalankan auto-migration...")
+	if err := RunMigration(db); err != nil {
+		log.Printf("Peringatan: Auto-migration gagal: %v", err)
 	}
 
 	return db, nil
