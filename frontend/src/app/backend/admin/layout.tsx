@@ -3,6 +3,7 @@
 import { Lenis as LenisWrapper } from "lenis/react";
 import type React from "react";
 import { useEffect, useState } from "react";
+import RoleGuard from "@/components/auth/RoleGuard";
 import SessionGuard from "@/components/auth/SessionGuard";
 import { DashboardHeader } from "@/components/dashboard/Header";
 import { Sidebar } from "@/components/dashboard/Sidebar";
@@ -50,8 +51,10 @@ export default function AdminLayout({
 }) {
   return (
     <SidebarProvider>
-      <AdminLayoutContent>{children}</AdminLayoutContent>
-      <SessionGuard />
+      <RoleGuard>
+        <AdminLayoutContent>{children}</AdminLayoutContent>
+        <SessionGuard />
+      </RoleGuard>
     </SidebarProvider>
   );
 }

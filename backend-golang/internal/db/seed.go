@@ -180,13 +180,13 @@ func RunSeed(db *bun.DB) error {
 		 VALUES (?, ?, ?, ?, ?, true, NOW(), NOW())
 		 ON CONFLICT (email) DO UPDATE SET password = ?, full_name = ?, role_id = ?, updated_at = NOW()`,
 		"00000000-0000-0000-0000-000000000001",
-		"00000000-0000-0000-0000-000000000001",
+		"00000000-0000-0000-0000-000000000002",
 		"admin@gmail.com",
 		string(hashed),
 		"Super Admin",
 		string(hashed),
 		"Super Admin",
-		"00000000-0000-0000-0000-000000000001",
+		"00000000-0000-0000-0000-000000000002",
 	)
 	if err != nil {
 		log.Printf("Gagal upsert admin: %v", err)
