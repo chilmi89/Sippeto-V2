@@ -17,6 +17,7 @@ import {
   Edit2
 } from "lucide-react";
 import { toast } from "react-toastify";
+import { getRolesAction } from "@/app/actions/role";
 import { getUsersAction, createUserAction, updateUserAction, deleteUserAction } from "@/app/actions/user";
 
 // Type definition berdasarkan Schema Prisma kita
@@ -66,11 +67,9 @@ const UsersPage = () => {
 
   const fetchRoles = async () => {
     try {
-      const res = await fetch("/api/backend/role");
-      const json = await res.json();
-      if (res.ok) {
-        // Karena endpoint /api/backend/role mengembalikan Array langsung 
-        setRoles(Array.isArray(json) ? json : (json.data || []));
+      const res = await getRolesAction();
+      if (res.success) {
+        setRoles(res.data || []);
       }
     } catch (err) {
       console.error(err);
