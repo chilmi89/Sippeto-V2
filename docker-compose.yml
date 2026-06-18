@@ -55,6 +55,7 @@ services:
       MINIO_USE_SSL: "false"
       MINIO_PRODUCT_BUCKET: sippeto-product
       MINIO_PROFILE_BUCKET: sippeto-profile
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL}
     ports:
       - "8080:8080"
 
@@ -69,6 +70,7 @@ services:
       BACKEND_API_URL: http://backend:8080/api
       JWT_SECRET: ${JWT_SECRET}
       NODE_ENV: production
+      MINIO_INTERNAL_URL: http://minio:9000
     ports:
       - "3000:3000"
 

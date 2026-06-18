@@ -32,6 +32,7 @@ type storageService struct {
 	profileBucket string
 	endpoint      string
 	useSSL        bool
+	publicURL     string
 }
 
 func NewStorageService(repo repository_storage.StorageRepository) StorageService {
@@ -41,6 +42,7 @@ func NewStorageService(repo repository_storage.StorageRepository) StorageService
 	useSSLStr := os.Getenv("MINIO_USE_SSL")
 	productBucket := os.Getenv("MINIO_PRODUCT_BUCKET")
 	profileBucket := os.Getenv("MINIO_PROFILE_BUCKET")
+	publicURL := os.Getenv("MINIO_PUBLIC_URL")
 
 	if endpoint == "" {
 		endpoint = "localhost:9000"
@@ -120,6 +122,7 @@ func NewStorageService(repo repository_storage.StorageRepository) StorageService
 		profileBucket: profileBucket,
 		endpoint:      endpoint,
 		useSSL:        useSSL,
+		publicURL:     publicURL,
 	}
 }
 
@@ -259,11 +262,16 @@ func (s *storageService) UploadFile(ctx context.Context, file *multipart.FileHea
 	}
 
 	// Membuat URL akses publik berkas
-	scheme := "http"
-	if s.useSSL {
-		scheme = "https"
+	var fileURL string
+	if s.publicURL != "" {
+		fileURL = fmt.Sprintf("%s/%s/%s", strings.TrimSuffix(s.publicURL, "/"), bucketName, objectName)
+	} else {
+		scheme := "http"
+		if s.useSSL {
+			scheme = "https"
+		}
+		fileURL = fmt.Sprintf("%s://%s/%s/%s", scheme, s.endpoint, bucketName, objectName)
 	}
-	fileURL := fmt.Sprintf("%s://%s/%s/%s", scheme, s.endpoint, bucketName, objectName)
 
 	return &dto_storage.UploadResponse{
 		URL:      fileURL,

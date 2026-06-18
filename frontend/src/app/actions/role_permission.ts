@@ -1,7 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
-const BACKEND_API_URL = process.env.BACKEND_API_URL || "http://localhost:8080";
+const BACKEND_API_URL = process.env.BACKEND_API_URL || "http://localhost:8080/api";
 
 async function getHeaders() {
   const cookieStore = await cookies();
@@ -18,7 +18,7 @@ async function getHeaders() {
 export async function getRolePermissionsAction(roleId?: string) {
   try {
     const headers = await getHeaders();
-    let url = `${BACKEND_API_URL}/api/role-permission`;
+    let url = `${BACKEND_API_URL}/role-permission`;
     if (roleId) {
       url += `?role_id=${roleId}`;
     }
@@ -43,7 +43,7 @@ export async function getRolePermissionsAction(roleId?: string) {
 export async function assignPermissionAction(roleId: string, permissionId: string) {
   try {
     const headers = await getHeaders();
-    const res = await fetch(`${BACKEND_API_URL}/api/role-permission`, {
+    const res = await fetch(`${BACKEND_API_URL}/role-permission`, {
       method: "POST",
       headers,
       body: JSON.stringify({ role_id: roleId, permission_id: permissionId }),
@@ -63,7 +63,7 @@ export async function assignPermissionAction(roleId: string, permissionId: strin
 export async function revokePermissionAction(roleId: string, permissionId: string) {
   try {
     const headers = await getHeaders();
-    const res = await fetch(`${BACKEND_API_URL}/api/role-permission`, {
+    const res = await fetch(`${BACKEND_API_URL}/role-permission`, {
       method: "DELETE",
       headers,
       body: JSON.stringify({ role_id: roleId, permission_id: permissionId }),
