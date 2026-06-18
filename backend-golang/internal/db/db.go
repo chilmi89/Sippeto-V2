@@ -38,5 +38,10 @@ func InitDB() (*bun.DB, error) {
 		log.Printf("Peringatan: Auto-migration gagal: %v", err)
 	}
 
+	log.Println("Menjalankan seed data...")
+	if err := RunSeed(db); err != nil {
+		log.Printf("Peringatan: Seed data gagal: %v", err)
+	}
+
 	return db, nil
 }
