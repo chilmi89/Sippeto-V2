@@ -18,7 +18,7 @@ func SetupRouter(r *gin.Engine, db *bun.DB) {
 
 	// Definisikan rute API
 	api := r.Group("/api")
-	api.Use(middleware.AuthMiddleware(), middleware.RequireRole("superadmin", "admin"))
+	api.Use(middleware.AuthMiddleware(), middleware.RequireRole("superadmin", "admin", "Admin"))
 	{
 		api.GET("/role", ctrl.GetRoles)
 		api.POST("/role", ctrl.CreateRole)

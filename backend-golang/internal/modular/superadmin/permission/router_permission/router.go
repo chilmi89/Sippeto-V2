@@ -16,7 +16,7 @@ func SetupRouter(r *gin.Engine, db *bun.DB) {
 	ctrl := controller_permission.NewPermissionController(svc)
 
 	api := r.Group("/api")
-	api.Use(middleware.AuthMiddleware(), middleware.RequireRole("superadmin", "admin"))
+	api.Use(middleware.AuthMiddleware(), middleware.RequireRole("superadmin", "admin", "Admin"))
 	{
 		api.GET("/permission", ctrl.GetPermissions)
 		api.POST("/permission", ctrl.CreatePermission)
