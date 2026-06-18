@@ -6,6 +6,7 @@ import { useSidebar } from "@/lib/context/SidebarContext";
 import { useRouter } from "next/navigation";
 import { NotificationDropdown } from "@/components/dashboard/NotificationDropdown";
 import { fetchMeOnce } from "@/lib/auth/fetchMe";
+import { logoutAction } from "@/app/actions/auth";
 
 interface CurrentUser {
   id: string;
@@ -43,8 +44,7 @@ export const DashboardHeader = () => {
     setDropdownOpen(false);
     setLoggingOut(true);
     try {
-      // Hancurkan cookie token (httpOnly) via server
-      await fetch("/api/auth/logout", { method: "POST" });
+      await logoutAction();
     } catch {
       // Tetap lanjut logout meski request gagal
     } finally {

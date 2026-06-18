@@ -96,3 +96,39 @@ export async function refreshTokenAction() {
     return { error: "Gagal memperbarui token sesi." };
   }
 }
+
+export async function getMeAction() {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("token")?.value;
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const res = await fetch(`${BACKEND_API_URL}/auth/me`, {
+      method: "GET",
+      headers,
+      next: { revalidate: 0 },
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.error("getMeAction Error:", err);
+    return null;
+  }
+}
+
+export async function logoutAction() {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("token")?.value;
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    await fetch(`${BACKEND_API_URL}/auth/logout`, { method: "POST", headers });
+  } catch (err) {
+    console.error("logoutAction Error:", err);
+  } finally {
+    const cookieStore = await cookies();
+    cookieStore.delete("token");
+    cookieStore.delete("refresh_token");
+    cookieStore.delete("role_name");
+  }
+}
