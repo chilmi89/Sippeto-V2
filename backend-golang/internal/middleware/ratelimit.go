@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -35,6 +36,22 @@ func init() {
 	}()
 }
 
+func isPrivateIP(ipStr string) bool {
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return false
+	}
+	if ip.IsLoopback() {
+		return true
+	}
+	if ip4 := ip.To4(); ip4 != nil {
+		return ip4[0] == 10 ||
+			(ip4[0] == 172 && ip4[1] >= 16 && ip4[1] <= 31) ||
+			(ip4[0] == 192 && ip4[1] == 168)
+	}
+	return false
+}
+
 func RateLimiter() gin.HandlerFunc {
 	return rateLimitMiddleware(rate, window)
 }
@@ -47,6 +64,12 @@ func StrictRateLimiter() gin.HandlerFunc {
 func rateLimitMiddleware(limit int, dur time.Duration) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ip := c.ClientIP()
+
+		// Bypass rate limit untuk IP internal (Next.js frontend container / localhost)
+		if isPrivateIP(ip) {
+			c.Next()
+			return
+		}
 
 		mu.Lock()
 		v, exists := visitors[ip]
