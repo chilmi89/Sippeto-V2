@@ -22,6 +22,7 @@ import {
 import Link from "next/link";
 import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
+import { getRolesAction, deleteRoleAction } from "@/app/actions/role";
 import { getPermissionsAction } from "@/app/actions/permission";
 import { getRolePermissionsAction, assignPermissionAction, revokePermissionAction } from "@/app/actions/role_permission";
 
@@ -72,10 +73,9 @@ export default function RbacPage() {
 
   const fetchRbacData = async () => {
     try {
-      const rolesRes = await fetch("/api/backend/role");
-      if (!rolesRes.ok) throw new Error("Gagal mengambil data peran");
-      const rolesData = await rolesRes.json();
-      setRoles(rolesData);
+      const rolesRes = await getRolesAction();
+      if (rolesRes.error) throw new Error(rolesRes.error);
+      setRoles(rolesRes.data);
 
       const [permsRes, mappingsRes] = await Promise.all([
         getPermissionsAction(),
@@ -139,8 +139,8 @@ export default function RbacPage() {
   const handleDeleteRole = async (id: string) => {
     if (!confirm("Hapus peran ini?")) return;
     try {
-      const res = await fetch(`/api/backend/role/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Gagal menghapus");
+      const res = await deleteRoleAction(id);
+      if (res.error) throw new Error(res.error);
       toast.success("Peran dihapus");
       fetchRbacData();
     } catch (err: any) {

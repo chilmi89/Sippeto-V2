@@ -15,6 +15,7 @@ import SectionLoader from "@/components/layout/SectionLoader";
 import Link from "next/link";
 import { toast } from "react-toastify";
 import { useParams, useRouter } from "next/navigation";
+import { getRoleByIDAction, updateRoleAction, deleteRoleAction } from "@/app/actions/role";
 
 interface Role {
   id: string;
@@ -48,11 +49,10 @@ export default function RoleDetailPage() {
   useEffect(() => {
     const fetchRole = async () => {
       try {
-        const response = await fetch(`/api/backend/role/${id}`);
-        if (!response.ok) throw new Error("Peran tidak ditemukan");
-        const data = await response.json();
-        setRole(data);
-        setRoleName(data.name);
+        const res = await getRoleByIDAction(id as string);
+        if (res.error) throw new Error(res.error);
+        setRole(res.data);
+        setRoleName(res.data.name);
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -69,19 +69,9 @@ export default function RoleDetailPage() {
 
     setIsUpdating(true);
     try {
-      const response = await fetch(`/api/backend/role/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: roleName }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Gagal memperbarui peran");
-      }
-      
-      const updated = await response.json();
-      setRole(updated);
+      const res = await updateRoleAction(id as string, roleName);
+      if (res.error) throw new Error(res.error);
+      setRole(res.data);
       toast.success("Peran berhasil diperbarui!");
     } catch (err: any) {
       toast.error(err.message || "Gagal memperbarui peran");
@@ -94,12 +84,8 @@ export default function RoleDetailPage() {
     if (!confirm("Apakah Anda yakin ingin menghapus peran ini? Tindakan ini tidak dapat dibatalkan.")) return;
 
     try {
-      const response = await fetch(`/api/backend/role/${id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) throw new Error("Gagal menghapus peran");
-      
+      const res = await deleteRoleAction(id as string);
+      if (res.error) throw new Error(res.error);
       toast.success("Peran berhasil dihapus");
       router.push("/backend/admin/rbac/roles");
     } catch (err: any) {

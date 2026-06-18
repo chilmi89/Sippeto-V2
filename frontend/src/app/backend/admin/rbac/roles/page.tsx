@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "react-toastify";
+import { getRolesAction, createRoleAction, deleteRoleAction } from "@/app/actions/role";
 
 interface Role {
   id: string;
@@ -44,10 +45,9 @@ export default function RolesPage() {
 
   const fetchRoles = async () => {
     try {
-      const response = await fetch("/api/backend/role");
-      if (!response.ok) throw new Error("Gagal mengambil data peran");
-      const data = await response.json();
-      setRoles(data);
+      const res = await getRolesAction();
+      if (res.error) throw new Error(res.error);
+      setRoles(res.data);
     } catch (err: any) {
       setError(err.message);
     }
@@ -67,16 +67,8 @@ export default function RolesPage() {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch("/api/backend/role", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newRoleName }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Gagal menambah peran");
-      }
+      const res = await createRoleAction(newRoleName);
+      if (res.error) throw new Error(res.error);
 
       setNewRoleName("");
       setIsModalOpen(false);
@@ -92,11 +84,8 @@ export default function RolesPage() {
   const handleDeleteRole = async (id: string) => {
     if (!confirm("Hapus peran ini?")) return;
     try {
-      const res = await fetch(`/api/backend/role/${id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Gagal menghapus peran");
-      }
+      const res = await deleteRoleAction(id);
+      if (res.error) throw new Error(res.error);
       toast.success("Peran berhasil dihapus");
       fetchRoles();
     } catch (err: any) {
