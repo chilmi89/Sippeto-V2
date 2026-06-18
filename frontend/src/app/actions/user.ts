@@ -1,7 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
-const BACKEND_API_URL = process.env.BACKEND_API_URL || "http://localhost:8080";
+const BACKEND_API_URL = process.env.BACKEND_API_URL || "http://localhost:8080/api";
 
 async function getHeaders() {
   const cookieStore = await cookies();
@@ -18,7 +18,7 @@ async function getHeaders() {
 export async function getUsersAction() {
   try {
     const headers = await getHeaders();
-    const res = await fetch(`${BACKEND_API_URL}/api/users`, {
+    const res = await fetch(`${BACKEND_API_URL}/users`, {
       method: "GET",
       headers,
       next: { revalidate: 0 },
@@ -38,7 +38,7 @@ export async function getUsersAction() {
 export async function getUserByIDAction(id: string) {
   try {
     const headers = await getHeaders();
-    const res = await fetch(`${BACKEND_API_URL}/api/users/${id}`, {
+    const res = await fetch(`${BACKEND_API_URL}/users/${id}`, {
       method: "GET",
       headers,
       next: { revalidate: 0 },
@@ -58,7 +58,7 @@ export async function getUserByIDAction(id: string) {
 export async function createUserAction(payload: any) {
   try {
     const headers = await getHeaders();
-    const res = await fetch(`${BACKEND_API_URL}/api/users`, {
+    const res = await fetch(`${BACKEND_API_URL}/users`, {
       method: "POST",
       headers,
       body: JSON.stringify(payload),
@@ -78,7 +78,7 @@ export async function createUserAction(payload: any) {
 export async function updateUserAction(id: string, payload: any) {
   try {
     const headers = await getHeaders();
-    const res = await fetch(`${BACKEND_API_URL}/api/users/${id}`, {
+    const res = await fetch(`${BACKEND_API_URL}/users/${id}`, {
       method: "PUT",
       headers,
       body: JSON.stringify(payload),
@@ -98,7 +98,7 @@ export async function updateUserAction(id: string, payload: any) {
 export async function deleteUserAction(id: string) {
   try {
     const headers = await getHeaders();
-    const res = await fetch(`${BACKEND_API_URL}/api/users/${id}`, {
+    const res = await fetch(`${BACKEND_API_URL}/users/${id}`, {
       method: "DELETE",
       headers,
     });

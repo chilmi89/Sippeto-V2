@@ -2,8 +2,7 @@
 
 import { cookies } from "next/headers";
 
-const BACKEND_URL = process.env.BACKEND_API_URL || "http://localhost:8080";
-const BACKEND_API_URL = BACKEND_URL.endsWith("/api") ? BACKEND_URL.slice(0, -4) : BACKEND_URL;
+const BACKEND_API_URL = process.env.BACKEND_API_URL || "http://localhost:8080/api";
 
 interface LoginPayload {
   email?: string;
@@ -12,7 +11,7 @@ interface LoginPayload {
 
 export async function loginAction(payload: LoginPayload) {
   try {
-    const res = await fetch(`${BACKEND_API_URL}/api/auth/login`, {
+    const res = await fetch(`${BACKEND_API_URL}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -68,7 +67,7 @@ export async function refreshTokenAction() {
       return { error: "Refresh token tidak ditemukan." };
     }
 
-    const res = await fetch(`${BACKEND_API_URL}/api/auth/refresh`, {
+    const res = await fetch(`${BACKEND_API_URL}/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refresh_token: refreshToken }),

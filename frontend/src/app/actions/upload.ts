@@ -12,13 +12,13 @@ export async function uploadFileAction(
     }
 
     // Gunakan port 8080 secara default untuk backend Golang di lokal
-    const backendUrl = process.env.BACKEND_API_URL || "http://localhost:8080";
+    const backendUrl = process.env.BACKEND_API_URL || "http://localhost:8080/api";
     const bucketType =
       type === "avatar" || type === "banner" ? "profile" : "product";
     const params = new URLSearchParams({ bucket: bucketType });
     if (opts?.name) params.set("name", opts.name);
     if (opts?.tenant) params.set("tenant", opts.tenant);
-    const uploadUrl = `${backendUrl}/api/storage/upload?${params}`;
+    const uploadUrl = `${backendUrl}/storage/upload?${params}`;
 
     const uploadFormData = new FormData();
     uploadFormData.append("file", file);
