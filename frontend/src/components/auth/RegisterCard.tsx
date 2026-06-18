@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Mail, Lock, Eye, EyeOff, Sparkles, User } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { registerAction } from '@/app/actions/auth';
 
 export const RegisterCard = () => {
   const [nama, setNama] = useState("");
@@ -19,22 +20,12 @@ export const RegisterCard = () => {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nama, email, password }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        toast.error(data.error || 'Terjadi kesalahan saat registrasi.');
+      const result = await registerAction({ nama, email, password });
+      if (result.error) {
+        toast.error(result.error);
         return;
       }
-
-      // Simpan profile_id untuk dipakai di halaman UMKM (step 2)
-      sessionStorage.setItem('pending_profile_id', data.user.id);
-
+      sessionStorage.setItem('pending_profile_id', result.user.id);
       toast.success('Akun berhasil dibuat! Lengkapi profil UMKM Anda.');
       router.push('/umkm');
     } catch (err) {
