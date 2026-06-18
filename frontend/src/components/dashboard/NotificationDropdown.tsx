@@ -3,6 +3,7 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { Bell, ShoppingBag, AlertTriangle, RefreshCw, X, ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { getNotificationsAction } from "@/app/actions/notification";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -66,10 +67,9 @@ export const NotificationDropdown = () => {
   const fetchNotifications = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/backend/tenant/notifications");
-      if (res.ok) {
-        const json = await res.json();
-        setData(json);
+      const result = await getNotificationsAction();
+      if (result.status === "success") {
+        setData(result as unknown as NotificationData);
       }
     } catch (err) {
       console.error("Gagal fetch notifikasi:", err);
