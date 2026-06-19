@@ -41,7 +41,7 @@ func (r *categoryRepository) FindCategories(ctx context.Context, page, limit int
 	args := []interface{}{}
 
 	if profileID != "" {
-		whereClause += " AND profile_id = ?"
+		whereClause += " AND (profile_id = ? OR profile_id IS NULL OR profile_id = '')"
 		args = append(args, profileID)
 	}
 
