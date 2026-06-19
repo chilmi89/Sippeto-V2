@@ -37,10 +37,12 @@ export async function POST(request: NextRequest) {
     }
 
     const response = NextResponse.json({ access_token: accessToken });
+    const requestProto = request.headers.get("x-forwarded-proto") || request.headers.get("proto") || "";
+    const isSecure = requestProto === "https";
 
     response.cookies.set("token", accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: isSecure,
       sameSite: "strict",
       maxAge: 60 * 60 * 24,
       path: "/",
