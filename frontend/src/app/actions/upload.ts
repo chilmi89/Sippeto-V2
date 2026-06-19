@@ -1,4 +1,5 @@
 "use server";
+import { cookies } from "next/headers";
 
 export async function uploadFileAction(
   formData: FormData,
@@ -23,8 +24,16 @@ export async function uploadFileAction(
     const uploadFormData = new FormData();
     uploadFormData.append("file", file);
 
+    const cookieStore = await cookies();
+    const token = cookieStore.get("token")?.value;
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
     const response = await fetch(uploadUrl, {
       method: "POST",
+      headers,
       body: uploadFormData,
     });
 
