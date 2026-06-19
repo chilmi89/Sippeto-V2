@@ -23,6 +23,7 @@ import (
 type StorageService interface {
 	UploadFile(ctx context.Context, file *multipart.FileHeader, bucketType string, name string, tenant string) (*dto_storage.UploadResponse, error)
 	DeleteFile(ctx context.Context, fileURL string) error
+	GetFile(ctx context.Context, bucketName, objectName string) (io.ReadCloser, minio.ObjectInfo, error)
 }
 
 type storageService struct {
@@ -313,3 +314,23 @@ func (s *storageService) DeleteFile(ctx context.Context, fileURL string) error {
 
 	return nil
 }
+
+func (s *storageService) GetFile(ctx context.Context, bucketName, objectName string) (io.ReadCloser, minio.ObjectInfo, error) {
+	if s.minioClient == nil {
+		return nil, minio.ObjectInfo{}, fmt.Errorf("klien minio belum terinisialisasi")
+	}
+
+	object, err := s.minioClient.GetObject(ctx, bucketName, objectName, minio.GetObjectOptions{})
+	if err != nil {
+		return nil, minio.ObjectInfo{}, err
+	}
+
+	stat, err := object.Stat()
+	if err != nil {
+		object.Close()
+		return nil, minio.ObjectInfo{}, err
+	}
+
+	return object, stat, nil
+}
+

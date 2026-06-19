@@ -15,6 +15,9 @@ func SetupRouter(r *gin.Engine, db *bun.DB) {
 	svc := service_storage.NewStorageService(repo)
 	ctrl := controller_storage.NewStorageController(svc)
 
+	// Public static file server proxy ke MinIO
+	r.GET("/storage-bucket/*filepath", ctrl.ServeFile)
+
 	api := r.Group("/api")
 	api.Use(middleware.AuthMiddleware())
 	{

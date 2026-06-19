@@ -18,6 +18,8 @@ try {
 const minioPublic = `http://${dynamicHost}:9000`;
 const backendPublic = `http://${dynamicHost}:8080`;
 
+const BACKEND_INTERNAL = process.env.NODE_ENV === "production" ? "http://backend:8080" : "http://localhost:8080";
+
 const nextConfig: NextConfig = {
   reactCompiler: true,
   turbopack: {
@@ -30,7 +32,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/storage-bucket/:path*",
-        destination: `${process.env.MINIO_INTERNAL_URL || "http://localhost:9000"}/:path*`
+        destination: `${BACKEND_INTERNAL}/storage-bucket/:path*`
       },
       { source: "/api/auth/me",          destination: `${BACKEND_API_URL}/auth/me` },
       { source: "/api/auth/logout",      destination: `${BACKEND_API_URL}/auth/logout` },
