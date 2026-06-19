@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 import path from "path";
 
-const BACKEND_API_URL = process.env.BACKEND_API_URL || "http://localhost:8080/api";
+const BACKEND_API_URL = process.env.BACKEND_API_URL || (process.env.NODE_ENV === "production" ? "http://backend:8080/api" : "http://localhost:8080/api");
 
 const corsOrigin = process.env.CORS_ORIGIN || "http://localhost:3000";
 let dynamicHost = "localhost";
