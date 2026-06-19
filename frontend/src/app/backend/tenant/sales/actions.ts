@@ -370,7 +370,10 @@ export async function getSalesHistoryPageData(payload: {
     // Filter di frontend untuk memastikan hanya transaksi POS yang memiliki item produk (sale)
     // Serta hitung aggregate stats
     const rawList = txData.data || [];
-    const formattedData = rawList.map((tx: any) => ({
+    const filteredList = rawList.filter((tx: any) =>
+      (tx.transaction_items || []).some((item: any) => item.product_id != null && item.product_id !== "")
+    );
+    const formattedData = filteredList.map((tx: any) => ({
       id: tx.id,
       reference_number: tx.reference_number,
       transaction_date: tx.transaction_date,
