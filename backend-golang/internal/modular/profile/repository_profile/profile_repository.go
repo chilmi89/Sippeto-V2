@@ -37,7 +37,7 @@ func (r *profileRepository) FindByID(ctx context.Context, id string) (*model_pro
 		SELECT 
 			p.id, p.role_id, p.email, p.full_name, p.business_name, p.username,
 			p.phone_number, p.address, p.avatar_url, p.banner_url, p.bio, 
-			p.is_active, p.metadata, p.created_at, p.updated_at, p.branch_id, p.payment_qr,
+			p.password, p.is_active, p.metadata, p.created_at, p.updated_at, p.branch_id, p.payment_qr,
 			r.name AS role_name
 		FROM profiles p
 		LEFT JOIN roles r ON p.role_id = r.id
