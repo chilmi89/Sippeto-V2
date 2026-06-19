@@ -235,16 +235,42 @@ func (s *profileService) UpdateUser(ctx context.Context, id string, req dto_prof
 		isActive = *req.IsActive
 	}
 
+	// Preserve other existing fields that are not sent in the update request (which are nil/empty in req)
+	businessNameToSave := existing.BusinessName
+	if req.BusinessName != nil {
+		businessNameToSave = req.BusinessName
+	}
+
+	branchIDToSave := existing.BranchID
+	if req.BranchID != nil {
+		branchIDToSave = req.BranchID
+	}
+
+	phoneNumberToSave := existing.PhoneNumber
+	if req.PhoneNumber != nil {
+		phoneNumberToSave = req.PhoneNumber
+	}
+
+	fullNameToSave := existing.FullName
+	if req.FullName != "" {
+		fullNameToSave = &req.FullName
+	}
+
+	roleIDToSave := existing.RoleID
+	if req.RoleID != "" {
+		roleIDToSave = req.RoleID
+	}
+
 	profile := &model_profile.Profile{
 		ID:           existing.ID,
-		RoleID:       req.RoleID,
+		RoleID:       roleIDToSave,
 		Email:        emailToSave,
 		Password:     passwordToSave,
-		FullName:     &req.FullName,
-		BusinessName: req.BusinessName,
-		PhoneNumber:  req.PhoneNumber,
+		FullName:     fullNameToSave,
+		BusinessName: businessNameToSave,
+		PhoneNumber:  phoneNumberToSave,
 		IsActive:     isActive,
-		BranchID:     req.BranchID,
+		BranchID:     branchIDToSave,
 	}
 
 	err = s.repo.Update(ctx, profile)
