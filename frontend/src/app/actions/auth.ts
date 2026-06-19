@@ -1,6 +1,6 @@
 "use server";
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 const BACKEND_API_URL = process.env.BACKEND_API_URL || "http://localhost:8080/api";
 
@@ -25,11 +25,12 @@ export async function loginAction(payload: LoginPayload) {
 
     const cookieStore = await cookies();
 
-    const isProd = process.env.NODE_ENV === "production";
+    const headersList = await headers();
+    const isSecure = headersList.get("x-forwarded-proto") === "https" || headersList.get("proto") === "https";
 
     cookieStore.set("token", data.token, {
       httpOnly: true,
-      secure: isProd,
+      secure: isSecure,
       sameSite: "strict",
       maxAge: 60 * 60 * 24,
       path: "/",
@@ -38,7 +39,7 @@ export async function loginAction(payload: LoginPayload) {
     if (data.refresh_token) {
       cookieStore.set("refresh_token", data.refresh_token, {
         httpOnly: true,
-        secure: isProd,
+        secure: isSecure,
         sameSite: "strict",
         maxAge: 60 * 60 * 24 * 7,
         path: "/",
@@ -47,7 +48,7 @@ export async function loginAction(payload: LoginPayload) {
 
     cookieStore.set("role_name", data.user?.role_name || "", {
       httpOnly: false,
-      secure: isProd,
+      secure: isSecure,
       sameSite: "strict",
       maxAge: 60 * 60 * 24,
       path: "/",
@@ -84,9 +85,12 @@ export async function refreshTokenAction() {
 
     const data = await res.json();
 
+    const headersList2 = await headers();
+    const isSecure2 = headersList2.get("x-forwarded-proto") === "https" || headersList2.get("proto") === "https";
+
     cookieStore.set("token", data.access_token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: isSecure2,
       sameSite: "strict",
       maxAge: 60 * 60 * 24,
       path: "/",
