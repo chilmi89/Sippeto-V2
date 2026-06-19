@@ -336,12 +336,6 @@ func (r *tenantUMKMRepository) GetPublicBranches(ctx context.Context, profileID 
 }
 
 func (r *tenantUMKMRepository) CreateRegisterUMKM(ctx context.Context, req dto_tenant_umkm.CompleteRegisterUMKMRequest) (*dto_tenant_umkm.TenantProfileInfo, error) {
-	var ownerRoleID string
-	err := r.db.NewRaw("SELECT id FROM roles WHERE LOWER(name) = LOWER('Owner') LIMIT 1").Scan(ctx, &ownerRoleID)
-	if err != nil {
-		return nil, fmt.Errorf("role Owner tidak ditemukan")
-	}
-
 	id := req.ID
 	if id == "" {
 		id = generateUUID()
@@ -349,14 +343,13 @@ func (r *tenantUMKMRepository) CreateRegisterUMKM(ctx context.Context, req dto_t
 
 	query := `
 		INSERT INTO profiles (
-			id, full_name, email, business_name, phone_number, address, role_id, is_active, created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, true, NOW(), NOW())
+			id, full_name, email, business_name, phone_number, address, is_active, created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, true, NOW(), NOW())
 		ON CONFLICT (id) DO UPDATE SET
 			full_name = EXCLUDED.full_name,
 			business_name = EXCLUDED.business_name,
 			phone_number = EXCLUDED.phone_number,
 			address = EXCLUDED.address,
-			role_id = EXCLUDED.role_id,
 			is_active = true,
 			updated_at = NOW()
 		RETURNING id, full_name, business_name, email, phone_number, address, avatar_url, banner_url, bio, is_active, created_at, updated_at, branch_id, username, metadata, payment_qr
@@ -365,7 +358,7 @@ func (r *tenantUMKMRepository) CreateRegisterUMKM(ctx context.Context, req dto_t
 	profile := new(dto_tenant_umkm.TenantProfileInfo)
 	var createdAt, updatedAt time.Time
 	var metadataBytes []byte
-	err = r.db.NewRaw(query, id, req.FullName, req.Email, req.BusinessName, req.PhoneNumber, req.Address, ownerRoleID).
+	err := r.db.NewRaw(query, id, req.FullName, req.Email, req.BusinessName, req.PhoneNumber, req.Address).
 		Scan(ctx, &profile.ID, &profile.FullName, &profile.BusinessName, &profile.Email, &profile.PhoneNumber, &profile.Address,
 			&profile.AvatarURL, &profile.BannerURL, &profile.Bio, &profile.IsActive, &createdAt, &updatedAt, &profile.BranchID,
 			&profile.Username, &metadataBytes, &profile.PaymentQR)
@@ -394,14 +387,8 @@ func (r *tenantUMKMRepository) UpdateRegisterUMKM(ctx context.Context, req dto_t
 		}
 	}
 
-	var ownerRoleID string
-	err := r.db.NewRaw("SELECT id FROM roles WHERE LOWER(name) = LOWER('Owner') LIMIT 1").Scan(ctx, &ownerRoleID)
-	if err != nil {
-		return nil, fmt.Errorf("role Owner tidak ditemukan")
-	}
-
-	setClause := "updated_at = NOW(), role_id = ?"
-	args := []interface{}{ownerRoleID}
+	setClause := "updated_at = NOW()"
+	args := []interface{}{}
 
 	if req.FullName != nil {
 		setClause += ", full_name = ?"
@@ -455,7 +442,7 @@ func (r *tenantUMKMRepository) UpdateRegisterUMKM(ctx context.Context, req dto_t
 	profile := new(dto_tenant_umkm.TenantProfileInfo)
 	var createdAt, updatedAt time.Time
 	var metadataBytes []byte
-	err = r.db.NewRaw(query, args...).
+	err := r.db.NewRaw(query, args...).
 		Scan(ctx, &profile.ID, &profile.FullName, &profile.BusinessName, &profile.Email, &profile.PhoneNumber, &profile.Address,
 			&profile.AvatarURL, &profile.BannerURL, &profile.Bio, &profile.IsActive, &createdAt, &updatedAt, &profile.BranchID,
 			&profile.Username, &metadataBytes, &profile.PaymentQR)
