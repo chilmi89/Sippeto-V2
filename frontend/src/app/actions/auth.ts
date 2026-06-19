@@ -25,9 +25,11 @@ export async function loginAction(payload: LoginPayload) {
 
     const cookieStore = await cookies();
 
+    const isProd = process.env.NODE_ENV === "production";
+
     cookieStore.set("token", data.token, {
       httpOnly: true,
-      secure: false,
+      secure: isProd,
       sameSite: "strict",
       maxAge: 60 * 60 * 24,
       path: "/",
@@ -36,7 +38,7 @@ export async function loginAction(payload: LoginPayload) {
     if (data.refresh_token) {
       cookieStore.set("refresh_token", data.refresh_token, {
         httpOnly: true,
-        secure: false,
+        secure: isProd,
         sameSite: "strict",
         maxAge: 60 * 60 * 24 * 7,
         path: "/",
@@ -45,7 +47,7 @@ export async function loginAction(payload: LoginPayload) {
 
     cookieStore.set("role_name", data.user?.role_name || "", {
       httpOnly: false,
-      secure: false,
+      secure: isProd,
       sameSite: "strict",
       maxAge: 60 * 60 * 24,
       path: "/",
@@ -84,7 +86,7 @@ export async function refreshTokenAction() {
 
     cookieStore.set("token", data.access_token, {
       httpOnly: true,
-      secure: false,
+      secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
       maxAge: 60 * 60 * 24,
       path: "/",
