@@ -38,8 +38,11 @@ const BT_SERVICE_UUIDS = [
 const BT_NAME_PREFIXES = [
   "MTP", "PT", "RP", "Thermal", "58mm", "80mm",
   "BT_", "Printer", "POS", "Xprinter", "ZJ", "GH",
-  "LP", "GP", "PP", "MA", "BP", "ECO",
+  "LP", "GP", "PP", "MA", "BP", "ECO", "BP-ECO",
 ];
+
+// Cache printer device instance at page session level (prevents re-pairing on same page load)
+let cachedPrinterDevice: any = null;
 
 interface Product {
   id: string;
@@ -451,17 +454,53 @@ export default function POSForm({
         return;
       }
 
-      const device = await (navigator as any).bluetooth.requestDevice({
-        filters: [
-          ...BT_SERVICE_UUIDS.map(u => ({ services: [u] })),
-          ...BT_NAME_PREFIXES.map(p => ({ namePrefix: p })),
-        ],
-        optionalServices: BT_SERVICE_UUIDS,
-      });
+      let device: any = cachedPrinterDevice;
+
+      // 1. Coba gunakan printer dari cache sesi halaman terlebih dahulu
+      if (device) {
+        console.log("Menggunakan printer Bluetooth dari cache sesi halaman:", device.name);
+      }
+
+      // 2. Jika tidak ada di cache, coba dapatkan perangkat yang sudah di-pair sebelumnya
+      if (!device && typeof (navigator as any).bluetooth.getDevices === "function") {
+        try {
+          const pairedDevices = await (navigator as any).bluetooth.getDevices();
+          device = pairedDevices.find((d: any) => {
+            const name = d.name || "";
+            return BT_NAME_PREFIXES.some(p => name.startsWith(p));
+          });
+          if (device) {
+            console.log("Menggunakan printer Bluetooth terpasang:", device.name);
+            cachedPrinterDevice = device;
+          }
+        } catch (e) {
+          console.warn("Gagal membaca daftar perangkat terpasang:", e);
+        }
+      }
+
+      // 3. Jika tidak ditemukan perangkat terpasang, tampilkan dialog pencarian
+      if (!device) {
+        device = await (navigator as any).bluetooth.requestDevice({
+          filters: [
+            ...BT_SERVICE_UUIDS.map(u => ({ services: [u] })),
+            ...BT_NAME_PREFIXES.map(p => ({ namePrefix: p })),
+          ],
+          optionalServices: BT_SERVICE_UUIDS,
+        });
+        cachedPrinterDevice = device;
+      }
 
       if (!device.gatt) throw new Error("Perangkat tidak mendukung GATT");
 
-      const server = await device.gatt.connect();
+      let server: any = null;
+      try {
+        server = await device.gatt.connect();
+      } catch (connectErr: any) {
+        console.error("Gagal menghubungkan ke cached printer:", connectErr);
+        // Reset cache agar kueri pencarian baru dapat dipicu kembali jika terjadi kegagalan koneksi
+        cachedPrinterDevice = null;
+        throw new Error(`Gagal terhubung ke printer. Pastikan printer menyala dan berada dalam jangkauan. (${connectErr.message || connectErr})`);
+      }
       if (!server) throw new Error("Gagal menghubungkan ke printer");
 
       // Auto-discover write characteristic across all known service UUIDs
