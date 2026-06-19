@@ -1,8 +1,7 @@
 # ─────────────────────────────────────────────────────────────────
-# GANTI "sippeto.example.com" dengan domain Anda sebelum deploy!
-# Contoh: sippeto.my.id, toko-anda.com, etc.
+# Domain SiPetto
 # ─────────────────────────────────────────────────────────────────
-sippeto.example.com {
+sippeto.web.id {
     reverse_proxy frontend:3000
 
     header / Strict-Transport-Security "max-age=31536000; includeSubDomains"
