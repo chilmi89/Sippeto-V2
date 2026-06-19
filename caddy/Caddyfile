@@ -1,0 +1,15 @@
+# ─────────────────────────────────────────────────────────────────
+# Domain SiPetto
+# ─────────────────────────────────────────────────────────────────
+sippeto.web.id {
+    reverse_proxy frontend:3000
+
+    header / Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    header / X-Content-Type-Options "nosniff"
+    header / X-Frame-Options "DENY"
+    header / Referrer-Policy "strict-origin-when-cross-origin"
+
+    log {
+        output file /data/caddy.log
+    }
+}

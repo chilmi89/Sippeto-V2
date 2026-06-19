@@ -59,6 +59,18 @@ services:
     ports:
       - "8080:8080"
 
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+
   frontend:
     build:
       context: ./frontend
@@ -68,7 +80,6 @@ services:
       - backend
     environment:
       BACKEND_API_URL: http://backend:8080/api
-      JWT_SECRET: ${JWT_SECRET}
       NODE_ENV: production
       MINIO_INTERNAL_URL: http://minio:9000
     ports:
@@ -77,3 +88,4 @@ services:
 volumes:
   postgres_data:
   minio_data:
+  caddy_data:
