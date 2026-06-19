@@ -3,11 +3,11 @@ import { notFound } from "next/navigation";
 import StorefrontClient from "@/components/store/StorefrontClient";
 import StoreHero from "@/components/store/StoreHero";
 
-const GOLANG_BASE = process.env.GOLANG_BASE || "http://localhost:8080";
+const API_BASE = process.env.BACKEND_API_URL || "http://localhost:8080/api";
 
 // ─── Fetch langsung ke Go backend (Server Component) ──────────────────────────
 const getStoreData = async (username: string) => {
-  const res = await fetch(`${GOLANG_BASE}/api/public/store/${username}`, {
+  const res = await fetch(`${API_BASE}/public/store/${username}`, {
     cache: "no-store",
   });
 
