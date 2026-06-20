@@ -47,14 +47,15 @@ export const LoginCard = ({ theme = "dark" }: { theme?: "light" | "dark" }) => {
         className={`w-full max-w-[440px] p-6 lg:p-7 rounded-[2rem] relative overflow-hidden shadow-2xl transition-all duration-300 ${
           isLight
             ? "bg-blue-50/90 backdrop-blur-xl border border-blue-200/80 shadow-[0_12px_40px_rgba(30,64,175,0.08)]"
-            : "bg-slate-950/60 backdrop-blur-2xl border border-white/10 shadow-[0_0_60px_rgba(30,64,175,0.12)]"
+            : "bg-slate-950/75 backdrop-blur-2xl border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.4)]"
         }`}
       >
         <div className="absolute -top-32 -right-32 w-72 h-72 bg-blue-500/10 blur-3xl rounded-full" />
         <div className="absolute -bottom-32 -left-32 w-72 h-72 bg-indigo-500/10 blur-3xl rounded-full" />
 
         <div className="relative space-y-5">
-          <div className="space-y-1 text-center">
+          <div className="space-y-2 text-center">
+           
             <h2
               className={`text-2xl xl:text-3xl font-bold tracking-tight ${isLight ? "text-slate-800" : "text-white"}`}
             >
@@ -76,7 +77,7 @@ export const LoginCard = ({ theme = "dark" }: { theme?: "light" | "dark" }) => {
               </label>
               <div className="relative group/input">
                 <Mail
-                  className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors ${
+                  className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${
                     isLight
                       ? "text-slate-400 group-focus-within/input:text-primary"
                       : "text-white/30 group-focus-within/input:text-white/60"
@@ -87,10 +88,10 @@ export const LoginCard = ({ theme = "dark" }: { theme?: "light" | "dark" }) => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="contoh@email.com"
-                  className={`w-full border outline-none text-base font-medium transition-all rounded-xl py-3 pl-11 pr-4 ${
+                  className={`w-full border outline-none text-sm font-medium transition-all rounded-xl py-2.5 pl-10 pr-4 ${
                     isLight
                       ? "bg-white/80 border-blue-100/80 text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-primary/20 focus:bg-white focus:border-primary/50"
-                      : "bg-white/[0.07] border-white/10 text-white placeholder:text-white/25 focus:ring-2 focus:ring-white/15 focus:bg-white/[0.10]"
+                      : "bg-white/[0.06] border-white/10 text-white placeholder:text-white/30 focus:ring-2 focus:ring-blue-500/30 focus:bg-white/[0.09]"
                   }`}
                   required
                   suppressHydrationWarning
@@ -106,7 +107,7 @@ export const LoginCard = ({ theme = "dark" }: { theme?: "light" | "dark" }) => {
               </label>
               <div className="relative group/input">
                 <Lock
-                  className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors ${
+                  className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${
                     isLight
                       ? "text-slate-400 group-focus-within/input:text-primary"
                       : "text-white/30 group-focus-within/input:text-white/60"
@@ -117,10 +118,10 @@ export const LoginCard = ({ theme = "dark" }: { theme?: "light" | "dark" }) => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className={`w-full border outline-none text-base font-medium transition-all rounded-xl py-3 pl-11 pr-11 ${
+                  className={`w-full border outline-none text-sm font-medium transition-all rounded-xl py-2.5 pl-10 pr-10 ${
                     isLight
                       ? "bg-white/80 border-blue-100/80 text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-primary/20 focus:bg-white focus:border-primary/50"
-                      : "bg-white/[0.07] border-white/10 text-white placeholder:text-white/25 focus:ring-2 focus:ring-white/15 focus:bg-white/[0.10]"
+                      : "bg-white/[0.06] border-white/10 text-white placeholder:text-white/30 focus:ring-2 focus:ring-blue-500/30 focus:bg-white/[0.09]"
                   }`}
                   required
                   suppressHydrationWarning
@@ -128,12 +129,12 @@ export const LoginCard = ({ theme = "dark" }: { theme?: "light" | "dark" }) => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className={`absolute right-4 top-1/2 -translate-y-1/2 transition-colors ${isLight ? "text-slate-400 hover:text-slate-600" : "text-white/30 hover:text-white/60"}`}
+                  className={`absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors ${isLight ? "text-slate-400 hover:text-slate-600" : "text-white/30 hover:text-white/60"}`}
                 >
                   {showPassword ? (
-                    <EyeOff className="w-5 h-5" />
+                    <EyeOff className="w-4 h-4" />
                   ) : (
-                    <Eye className="w-5 h-5" />
+                    <Eye className="w-4 h-4" />
                   )}
                 </button>
               </div>

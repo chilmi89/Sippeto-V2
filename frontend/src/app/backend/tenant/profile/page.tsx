@@ -605,28 +605,6 @@ const ProfileTenantPage = () => {
                                 </div>
                             </div>
                         </div>
-
-                        {/* QR Code section */}
-                        {profile?.username && (
-                            <div className="bg-white border border-zinc-100 rounded-2xl p-5 flex flex-col items-center justify-center gap-3 shadow-sm hover:shadow-md transition-all">
-                                <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest self-start pl-1">QR Code Etalase Toko</span>
-                                <div className="flex flex-col items-center justify-center p-3 bg-zinc-50 border border-zinc-150 rounded-xl w-full">
-                                    <img 
-                                        src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`${window.location.origin}/store/${profile.username}`)}`} 
-                                        alt="QR Link Toko" 
-                                        className="w-28 h-28 object-contain bg-white p-1 rounded-lg border border-zinc-200"
-                                    />
-                                    <a 
-                                        href={`https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(`${window.location.origin}/store/${profile.username}`)}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-[9px] font-bold text-primary mt-2 uppercase tracking-wider hover:underline"
-                                    >
-                                        Unduh / Buka QR Toko
-                                    </a>
-                                </div>
-                            </div>
-                        )}
                     </div>
                 </div>
             )}

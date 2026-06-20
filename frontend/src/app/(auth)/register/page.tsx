@@ -19,7 +19,7 @@ const RegisterPage = () => {
 
   return (
     <div
-      className="min-h-screen w-full flex flex-col font-sans selection:bg-white/20 selection:text-white relative overflow-hidden"
+      className="min-h-screen w-full flex flex-col font-sans selection:bg-white/20 selection:text-white relative overflow-y-auto"
       style={{
         background: 'linear-gradient(135deg, #030037 0%, #0f2166 20%, #1a56db 50%, #0ea5e9 80%, #06b6d4 100%)'
       }}
