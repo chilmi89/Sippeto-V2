@@ -750,9 +750,9 @@ export default function ProductsTable({
                                                         </div>
                                                     </div>
                                                     
-                                                    <div className="flex items-center gap-4 shrink-0 text-black">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-[10px] text-zinc-400 font-extrabold uppercase tracking-widest block text-black">Stok</span>
+                                                    <div className="grid grid-cols-2 sm:flex sm:items-center gap-3 sm:gap-4 w-full sm:w-auto shrink-0 text-black">
+                                                        <div className="flex items-center gap-2 w-full">
+                                                            <span className="text-[10px] text-zinc-400 font-extrabold uppercase tracking-widest block text-black shrink-0">Stok</span>
                                                             <input 
                                                                 type="number" 
                                                                 value={branchStocksInput[b.id]?.stock ?? ""}
@@ -764,11 +764,11 @@ export default function ProductsTable({
                                                                         stock: e.target.value === "" ? "" : Number(e.target.value)
                                                                     }
                                                                 }))}
-                                                                className="w-20 bg-zinc-50/50 border border-zinc-200 rounded-lg px-2.5 py-1.5 text-xs text-zinc-950 font-bold text-center focus:outline-none focus:border-[#3c39d6] focus:bg-white focus:ring-4 focus:ring-[#3c39d6]/5 transition-all duration-200 text-black"
+                                                                className="w-full sm:w-20 bg-zinc-50/50 border border-zinc-200 rounded-lg px-2.5 py-1.5 text-xs text-zinc-950 font-bold text-center focus:outline-none focus:border-[#3c39d6] focus:bg-white focus:ring-4 focus:ring-[#3c39d6]/5 transition-all duration-200 text-black flex-1 sm:flex-initial"
                                                             />
                                                         </div>
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-[10px] text-zinc-400 font-extrabold uppercase tracking-widest font-sans block text-black">Min</span>
+                                                        <div className="flex items-center gap-2 w-full">
+                                                            <span className="text-[10px] text-zinc-400 font-extrabold uppercase tracking-widest font-sans block text-black shrink-0">Min</span>
                                                             <input 
                                                                 type="number" 
                                                                 value={branchStocksInput[b.id]?.min_stock ?? ""}
@@ -780,7 +780,7 @@ export default function ProductsTable({
                                                                         min_stock: e.target.value === "" ? "" : Number(e.target.value)
                                                                     }
                                                                 }))}
-                                                                className="w-20 bg-zinc-50/50 border border-zinc-200 rounded-lg px-2.5 py-1.5 text-xs text-zinc-950 font-bold text-center focus:outline-none focus:border-[#3c39d6] focus:bg-white focus:ring-4 focus:ring-[#3c39d6]/5 transition-all duration-200 text-black"
+                                                                className="w-full sm:w-20 bg-zinc-50/50 border border-zinc-200 rounded-lg px-2.5 py-1.5 text-xs text-zinc-950 font-bold text-center focus:outline-none focus:border-[#3c39d6] focus:bg-white focus:ring-4 focus:ring-[#3c39d6]/5 transition-all duration-200 text-black flex-1 sm:flex-initial"
                                                             />
                                                         </div>
                                                     </div>
@@ -818,7 +818,7 @@ export default function ProductsTable({
 
                                     <div className="space-y-3">
                                         <h4 className="text-sm font-bold text-[#030037] uppercase tracking-wider block">Opname / Penyesuaian Stok Fisik</h4>
-                                        <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-150 grid grid-cols-2 gap-4 text-black">
+                                        <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-150 grid grid-cols-1 sm:grid-cols-2 gap-4 text-black">
                                             <div className="space-y-1.5">
                                                 <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider block text-black">Stok Fisik Saat Ini (pcs)</label>
                                                 <input 

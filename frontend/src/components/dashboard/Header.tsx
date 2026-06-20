@@ -4,7 +4,6 @@ import React, { useRef, useState, useEffect } from "react";
 import { Search, User, Menu, LogOut, ChevronDown, Settings } from "lucide-react";
 import { useSidebar } from "@/lib/context/SidebarContext";
 import { useRouter } from "next/navigation";
-import { NotificationDropdown } from "@/components/dashboard/NotificationDropdown";
 import { fetchMeOnce } from "@/lib/auth/fetchMe";
 import { logoutAction } from "@/app/actions/auth";
 
@@ -110,8 +109,6 @@ export const DashboardHeader = () => {
 
         {/* User & Actions */}
         <div className="flex items-center gap-2 md:gap-4 border-l border-zinc-100 pl-3 md:pl-8">
-          <NotificationDropdown />
-
           {/* Profile Dropdown */}
           <div ref={dropdownRef} className="relative">
             <button

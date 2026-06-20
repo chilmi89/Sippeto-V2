@@ -101,14 +101,12 @@ export const NotificationDropdown = () => {
 
   // Handler buka/tutup dropdown — saat buka, refresh data + tandai sudah terbaca
   const handleToggle = () => {
-    setIsOpen((prev) => {
-      const willOpen = !prev;
-      if (willOpen) {
-        setSeenCount(totalCount);
-        fetchNotifications(); // refresh saat user mau lihat
-      }
-      return willOpen;
-    });
+    const willOpen = !isOpen;
+    setIsOpen(willOpen);
+    if (willOpen) {
+      setSeenCount(totalCount);
+      fetchNotifications(); // refresh saat user mau lihat
+    }
   };
 
   return (
@@ -130,7 +128,7 @@ export const NotificationDropdown = () => {
 
       {/* Dropdown Panel */}
       <div
-        className={`absolute right-0 top-[calc(100%+12px)] w-[360px] bg-white border border-zinc-100 rounded-2xl shadow-2xl shadow-zinc-200/80 overflow-hidden transition-all duration-200 origin-top-right z-[9999]
+        className={`fixed sm:absolute right-4 sm:right-0 left-4 sm:left-auto top-[88px] sm:top-[calc(100%+12px)] w-auto sm:w-[360px] bg-white border border-zinc-100 rounded-2xl shadow-2xl shadow-zinc-200/80 overflow-hidden transition-all duration-200 origin-top-right z-[9999]
           ${isOpen ? "opacity-100 scale-100 pointer-events-auto" : "opacity-0 scale-95 pointer-events-none"}`}
       >
         {/* Header */}

@@ -437,8 +437,8 @@ export default function POSForm({
 
     doc.setFont("courier", "normal");
     doc.setFontSize(7);
-    doc.text("Terima kasih atas kunjungan Anda!", 40, yPos + 14, { align: "center" });
-    doc.text("SiPetto POS System", 40, yPos + 18, { align: "center" });
+    doc.text("Terima kasih atas kunjungan Anda !", 40, yPos + 14, { align: "center" });
+    doc.text("Sippeto POS System", 40, yPos + 18, { align: "center" });
 
     const pdfBlobUrl = doc.output("bloburl");
     window.open(pdfBlobUrl);
@@ -630,6 +630,19 @@ export default function POSForm({
               <h1 className="text-lg font-black text-[#030037] tracking-tight mt-0.5">
                  {editId ? 'Edit' : 'Kasir'} & <span className="text-[#3c39d6]">{editId ? 'Koreksi Transaksi' : 'Penjualan'}</span>
               </h1>
+              {profile && (
+                 <div className="mt-1 flex flex-col gap-0.5 text-black">
+                    <span className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
+                       <Store className="w-3.5 h-3.5 text-[#3c39d6]" />
+                       {profile.business_name || "TOKO UMKM"}
+                    </span>
+                    {profile.address && (
+                       <span className="text-[10px] text-zinc-500 font-bold ml-5">
+                          {profile.address}
+                       </span>
+                    )}
+                 </div>
+              )}
            </div>
 
            {/* Header Right: Branch Selector + Riwayat */}
@@ -946,7 +959,7 @@ export default function POSForm({
                                  cart.map((item) => (
                                     <tr key={item.product.id} className="hover:bg-zinc-100/50 bg-white transition-all text-xs font-bold text-zinc-800">
                                        <td className="px-3 py-3.5">
-                                          <div className="truncate max-w-[150px] sm:max-w-[200px]" title={item.product.name}>
+                                          <div className="whitespace-normal break-words max-w-[180px] sm:max-w-[240px]" title={item.product.name}>
                                              {item.product.name}
                                           </div>
                                        </td>

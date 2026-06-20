@@ -9,16 +9,17 @@ export const Navbar = () => {
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 md:px-8 pt-6 relative z-50">
-      <nav className="w-full py-3 px-6 md:px-8 flex justify-between items-center bg-white/10 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.12)] relative">
-        <div className="flex items-center gap-2 group cursor-pointer">
-          <Link href="/">
-            <img
-              src="/logo/logo_navbar.png"
-              alt="SiPetto Logo"
-              className="h-8 md:h-9 w-auto object-contain transition-all duration-300 hover:scale-105 active:scale-95 brightness-0 invert"
-            />
-          </Link>
-        </div>
+      <nav className="w-full py-3 px-5 md:px-7 flex justify-between items-center bg-white/10 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.12)] relative">
+        <Link href="/" className="flex items-center gap-2.5 group cursor-pointer">
+          <img
+            src="/logo/logo_icon.png"
+            alt="Sippeto"
+            className="h-8 w-8 object-contain rounded-xl shadow-md transition-all duration-300 group-hover:scale-105 group-active:scale-95"
+          />
+          <span className="text-white font-black text-[15px] tracking-tight hidden sm:block transition-opacity duration-300 group-hover:opacity-80">
+            Sippeto
+          </span>
+        </Link>
 
         {/* Desktop Menu */}
         <div className="hidden sm:flex items-center gap-1.5 text-xs font-bold leading-none">

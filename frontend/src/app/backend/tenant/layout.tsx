@@ -8,6 +8,7 @@ import SessionGuard from "@/components/auth/SessionGuard";
 import { DashboardHeader } from "@/components/dashboard/Header";
 import { TenantSidebar } from "@/components/dashboard/TenantSidebar";
 import { SidebarProvider, useSidebar } from "@/lib/context/SidebarContext";
+import { FloatingNotificationFAB } from "@/components/dashboard/FloatingNotificationFAB";
 
 function TenantLayoutContent({ children }: { children: React.ReactNode }) {
   const { isOpen } = useSidebar();
@@ -39,6 +40,9 @@ function TenantLayoutContent({ children }: { children: React.ReactNode }) {
             </div>
           </main>
         </div>
+
+        {/* Floating Notification FAB for mobile/tablet */}
+        <FloatingNotificationFAB />
       </div>
     </LenisWrapper>
   );

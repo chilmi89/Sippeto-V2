@@ -21,60 +21,55 @@ import {
   Lock,
   Menu,
   Moon,
-  Plus,
   Shield,
-  ShoppingBag,
-  ShoppingCart,
   Smartphone,
-  Star,
   Store,
   Sun,
   X,
+  Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import IphoneMockup from "./_components/IphoneMockup";
+import { LaptopMockup } from "./_components/LaptopMockup";
 
-// ─── Animation Variants ───────────────────────────────────────────────────────
+// ─── Animation Variants ────────────────────────────────────────────────────────
 const fadeUp: Variants = {
-  hidden: { opacity: 0, y: 28 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.55, ease: "easeOut" } },
+  hidden: { opacity: 0, y: 24 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
 };
 
 const fadeIn: Variants = {
   hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { duration: 0.5, ease: "easeOut" } },
+  show: { opacity: 1, transition: { duration: 0.45, ease: "easeOut" } },
 };
 
 const slideLeft: Variants = {
-  hidden: { opacity: 0, x: -32 },
-  show: { opacity: 1, x: 0, transition: { duration: 0.55, ease: "easeOut" } },
+  hidden: { opacity: 0, x: -28 },
+  show: { opacity: 1, x: 0, transition: { duration: 0.5, ease: "easeOut" } },
 };
 
 const slideRight: Variants = {
-  hidden: { opacity: 0, x: 32 },
-  show: { opacity: 1, x: 0, transition: { duration: 0.55, ease: "easeOut" } },
+  hidden: { opacity: 0, x: 28 },
+  show: { opacity: 1, x: 0, transition: { duration: 0.5, ease: "easeOut" } },
 };
 
 const scaleIn: Variants = {
-  hidden: { opacity: 0, scale: 0.9 },
-  show: {
-    opacity: 1,
-    scale: 1,
-    transition: { duration: 0.5, ease: "easeOut" },
-  },
+  hidden: { opacity: 0, scale: 0.93 },
+  show: { opacity: 1, scale: 1, transition: { duration: 0.45, ease: "easeOut" } },
 };
 
 const staggerContainer: Variants = {
   hidden: {},
-  show: { transition: { staggerChildren: 0.1, delayChildren: 0.1 } },
+  show: { transition: { staggerChildren: 0.09, delayChildren: 0.08 } },
 };
 
 const staggerFast: Variants = {
   hidden: {},
-  show: { transition: { staggerChildren: 0.08, delayChildren: 0.05 } },
+  show: { transition: { staggerChildren: 0.07, delayChildren: 0.04 } },
 };
 
-// ─── Animated Section Wrapper ─────────────────────────────────────────────────
+// ─── Animated Section Wrapper ──────────────────────────────────────────────────
 function AnimSection({
   children,
   variant = fadeUp,
@@ -85,7 +80,7 @@ function AnimSection({
   className?: string;
 }) {
   const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: "-80px" });
+  const inView = useInView(ref, { once: true, margin: "-70px" });
   return (
     <motion.div
       ref={ref}
@@ -99,7 +94,7 @@ function AnimSection({
   );
 }
 
-// ─── Theme Hook ───────────────────────────────────────────────────────────────
+// ─── Theme Hook ────────────────────────────────────────────────────────────────
 function useTheme() {
   const [theme, setTheme] = useState<"light" | "dark">("dark");
 
@@ -123,7 +118,7 @@ function useTheme() {
   return { theme, toggleTheme };
 }
 
-// ─── Counter Component ────────────────────────────────────────────────────────
+// ─── Counter Component ─────────────────────────────────────────────────────────
 function Counter({
   value,
   prefix = "",
@@ -135,12 +130,12 @@ function Counter({
 }) {
   const [count, setCount] = useState(0);
   const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-100px" });
+  const isInView = useInView(ref, { once: true, margin: "-80px" });
 
   useEffect(() => {
     if (!isInView) return;
     const controls = animate(0, value, {
-      duration: 2.0,
+      duration: 1.8,
       ease: "easeOut",
       onUpdate(latest) {
         setCount(Math.floor(latest));
@@ -158,283 +153,7 @@ function Counter({
   );
 }
 
-// ─── iPhone Mockup Simulator ──────────────────────────────────────────────────
-function IphoneMockup() {
-  const [step, setStep] = useState(0);
-  const [buyerName] = useState("Budi Santoso");
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setStep((prev) => (prev + 1) % 3);
-    }, 4500);
-    return () => clearInterval(interval);
-  }, []);
-
-  return (
-    <div className="relative mx-auto w-[220px] h-[440px] bg-neutral-900 rounded-[38px] p-[7px] shadow-2xl border-[3px] border-neutral-800 ring-4 ring-neutral-700/20 flex flex-col overflow-hidden select-none">
-      <div className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-[3px] bg-neutral-800 rounded-full z-40 pointer-events-none" />
-      <div className="absolute top-3 left-1/2 -translate-x-1/2 w-14 h-4 bg-black rounded-full z-40 flex items-center justify-center pointer-events-none">
-        <div className="w-1.5 h-1.5 rounded-full bg-neutral-900 border border-neutral-800 absolute left-1.5" />
-      </div>
-
-      <div className="relative w-full h-full bg-zinc-50 rounded-[38px] overflow-hidden flex flex-col border border-zinc-200">
-        <div className="h-10 px-6 pt-2 flex justify-between items-center text-[9px] text-zinc-700 font-bold tracking-tight z-30 shrink-0">
-          <span>09:41</span>
-          <div className="flex items-center gap-1">
-            <span className="w-3.5 h-2 border border-zinc-400 rounded-sm p-[1px] flex items-center">
-              <span className="w-2 h-full bg-emerald-500 rounded-[1px]" />
-            </span>
-          </div>
-        </div>
-
-        <div className="h-9 bg-white border-b border-zinc-100 px-4 flex justify-between items-center shrink-0 z-30 relative shadow-sm">
-          <div className="flex items-center gap-1">
-            <img
-              src="/logo/logo_navbar.png"
-              alt="Logo SiPetto"
-              className="h-4.5 w-auto object-contain"
-            />
-          </div>
-          <div className="relative cursor-pointer p-1">
-            <ShoppingCart className="w-3.5 h-3.5 text-zinc-700" />
-            <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-blue-600 text-white rounded-full flex items-center justify-center text-[6px] font-black">
-              {step === 0 ? "1" : "2"}
-            </span>
-          </div>
-        </div>
-
-        <div className="flex-1 flex flex-col justify-between pb-2 relative overflow-hidden bg-zinc-50">
-          <AnimatePresence mode="wait">
-            {step === 0 && (
-              <motion.div
-                key="step-catalog"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.4 }}
-                className="flex-1 flex flex-col justify-between p-3 text-left"
-              >
-                <div className="space-y-2.5">
-                  <div className="border-b border-zinc-100 pb-2">
-                    <span className="text-[6.5px] font-extrabold text-blue-600 uppercase tracking-widest block">
-                      Mitra UMKM SiPetto
-                    </span>
-                    <h5 className="text-[11px] font-black text-slate-800 leading-tight">
-                      Kopi Desa Toyoresmi
-                    </h5>
-                    <p className="text-[6.5px] text-zinc-700 font-bold mt-0.5">
-                      Katalog Produk Resmi &amp; Terpercaya
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    {[
-                      {
-                        id: "p1",
-                        name: "House Blend Coffee Beans (250g)",
-                        price: 85000,
-                        img: "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=200&auto=format&fit=crop&q=80",
-                        tag: "TERLARIS",
-                      },
-                      {
-                        id: "p2",
-                        name: "Signature Butter Croissant Slice",
-                        price: 35000,
-                        img: "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&auto=format&fit=crop&q=80",
-                        tag: "FAVORIT",
-                      },
-                    ].map((p) => (
-                      <div
-                        key={p.id}
-                        className="bg-white border border-zinc-200/60 p-2 rounded-xl flex gap-2 shadow-sm"
-                      >
-                        <img
-                          src={p.img}
-                          alt={p.name}
-                          className="w-12 h-12 object-cover rounded-lg bg-zinc-100"
-                        />
-                        <div className="flex-1 flex flex-col justify-between min-w-0">
-                          <div>
-                            <div className="flex justify-between items-start gap-1">
-                              <h6 className="text-[8.5px] font-black text-slate-800 line-clamp-1 leading-none">
-                                {p.name}
-                              </h6>
-                              <span className="text-[5px] font-bold bg-blue-50 text-blue-600 px-1 rounded shrink-0">
-                                {p.tag}
-                              </span>
-                            </div>
-                            <span className="text-[7.5px] text-blue-500 font-mono font-black mt-1 block">
-                              Rp {p.price.toLocaleString("id-ID")}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center pt-1 mt-0.5 border-t border-zinc-50">
-                            <span className="text-[6px] text-zinc-700 font-bold">
-                              Stok Ready
-                            </span>
-                            <button className="px-2 py-0.5 rounded bg-blue-600 text-white text-[7.5px] font-black flex items-center gap-0.5 active:scale-95 shadow-sm">
-                              <Plus className="w-2 h-2 stroke-[3]" /> Add
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="bg-blue-50 border border-blue-100/60 p-2 rounded-xl text-[6.5px] text-blue-700 leading-relaxed font-bold">
-                  🎁 Klik produk untuk memasukkan ke keranjang belanja instan.
-                </div>
-              </motion.div>
-            )}
-            {step === 1 && (
-              <motion.div
-                key="step-checkout"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.4 }}
-                className="flex-1 flex flex-col justify-between p-3 text-left"
-              >
-                <div className="space-y-3">
-                  <div>
-                    <span className="text-[6.5px] font-extrabold text-blue-600 uppercase tracking-widest block">
-                      Keranjang Belanja
-                    </span>
-                    <h5 className="text-[11px] font-black text-slate-800 leading-tight">
-                      Konfirmasi Pesanan
-                    </h5>
-                  </div>
-                  <div className="bg-white border border-zinc-200/60 p-2 rounded-xl space-y-1.5 shadow-sm text-[7.5px]">
-                    <div className="flex justify-between font-medium">
-                      <span>1x House Blend Coffee</span>
-                      <span className="font-mono font-bold text-slate-800">
-                        Rp 85.000
-                      </span>
-                    </div>
-                    <div className="flex justify-between font-medium pb-1.5 border-b border-zinc-100">
-                      <span>1x Butter Croissant</span>
-                      <span className="font-mono font-bold text-slate-800">
-                        Rp 35.000
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-slate-800 font-black pt-1">
-                      <span>Total Bayar</span>
-                      <span className="font-mono text-blue-600 text-[8.5px]">
-                        Rp 120.000
-                      </span>
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <span className="text-[6px] font-extrabold text-zinc-900 uppercase tracking-wider">
-                      Informasi Pengiriman
-                    </span>
-                    <div className="bg-white border border-zinc-200/60 p-2 rounded-xl space-y-2 shadow-sm">
-                      <div className="space-y-0.5">
-                        <label className="text-[5.5px] font-black uppercase text-zinc-900">
-                          Nama Penerima
-                        </label>
-                        <input
-                          type="text"
-                          value={buyerName}
-                          readOnly
-                          className="w-full bg-zinc-50 border border-zinc-100 rounded px-1.5 py-0.5 text-[7px] font-bold text-black outline-none"
-                        />
-                      </div>
-                      <div className="space-y-0.5">
-                        <label className="text-[5.5px] font-black uppercase text-zinc-900">
-                          Alamat Kirim
-                        </label>
-                        <input
-                          type="text"
-                          value="Desa Toyoresmi, Kediri"
-                          readOnly
-                          className="w-full bg-zinc-50 border border-zinc-100 rounded px-1.5 py-0.5 text-[7px] font-bold text-black outline-none"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="w-full bg-emerald-600 text-white rounded-xl py-2 flex items-center justify-center gap-1.5 text-[8.5px] font-black tracking-wide shadow-md cursor-pointer">
-                  <span className="w-2 h-2 rounded-full bg-white animate-pulse" />{" "}
-                  Checkout via WhatsApp
-                </div>
-              </motion.div>
-            )}
-            {step === 2 && (
-              <motion.div
-                key="step-whatsapp"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.4 }}
-                className="flex-1 flex flex-col justify-between text-left"
-              >
-                <div className="bg-[#075e54] text-white px-3 py-2 flex items-center gap-2 shrink-0">
-                  <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-[8.5px] font-black text-white">
-                    KT
-                  </div>
-                  <div>
-                    <h6 className="text-[8.5px] font-black leading-none text-white">
-                      Kopi Desa Toyoresmi (Admin)
-                    </h6>
-                    <span className="text-[5.5px] text-emerald-300 font-bold block leading-none">
-                      Online &amp; Aktif
-                    </span>
-                  </div>
-                </div>
-                <div className="flex-1 bg-[#ece5dd] p-2.5 flex flex-col justify-end space-y-2 min-h-0 overflow-y-auto">
-                  <motion.div
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    className="max-w-[85%] bg-[#dcf8c6] self-end rounded-lg p-2 shadow-sm text-zinc-800 text-[6.5px] leading-relaxed relative"
-                  >
-                    <p className="font-mono text-zinc-800">
-                      *PESANAN BARU - SIPETTO*
-                      <br />
-                      ------------------------
-                      <br />
-                      Nama: *{buyerName}*<br />
-                      Alamat: *Desa Toyoresmi*
-                      <br />
-                      Toko: *Kopi Desa Toyoresmi*
-                      <br />
-                      <br />
-                      Detail Belanjaan:
-                      <br />- 1x House Blend Coffee (Rp 85.000)
-                      <br />- 1x Butter Croissant (Rp 35.000)
-                      <br />
-                      <br />
-                      *Total: Rp 120.000*
-                      <br />
-                      ------------------------
-                      <br />
-                      Mohon segera diproses ya min!
-                    </p>
-                    <span className="text-[5px] text-zinc-600 font-bold text-right block mt-1">
-                      09:42 ✓✓
-                    </span>
-                  </motion.div>
-                </div>
-                <div className="bg-[#f4f4f4] p-1.5 flex gap-1.5 items-center shrink-0 border-t border-zinc-200">
-                  <div className="flex-1 bg-white border border-zinc-200 rounded-full px-2 py-1 text-[7px] text-zinc-600 font-medium">
-                    Ketik pesan pesanan...
-                  </div>
-                  <div className="w-6 h-6 rounded-full bg-[#075e54] flex items-center justify-center text-white shrink-0">
-                    <ArrowRight className="w-3 h-3 text-white" />
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        <div className="h-3.5 flex items-center justify-center shrink-0 z-30 bg-white border-t border-zinc-100">
-          <div className="w-16 h-[3px] bg-zinc-300 rounded-full" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Bento Card ───────────────────────────────────────────────────────────────
+// ─── Bento Card ────────────────────────────────────────────────────────────────
 function BentoCard({
   icon,
   title,
@@ -451,29 +170,26 @@ function BentoCard({
   return (
     <motion.div
       variants={fadeUp}
-      whileHover={{ y: -6, scale: 1.01 }}
-      transition={{ type: "spring", stiffness: 200, damping: 16 }}
-      className={`group relative p-6 rounded-3xl border border-white/15 bg-slate-950/65 backdrop-blur-xl hover:bg-slate-950/80 hover:border-white/25 transition-all duration-300 flex flex-col justify-between overflow-hidden shadow-xl hover:shadow-[0_8px_32px_rgba(30,64,175,0.25)] ${className}`}
+      whileHover={{ y: -5, scale: 1.01 }}
+      transition={{ type: "spring", stiffness: 220, damping: 18 }}
+      className={`group relative p-6 rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-md hover:bg-white/[0.07] hover:border-white/20 transition-all duration-300 flex flex-col justify-between overflow-hidden ${className}`}
     >
-      <div className="absolute -inset-4 rounded-3xl bg-blue-500/5 opacity-0 group-hover:opacity-100 blur-2xl transition-opacity duration-500 pointer-events-none" />
-      <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/25 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-      <div className="space-y-4">
-        <motion.div
-          whileHover={{ rotate: 10, scale: 1.05 }}
-          className="w-10 h-10 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center transition-all duration-300 text-white"
-        >
+      {/* top shimmer */}
+      <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+      <div className="space-y-3.5">
+        <div className="w-9 h-9 rounded-xl bg-white/8 border border-white/12 flex items-center justify-center text-white">
           {icon}
-        </motion.div>
+        </div>
         <div>
           {badge && (
             <span className="inline-block text-[8px] font-extrabold tracking-widest uppercase bg-yellow-400/10 border border-yellow-400/20 text-yellow-400 px-2 py-0.5 rounded-full mb-2">
               {badge}
             </span>
           )}
-          <h3 className="text-base font-bold text-white tracking-tight group-hover:text-yellow-300 transition-colors">
+          <h3 className="text-sm font-bold text-white tracking-tight group-hover:text-yellow-300 transition-colors">
             {title}
           </h3>
-          <p className="text-white text-xs leading-relaxed mt-1.5 font-medium">
+          <p className="text-white/70 text-xs leading-relaxed mt-1.5">
             {desc}
           </p>
         </div>
@@ -482,91 +198,108 @@ function BentoCard({
   );
 }
 
-// ─── Main Landing Page ────────────────────────────────────────────────────────
+
+
+
+
+
+
+
+
+// ─── Main Landing Page ─────────────────────────────────────────────────────────
 export default function LandingPage() {
   const { theme, toggleTheme } = useTheme();
   const [mobileMenu, setMobileMenu] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [cartCount, setCartCount] = useState(0);
-  const [notif, setNotif] = useState("");
   const [lenisInstance, setLenisInstance] = useState<any>(null);
 
   useEffect(() => {
     const lenis = new Lenis({
-      duration: 1.2,
+      duration: 1.1,
       easing: (t) => Math.min(1, 1.001 - 2 ** (-10 * t)),
       orientation: "vertical",
       gestureOrientation: "vertical",
       smoothWheel: true,
-      wheelMultiplier: 0.9,
+      wheelMultiplier: 0.85,
     });
     setLenisInstance(lenis);
+
+    let animFrame: number;
     function raf(time: number) {
       lenis.raf(time);
-      requestAnimationFrame(raf);
+      animFrame = requestAnimationFrame(raf);
     }
-    requestAnimationFrame(raf);
+    animFrame = requestAnimationFrame(raf);
+
     const handleScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
     return () => {
       lenis.destroy();
+      cancelAnimationFrame(animFrame);
       window.removeEventListener("scroll", handleScroll);
     };
   }, []);
 
-  const handleSimulatePurchase = (name: string) => {
-    setCartCount((prev) => prev + 1);
-    setNotif(name);
-    setTimeout(() => setNotif(""), 2500);
-  };
+  const NAV_LINKS = [
+    ["E-Catalog WA", "#ecatalog"],
+    ["Fitur Utama", "#features"],
+    ["Alur Kerja", "#how"],
+    ["Kasir POS", "#pos"],
+  ] as const;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased overflow-x-hidden selection:bg-blue-500/25 selection:text-blue-400 relative">
-      {/* ── GRADIENT BACKGROUND ── */}
-      <div
-        className="fixed inset-0 z-0 pointer-events-none bg-[#030037]"
-        style={{ overflow: "clip" }}
-      >
+    <div className="min-h-screen bg-[#04003a] text-slate-100 font-sans antialiased overflow-x-hidden selection:bg-blue-500/25 selection:text-blue-200 relative">
+
+      {/* ── FIXED GRADIENT BACKGROUND ── */}
+      <div className="fixed inset-0 z-0 pointer-events-none" style={{ overflow: "clip" }}>
         <div
-          className="absolute inset-0 z-0"
+          className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(135deg, #030037 0%, #0f2166 20%, #1a56db 50%, #0ea5e9 80%, #06b6d4 100%)",
+              "radial-gradient(ellipse 80% 60% at 50% -10%, #1a3a8f 0%, #04003a 70%)",
           }}
         />
-        {/* Ambient glow overlays */}
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-600/20 blur-[120px] rounded-full animate-pulse z-0 pointer-events-none" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-cyan-400/20 blur-[100px] rounded-full animate-pulse delay-700 z-0 pointer-events-none" />
+        <div className="absolute top-0 left-0 w-[600px] h-[600px] bg-blue-600/10 blur-[140px] rounded-full -translate-x-1/3 -translate-y-1/3 pointer-events-none" />
+        <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-indigo-500/10 blur-[120px] rounded-full translate-x-1/4 translate-y-1/4 pointer-events-none" />
+        {/* Subtle grid */}
+        <div
+          className="absolute inset-0 opacity-[0.025]"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)",
+            backgroundSize: "48px 48px",
+          }}
+        />
       </div>
 
-      {/* ── STICKY GLASS NAVBAR ── */}
-      <nav
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-          scrolled
-            ? "bg-white/75 backdrop-blur-2xl border-b border-zinc-200/50 shadow-[0_4px_20px_rgba(0,0,0,0.05)] py-3.5"
-            : "bg-white/35 backdrop-blur-md border-b border-white/20 py-6"
+      {/* ── NAVBAR (Floating Glassmorphism Capsule) ── */}
+      <div
+        className={`fixed top-4 left-0 right-0 z-50 w-full max-w-7xl mx-auto px-4 md:px-8 transition-all duration-500 ${
+          scrolled ? "top-3" : "top-5"
         }`}
       >
-        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between relative">
-          {/* Logo on Left */}
-          <div className="flex-1 flex justify-start">
-            <Link href="/" className="flex items-center gap-2 group shrink-0">
-              <img
-                src="/logo/logo_navbar.png"
-                alt="SiPetto Logo"
-                className="h-8 md:h-10 w-auto object-contain transition-all duration-300 hover:scale-105 active:scale-95"
-              />
-            </Link>
-          </div>
+        <nav
+          className={`w-full flex justify-between items-center transition-all duration-500 border rounded-2xl ${
+            scrolled
+              ? "py-3 px-5 md:px-7 bg-slate-950/40 backdrop-blur-2xl border-white/12 shadow-[0_12px_40px_rgba(0,0,0,0.3)]"
+              : "py-4 px-6 bg-white/[0.04] backdrop-blur-2xl border-white/8 shadow-[0_8px_32px_rgba(0,0,0,0.15)]"
+          }`}
+        >
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-3.5 group shrink-0">
+            <img
+              src="/logo/logo_icon.png"
+              alt="Sippeto"
+              className="h-8 w-8 object-contain rounded-xl shadow-md transition-all duration-300 group-hover:scale-105 group-active:scale-95"
+            />
+            <span className="text-white font-black text-[15px] tracking-tight transition-opacity duration-300 group-hover:opacity-80">
+              Sippeto
+            </span>
+          </Link>
 
-          {/* Links Centered */}
-          <div className="hidden md:flex items-center gap-7 bg-white/40 border border-zinc-200/50 px-6 py-2.5 rounded-full backdrop-blur-xl absolute left-1/2 -translate-x-1/2">
-            {[
-              ["POS Kasir", "#pos"],
-              ["Fitur Utama", "#features"],
-              ["Etalase Katalog", "#catalog"],
-              ["Alur Kerja", "#how"],
-            ].map(([label, href]) => (
+          {/* Desktop nav */}
+          <div className="hidden md:flex items-center gap-8">
+            {NAV_LINKS.map(([label, href]) => (
               <a
                 key={label}
                 href={href}
@@ -574,422 +307,211 @@ export default function LandingPage() {
                   e.preventDefault();
                   lenisInstance?.scrollTo(href);
                 }}
-                className="text-zinc-800 hover:text-zinc-950 text-xs font-semibold tracking-wide transition-colors relative group cursor-pointer"
+                className="text-white/60 hover:text-white text-xs font-semibold tracking-wide transition-colors cursor-pointer"
               >
                 {label}
-                <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-0 h-[1.5px] bg-blue-600 group-hover:w-5 transition-all duration-300" />
               </a>
             ))}
           </div>
 
-          {/* Actions on Right */}
-          <div className="hidden md:flex items-center justify-end gap-3.5 flex-1 shrink-0">
+          {/* Actions */}
+          <div className="hidden md:flex items-center gap-3">
             <button
               onClick={toggleTheme}
-              className="p-2.5 rounded-xl border border-zinc-200/50 hover:border-zinc-200/80 bg-white/40 hover:bg-white/70 backdrop-blur-md transition-all cursor-pointer text-zinc-800"
+              className="p-2 rounded-lg border border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10 transition-all text-white/70"
               title="Ganti Tema"
             >
               {theme === "dark" ? (
-                <Sun className="w-4 h-4 text-amber-500" />
+                <Sun className="w-3.5 h-3.5 text-amber-400" />
               ) : (
-                <Moon className="w-4 h-4 text-zinc-800" />
+                <Moon className="w-3.5 h-3.5" />
               )}
             </button>
             <Link
               href="/login"
-              className="px-4 py-2 text-xs font-bold border border-zinc-200/50 hover:border-zinc-200/80 bg-white/40 hover:bg-white/70 backdrop-blur-md rounded-xl transition-all flex items-center gap-1.5 text-zinc-800 hover:text-zinc-950"
+              className="px-4 py-2 text-xs font-semibold text-white/70 hover:text-white border border-white/10 hover:border-white/20 rounded-lg transition-all"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
               Masuk
             </Link>
             <Link
               href="/register"
-              className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-lg shadow-blue-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
+              className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-lg shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all"
             >
-              Registrasi
+              Mulai Gratis
             </Link>
           </div>
 
-          {/* Mobile menu trigger */}
-          <div className="flex items-center gap-3.5 md:hidden">
+          {/* Mobile trigger */}
+          <div className="flex items-center gap-2 md:hidden">
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-lg bg-white/40 border border-zinc-200/50 text-zinc-800"
+              className="p-2 rounded-lg bg-white/5 border border-white/10 text-white/70"
             >
-              {theme === "dark" ? (
-                <Sun className="w-4 h-4 text-amber-500" />
-              ) : (
-                <Moon className="w-4 h-4" />
-              )}
+              {theme === "dark" ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5" />}
             </button>
             <button
               onClick={() => setMobileMenu(!mobileMenu)}
-              className="p-2 text-zinc-800"
+              className="p-2 text-white/70 hover:text-white transition-colors"
             >
-              {mobileMenu ? (
-                <X className="w-5 h-5" />
-              ) : (
-                <Menu className="w-5 h-5" />
-              )}
+              {mobileMenu ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
-        </div>
 
-        <AnimatePresence>
-          {mobileMenu && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="md:hidden bg-white/95 border-b border-zinc-200/80 px-6 py-5 flex flex-col gap-3.5 overflow-hidden backdrop-blur-xl"
-            >
-              {[
-                ["POS Kasir", "#pos"],
-                ["Fitur Utama", "#features"],
-                ["Etalase Katalog", "#catalog"],
-                ["Alur Kerja", "#how"],
-              ].map(([label, href]) => (
-                <a
-                  key={label}
-                  href={href}
-                  className="text-zinc-800 hover:text-zinc-950 text-xs font-bold py-1.5 transition-colors cursor-pointer"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setMobileMenu(false);
-                    lenisInstance?.scrollTo(href);
-                  }}
-                >
-                  {label}
-                </a>
-              ))}
-              <div className="flex flex-col gap-2.5 pt-3 border-t border-zinc-200">
-                <Link
-                  href="/login"
-                  className="w-full text-center py-2.5 text-xs font-bold text-zinc-800 border border-zinc-200 rounded-xl hover:bg-zinc-100"
-                  onClick={() => setMobileMenu(false)}
-                >
-                  Masuk
-                </Link>
-                <Link
-                  href="/register"
-                  className="w-full text-center py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-lg shadow-blue-500/10"
-                  onClick={() => setMobileMenu(false)}
-                >
-                  Registrasi Toko
-                </Link>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </nav>
+          <AnimatePresence>
+            {mobileMenu && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="absolute top-full left-0 right-0 mt-2 p-4 bg-slate-950/80 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-xl flex flex-col gap-2 md:hidden overflow-hidden z-50"
+              >
+                {NAV_LINKS.map(([label, href]) => (
+                  <a
+                    key={label}
+                    href={href}
+                    className="text-white/60 hover:text-white text-sm font-semibold py-1.5 transition-colors"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setMobileMenu(false);
+                      lenisInstance?.scrollTo(href);
+                    }}
+                  >
+                    {label}
+                  </a>
+                ))}
+                <div className="flex flex-col gap-2 pt-3 border-t border-white/8">
+                  <Link
+                    href="/login"
+                    className="w-full text-center py-2.5 text-xs font-bold text-white border border-white/10 rounded-lg hover:bg-white/5"
+                    onClick={() => setMobileMenu(false)}
+                  >
+                    Masuk
+                  </Link>
+                  <Link
+                    href="/register"
+                    className="w-full text-center py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-lg"
+                    onClick={() => setMobileMenu(false)}
+                  >
+                    Mulai Gratis
+                  </Link>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </nav>
+      </div>
 
-      {/* ── HERO SECTION ── */}
-      <section className="relative pt-32 pb-16 px-6 md:px-12 max-w-7xl mx-auto z-10">
-        <div className="grid lg:grid-cols-2 gap-8 lg:gap-14 items-center">
-          {/* ── LEFT COLUMN: BRANDING ── */}
-          <div className="space-y-5 text-center lg:text-left">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.05, ease: "easeOut" }}
-              className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-blue-500/10 bg-blue-500/5 text-[9px] font-bold text-blue-400 shadow-inner"
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
-              Sippeto Core v2.0 • Infrastruktur Keuangan &amp; Katalog UMKM
-            </motion.div>
-
-            <motion.h1
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.55, delay: 0.15, ease: "easeOut" }}
-              className="font-extrabold text-3xl sm:text-4xl md:text-5xl tracking-tight leading-[1.15] text-white"
-            >
-              Kelola Keuangan Bisnis <br />
-              <span className="text-yellow-400">Bersama Sippeto</span>
-            </motion.h1>
-
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.25, ease: "easeOut" }}
-              className="text-white text-xs md:text-sm leading-relaxed max-w-xl font-medium"
-            >
-              Platform modern untuk mendigitalkan kasir POS, menyinkronkan stok
-              antar-cabang, mencatat jurnal laba-rugi keuangan, serta
-              meluncurkan katalog produk terintegrasi WhatsApp Order instan.
-            </motion.p>
-
+      {/* ── HERO ── */}
+      <section className="relative pt-28 pb-14 px-6 md:px-12 max-w-7xl mx-auto z-10">
+        <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+          {/* Left */}
+          <div className="space-y-6 text-center lg:text-left">
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45, delay: 0.35, ease: "easeOut" }}
-              className="flex flex-wrap justify-center lg:justify-start gap-3 pt-1"
+              transition={{ duration: 0.45, delay: 0.05 }}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-blue-500/20 bg-blue-500/8 text-[10px] font-bold text-blue-300"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Sippeto v2.0 — Solusi Bisnis UMKM All-in-One
+            </motion.div>
+
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.12 }}
+              className="font-extrabold text-4xl sm:text-5xl md:text-[3.5rem] tracking-tight leading-[1.12] text-white"
+            >
+              Kelola Bisnis
+              <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-amber-400">
+                Lebih Cerdas
+              </span>
+            </motion.h1>
+
+            <motion.p
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, delay: 0.2 }}
+              className="text-white/60 text-sm md:text-base leading-relaxed max-w-lg mx-auto lg:mx-0"
+            >
+              Satu dashboard terpadu untuk kasir POS, sinkronisasi stok cabang, pembukuan keuangan, dan katalog digital WhatsApp.
+            </motion.p>
+
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.28 }}
+              className="flex flex-wrap justify-center lg:justify-start gap-3"
             >
               <Link
                 href="/register"
-                className="group inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-xl shadow-blue-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all text-xs cursor-pointer"
+                className="group inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-xl shadow-blue-500/25 hover:scale-[1.02] active:scale-[0.97] transition-all text-sm"
               >
                 Daftarkan Bisnis Anda
-                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform text-white" />
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Link>
               <a
-                href="#pos"
+                href="#features"
                 onClick={(e) => {
                   e.preventDefault();
-                  lenisInstance?.scrollTo("#pos");
+                  lenisInstance?.scrollTo("#features");
                 }}
-                className="inline-flex items-center gap-2 px-5 py-2.5 border border-white/10 hover:border-white/20 text-white font-semibold bg-white/5 hover:bg-white/10 rounded-xl transition-all text-xs shadow-sm cursor-pointer"
+                className="inline-flex items-center gap-2 px-6 py-3 border border-white/10 hover:border-white/20 text-white/70 hover:text-white font-semibold bg-white/5 hover:bg-white/8 rounded-xl transition-all text-sm cursor-pointer"
               >
-                Coba Simulator POS
+                Lihat Fitur
               </a>
             </motion.div>
 
+            {/* Tech badges */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.5, ease: "easeOut" }}
-              className="pt-8 border-t border-white/10 mt-8 flex flex-wrap justify-center lg:justify-start items-center gap-x-7 gap-y-3 text-slate-200 text-xs w-full"
+              transition={{ duration: 0.4, delay: 0.4 }}
+              className="flex flex-wrap justify-center lg:justify-start gap-4 pt-6 border-t border-white/8 mt-6"
             >
               {[
-                {
-                  icon: <Database className="w-3.5 h-3.5 text-cyan-300" />,
-                  label: "Prisma Client ORM",
-                },
-                {
-                  icon: <Lock className="w-3.5 h-3.5 text-cyan-300" />,
-                  label: "Row Level Security (RLS)",
-                },
-                {
-                  icon: <Globe className="w-3.5 h-3.5 text-cyan-300" />,
-                  label: "Katalog Publik Siap Rilis",
-                },
+                { icon: <Database className="w-3.5 h-3.5 text-cyan-400" />, label: "Go + Bun ORM" },
+                { icon: <Lock className="w-3.5 h-3.5 text-cyan-400" />, label: "JWT + RLS Security" },
+                { icon: <Globe className="w-3.5 h-3.5 text-cyan-400" />, label: "Katalog Publik Instan" },
               ].map((b, i) => (
                 <div key={i} className="flex items-center gap-1.5">
                   {b.icon}
-                  <span className="text-white font-semibold text-xs">
-                    {b.label}
-                  </span>
+                  <span className="text-white/60 text-xs font-semibold">{b.label}</span>
                 </div>
               ))}
             </motion.div>
           </div>
 
-          {/* ── RIGHT COLUMN: DASHBOARD MOCKUP ── */}
+          {/* Right: Dashboard Mockup */}
           <motion.div
-            initial={{ opacity: 0, x: 40 }}
+            initial={{ opacity: 0, x: 36 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.7, delay: 0.3, ease: "easeOut" }}
+            transition={{ duration: 0.65, delay: 0.25 }}
             className="relative flex items-center justify-center"
           >
-            <div className="w-full max-w-[580px] relative">
-              {/* Glass card mockup */}
-              <div className="relative rounded-2xl border border-white/15 bg-slate-950/60 backdrop-blur-2xl p-4 shadow-2xl overflow-hidden">
-                {/* Top bar */}
-                <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/10">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
-                      <Layers className="w-3.5 h-3.5 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-black text-white leading-none">
-                        SIPPETO
-                      </p>
-                      <p className="text-[7px] text-blue-300 font-semibold">
-                        Dashboard Keuangan
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-white/10 border border-white/10 flex items-center justify-center">
-                      <div className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse" />
-                    </div>
-                    <div className="w-6 h-6 rounded-full bg-slate-700 border border-white/10 flex items-center justify-center text-[8px] text-white font-black">
-                      BS
-                    </div>
-                  </div>
-                </div>
-
-                {/* Stats row */}
-                <div className="grid grid-cols-3 gap-2 mb-3">
-                  <div className="rounded-xl bg-white/5 border border-white/10 p-2.5">
-                    <p className="text-[7px] text-blue-300 font-bold uppercase tracking-wider">
-                      Penjualan
-                    </p>
-                    <p className="text-xs font-black text-white font-mono mt-0.5">
-                      Rp 82,5M
-                    </p>
-                    <span className="text-[7px] text-emerald-400 font-bold">
-                      +28.4%
-                    </span>
-                  </div>
-                  <div className="rounded-xl bg-white/5 border border-white/10 p-2.5">
-                    <p className="text-[7px] text-blue-300 font-bold uppercase tracking-wider">
-                      Pesanan
-                    </p>
-                    <p className="text-xs font-black text-white font-mono mt-0.5">
-                      1,250
-                    </p>
-                    <span className="text-[7px] text-emerald-400 font-bold">
-                      +12.3%
-                    </span>
-                  </div>
-                  <div className="rounded-xl bg-white/5 border border-white/10 p-2.5">
-                    <p className="text-[7px] text-blue-300 font-bold uppercase tracking-wider">
-                      Toko Aktif
-                    </p>
-                    <p className="text-xs font-black text-white font-mono mt-0.5">
-                      8 Cabang
-                    </p>
-                    <span className="text-[7px] text-yellow-400 font-bold">
-                      Stabil
-                    </span>
-                  </div>
-                </div>
-
-                {/* Chart area */}
-                <div className="rounded-xl bg-white/5 border border-white/10 p-3 mb-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-[8px] text-blue-300 font-bold uppercase tracking-wider">
-                      Grafik Pendapatan
-                    </p>
-                    <div className="flex gap-1">
-                      <div className="px-1.5 py-0.5 rounded bg-blue-600 text-[6px] font-bold text-white">
-                        7H
-                      </div>
-                      <div className="px-1.5 py-0.5 rounded bg-white/10 text-[6px] font-bold text-white/60">
-                        30H
-                      </div>
-                    </div>
-                  </div>
-                  <svg viewBox="0 0 260 60" className="w-full h-12">
-                    <defs>
-                      <linearGradient
-                        id="chartGradHero"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="0%"
-                          stopColor="#10b981"
-                          stopOpacity="0.35"
-                        />
-                        <stop
-                          offset="100%"
-                          stopColor="#10b981"
-                          stopOpacity="0"
-                        />
-                      </linearGradient>
-                    </defs>
-                    <path
-                      d="M 5 50 Q 30 48, 50 40 Q 70 32, 90 35 Q 110 38, 130 25 Q 150 12, 170 18 Q 190 24, 210 10 Q 230 -4, 255 8"
-                      fill="none"
-                      stroke="#10b981"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                    />
-                    <path
-                      d="M 5 50 Q 30 48, 50 40 Q 70 32, 90 35 Q 110 38, 130 25 Q 150 12, 170 18 Q 190 24, 210 10 Q 230 -4, 255 8 L 255 60 L 5 60 Z"
-                      fill="url(#chartGradHero)"
-                      opacity="0.6"
-                    />
-                    <circle cx="210" cy="10" r="3" fill="#10b981" />
-                  </svg>
-                </div>
-
-                {/* Bottom rows - recent transactions */}
-                <div className="space-y-1.5">
-                  <p className="text-[7px] text-blue-300 font-bold uppercase tracking-wider mb-1.5">
-                    Transaksi Terbaru
-                  </p>
-                  {[
-                    {
-                      name: "Kopi Aroma Nusantara",
-                      amount: "Rp 2,450,000",
-                      status: "Berhasil",
-                    },
-                    {
-                      name: "Bakery Pastry Mantap",
-                      amount: "Rp 980,000",
-                      status: "Berhasil",
-                    },
-                    {
-                      name: "Toko Sembako Jaya",
-                      amount: "Rp 3,200,000",
-                      status: "Diproses",
-                    },
-                  ].map((tx, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between rounded-lg bg-white/[0.03] border border-white/5 p-2"
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="w-5 h-5 rounded-md bg-white/10 border border-white/10 flex items-center justify-center text-[7px] text-white font-black">
-                          {tx.name
-                            .split(" ")
-                            .map((w) => w[0])
-                            .slice(0, 2)
-                            .join("")}
-                        </div>
-                        <span className="text-[9px] text-white font-semibold">
-                          {tx.name}
-                        </span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-[9px] text-white font-mono font-bold">
-                          {tx.amount}
-                        </span>
-                        <span
-                          className={`text-[7px] ml-2 font-bold ${tx.status === "Berhasil" ? "text-emerald-400" : "text-yellow-400"}`}
-                        >
-                          {tx.status}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Floating decorative card */}
-              <div className="absolute -top-3 -right-3 w-24 h-16 rounded-xl bg-gradient-to-br from-cyan-400/10 to-blue-500/10 border border-white/15 backdrop-blur-xl p-2.5 flex flex-col justify-center shadow-lg hidden lg:flex">
-                <p className="text-[6px] text-blue-300 font-bold uppercase tracking-wider">
-                  Uptime
-                </p>
-                <p className="text-sm font-black text-emerald-400">99.9%</p>
-                <p className="text-[6px] text-white/40 font-semibold">
-                  SLA Server
-                </p>
-              </div>
+            <div className="w-full max-w-[680px] relative">
+              <LaptopMockup />
             </div>
           </motion.div>
         </div>
       </section>
 
-      {/* ── METRICS COUNTERS ── */}
-      <section className="py-6 px-6 md:px-12 max-w-7xl mx-auto z-10 relative">
+      {/* ── METRICS STRIP ── */}
+      <section className="py-4 px-6 md:px-12 max-w-7xl mx-auto z-10 relative">
         <AnimSection variant={scaleIn}>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-950/65 border border-white/15 rounded-2xl p-4 md:p-6 backdrop-blur-2xl shadow-xl">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-white/[0.04] border border-white/8 rounded-2xl p-5 md:p-7 backdrop-blur-xl">
             {[
-              { value: 1250, suffix: "+", label: "Toko Aktif Terdaftar" },
-              {
-                value: 45,
-                prefix: "Rp ",
-                suffix: "M+",
-                label: "Volume Transaksi",
-              },
-              { value: 8, label: "Integrasi Cabang Toko" },
-              { value: 99, suffix: "%", label: "SLA Up-time Server" },
+              { value: 1250, suffix: "+", label: "Toko Terdaftar" },
+              { value: 45, prefix: "Rp ", suffix: "M+", label: "Volume Transaksi" },
+              { value: 8, label: "Integrasi Cabang" },
+              { value: 99, suffix: "%", label: "SLA Up-time" },
             ].map((item, i) => (
-              <div key={i} className="text-center space-y-0.5">
-                <div className="text-xl md:text-2xl font-extrabold text-white font-mono tracking-tight">
-                  <Counter
-                    value={item.value}
-                    prefix={item.prefix}
-                    suffix={item.suffix}
-                  />
+              <div key={i} className="text-center">
+                <div className="text-2xl md:text-3xl font-extrabold text-white font-mono tracking-tight">
+                  <Counter value={item.value} prefix={item.prefix} suffix={item.suffix} />
                 </div>
-                <span className="text-[9px] text-white uppercase tracking-widest block font-bold">
+                <span className="text-[10px] text-white/40 uppercase tracking-widest block font-bold mt-1">
                   {item.label}
                 </span>
               </div>
@@ -998,524 +520,449 @@ export default function LandingPage() {
         </AnimSection>
       </section>
 
-      {/* ── SECTION: IPHONE CATALOG SIMULATOR ── */}
+      {/* ── SECTION: E-CATALOG WHATSAPP ── */}
       <section
-        id="pos"
-        className="py-12 px-6 md:px-12 max-w-7xl mx-auto z-10 relative"
+        id="ecatalog"
+        className="py-16 px-6 md:px-12 max-w-7xl mx-auto z-10 relative"
       >
-        <div className="grid lg:grid-cols-12 gap-6 lg:gap-8 items-center bg-slate-950/65 border border-white/15 rounded-2xl p-5 md:p-8 shadow-2xl backdrop-blur-2xl">
+        <div className="grid lg:grid-cols-12 gap-8 lg:gap-12 items-center bg-white/[0.03] border border-white/8 rounded-3xl p-6 md:p-10 shadow-xl backdrop-blur-md overflow-hidden relative">
+          {/* Ambient glow */}
+          <div className="absolute -right-20 -top-20 w-72 h-72 bg-emerald-500/8 blur-[100px] rounded-full pointer-events-none" />
+          <div className="absolute -left-10 -bottom-10 w-56 h-56 bg-blue-500/8 blur-[80px] rounded-full pointer-events-none" />
+
+          {/* Left: Text content */}
           <AnimSection
             variant={slideLeft}
-            className="lg:col-span-7 space-y-4 text-left flex flex-col items-start"
+            className="lg:col-span-7 space-y-5 text-left relative z-10"
           >
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/15 bg-white/5 text-[8px] font-extrabold uppercase tracking-wider text-blue-300">
-              E-Catalog &amp; WhatsApp Order
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-emerald-500/25 bg-emerald-500/8 text-[9px] font-extrabold uppercase tracking-wider text-emerald-300">
+              Katalog Digital & WhatsApp
             </span>
+
             <h2 className="font-extrabold text-2xl md:text-3xl text-white leading-tight">
               Katalog Toko Online <br />
-              <span className="text-yellow-400">
-                Terintegrasi WhatsApp Order
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 to-cyan-400">
+                Terintegrasi WhatsApp
               </span>
             </h2>
-            <p className="text-white text-xs leading-relaxed max-w-lg">
-              Dapatkan subdomain toko digital instan untuk memajang seluruh
-              produk aktif Anda. Pembeli dapat langsung memesan produk, mengisi
-              data diri, dan melakukan checkout yang langsung terkirim secara
-              otomatis ke WhatsApp Admin Anda dengan rapi dan aman.
+
+            <p className="text-white/55 text-sm leading-relaxed max-w-lg">
+              Buat etalase produk digital dalam hitungan menit. Terima pesanan terformat rapi langsung ke WhatsApp Anda tanpa ribet.
             </p>
+
+            {/* Feature checklist */}
             <motion.div
               variants={staggerFast}
               initial="hidden"
               whileInView="show"
               viewport={{ once: true, margin: "-60px" }}
-              className="space-y-2 w-full text-white text-xs"
+              className="space-y-3"
             >
               {[
-                "WhatsApp Redirect Secure (Tautan pesan belanja rapi dikirim otomatis)",
-                "Anti-Spam Honeypot (Proteksi formulir pesanan dari bot spammer)",
-                "Sinkronisasi Inventori Cabang (Stok produk terupdate sesuai data cabang)",
+                {
+                  icon: "💬",
+                  title: "Checkout WhatsApp",
+                  desc: "Pesanan terformat otomatis dikirim ke chat WhatsApp admin.",
+                },
+                {
+                  icon: "🛡️",
+                  title: "Proteksi Anti-Spam",
+                  desc: "Keamanan formulir melindungi dari bot tanpa verifikasi rumit.",
+                },
+                {
+                  icon: "🔄",
+                  title: "Sinkronisasi Stok",
+                  desc: "Stok produk terupdate otomatis saat terjadi transaksi.",
+                },
+                {
+                  icon: "🌐",
+                  title: "Subdomain Instan",
+                  desc: "Link toko profesional siap pakai tanpa instalasi server.",
+                },
               ].map((item, i) => (
                 <motion.div
                   key={i}
                   variants={fadeUp}
-                  className="flex gap-2 items-center"
+                  className="flex gap-3 items-start group"
                 >
-                  <div className="w-4 h-4 rounded bg-white/10 border border-white/15 flex items-center justify-center shrink-0">
-                    <Check className="w-2.5 h-2.5 text-yellow-400" />
+                  <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-base shrink-0 group-hover:bg-emerald-500/10 group-hover:border-emerald-500/25 transition-all duration-300">
+                    {item.icon}
                   </div>
-                  <span className="text-white">{item}</span>
+                  <div>
+                    <p className="text-white text-xs font-bold mb-0.5">{item.title}</p>
+                    <p className="text-white/45 text-xs leading-relaxed">{item.desc}</p>
+                  </div>
                 </motion.div>
               ))}
             </motion.div>
+
             <Link
               href="/register"
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition-all shadow-md active:scale-95 cursor-pointer mt-1"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition-all shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.97] mt-1"
             >
-              Buat Toko Sekarang <ArrowRight className="w-3 h-3 text-white" />
+              Buat Katalog Toko Sekarang
+              <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </AnimSection>
 
+          {/* Right: iPhone Mockup */}
           <AnimSection
             variant={slideRight}
-            className="lg:col-span-5 flex justify-center items-center relative py-2"
+            className="lg:col-span-5 flex justify-center items-center relative py-4"
           >
-            <div className="absolute -inset-4 rounded-3xl bg-blue-500/8 blur-3xl pointer-events-none" />
+            {/* Glow behind phone */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-52 h-52 rounded-full bg-emerald-400/10 blur-[60px]" />
+            </div>
+            {/* Step labels floating */}
+            <div className="absolute top-6 left-0 bg-white/5 border border-white/10 rounded-xl px-2.5 py-1.5 text-[9px] font-bold text-emerald-300 backdrop-blur-md hidden lg:block">
+              ① Pilih Produk
+            </div>
+            <div className="absolute top-1/2 -left-2 bg-white/5 border border-white/10 rounded-xl px-2.5 py-1.5 text-[9px] font-bold text-blue-300 backdrop-blur-md hidden lg:block">
+              ② Isi Data
+            </div>
+            <div className="absolute bottom-8 left-0 bg-white/5 border border-white/10 rounded-xl px-2.5 py-1.5 text-[9px] font-bold text-yellow-300 backdrop-blur-md hidden lg:block">
+              ③ Kirim via WA
+            </div>
             <IphoneMockup />
           </AnimSection>
         </div>
       </section>
 
-      {/* ── SECTION: BENTO FEATURE GRID ── */}
-      <section
-        id="features"
-        className="py-20 px-6 md:px-12 max-w-7xl mx-auto z-10 relative"
-      >
-        <div className="space-y-12">
-          <AnimSection
-            variant={fadeUp}
-            className="text-center max-w-2xl mx-auto space-y-3"
-          >
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-[9px] font-extrabold uppercase tracking-wider text-blue-300">
-              ARSITEKTUR &amp; FITUR UTAMA
+      {/* ── FEATURES BENTO ── */}
+      <section id="features" className="py-20 px-6 md:px-12 max-w-7xl mx-auto z-10 relative">
+        <AnimSection variant={fadeUp} className="text-center max-w-2xl mx-auto mb-12 space-y-3">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-[9px] font-extrabold uppercase tracking-wider text-blue-300">
+            Fitur Utama
+          </span>
+          <h2 className="font-extrabold text-3xl md:text-4xl text-white">
+            Solusi Bisnis Lengkap <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-amber-400">
+              Dalam Satu Dashboard
             </span>
-            <h2 className="font-extrabold text-3xl md:text-4xl text-white">
-              Satu Dashboard,{" "}
-              <span className="text-yellow-400">Ribuan Kemudahan</span>
-            </h2>
-            <p className="text-white text-xs md:text-sm">
-              Kami menyatukan pembukuan kas, logistik stok produk, dan etalase
-              toko online publik dalam infrastruktur SaaS yang aman.
-            </p>
-          </AnimSection>
-
-          <motion.div
-            variants={staggerContainer}
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, margin: "-60px" }}
-            className="grid md:grid-cols-12 gap-6"
-          >
-            <BentoCard
-              className="md:col-span-8"
-              icon={<Shield className="w-5 h-5 text-blue-400" />}
-              badge="KEAMANAN DATABASE"
-              title="Isolasi Data Tenant (Row Level Security)"
-              desc="Keamanan pembukuan keuangan toko Anda adalah prioritas utama kami. Setiap data transaksi, produk, dan laporan keuangan dilindungi ketat di tingkat database dengan isolasi data per tenant, memastikan bahwa tidak ada kebocoran atau akses tidak sah dari pihak luar."
-            />
-            <BentoCard
-              className="md:col-span-4"
-              icon={<Building className="w-5 h-5 text-blue-400" />}
-              badge="LOGISTIK TOKO"
-              title="Manajemen Multi-Cabang"
-              desc="Pantau perputaran produk di gudang pusat hingga stok fisik di masing-masing cabang toko Anda secara efisien."
-            />
-            <BentoCard
-              className="md:col-span-4"
-              icon={<ArrowRightLeft className="w-5 h-5 text-blue-400" />}
-              badge="MUTASI STOK"
-              title="Pelacakan Riwayat Transfer"
-              desc="Mencatat logistik mutasi stok ketika ada restock barang, transfer antar-cabang, atau penyesuaian inventori toko."
-            />
-            <BentoCard
-              className="md:col-span-8"
-              icon={<Smartphone className="w-5 h-5 text-blue-400" />}
-              badge="INTEGRASI WHATSAPP"
-              title="Form Pemesanan Anti-Spam (Secure WhatsApp Order)"
-              desc="Setiap pemesanan dari katalog digital dilindungi oleh sistem honeypot bot-detection di sisi server. Pembeli langsung diarahkan ke nomor WhatsApp Admin secara aman melalui tautan redirect dinamis, menyembuyen nomor WA asli Anda dari robot spammer."
-            />
-            <BentoCard
-              className="md:col-span-6"
-              icon={<FileText className="w-5 h-5 text-blue-400" />}
-              badge="FINANSIAL"
-              title="Jurnal Keuangan &amp; Arus Kas"
-              desc="Catat pengeluaran bisnis (seperti sewa, belanja barang, modal, gaji karyawan) dan kelola jurnal arus kas terpusat untuk memonitor margin keuntungan bersih bisnis."
-            />
-            <BentoCard
-              className="md:col-span-6"
-              icon={<Globe className="w-5 h-5 text-blue-400" />}
-              badge="ONLINE STORE"
-              title="Etalase Toko Digital Publik"
-              desc="Dapatkan subdomain toko instan sipetto.id/store/[username] yang terisi otomatis berdasarkan daftar produk aktif Anda, siap disebarkan ke media sosial."
-            />
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ── SECTION: CATALOG SHOWCASE ── */}
-      <section
-        id="catalog"
-        className="py-20 px-6 md:px-12 max-w-7xl mx-auto z-10 relative"
-      >
-        <AnimSection variant={scaleIn}>
-          <div className="bg-slate-950/65 border border-white/15 rounded-3xl p-6 md:p-10 shadow-2xl space-y-12 backdrop-blur-xl relative">
-            <div className="absolute top-0 left-0 w-40 h-40 bg-blue-500/5 blur-[80px]" />
-
-            <AnimSection
-              variant={fadeUp}
-              className="text-center max-w-2xl mx-auto space-y-3"
-            >
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-white/15 bg-white/5 text-[9px] font-extrabold uppercase tracking-wider text-blue-300">
-                Demo Katalog Online Publik
-              </span>
-              <h2 className="font-extrabold text-2xl md:text-3xl text-white">
-                Produk Unggulan{" "}
-                <span className="text-blue-400 drop-shadow-[0_0_12px_rgba(59,130,246,0.35)]">
-                  Kami
-                </span>
-              </h2>
-              <p className="text-white text-xs md:text-sm">
-                Ini adalah etalase modern, bersih, dan super cepat yang akan
-                diakses oleh calon pembeli Anda secara publik tanpa perlu login.
-              </p>
-            </AnimSection>
-
-            <motion.div
-              variants={staggerContainer}
-              initial="hidden"
-              whileInView="show"
-              viewport={{ once: true, margin: "-60px" }}
-              className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 relative z-10 max-w-5xl mx-auto"
-            >
-              {[
-                {
-                  id: "p1",
-                  name: "House Blend Coffee Beans (250g)",
-                  price: 85000,
-                  img: "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=400&auto=format&fit=crop&q=80",
-                  cat: "F&B / KOPI SHOP",
-                  tag: "TERLARIS",
-                  badge: "from-blue-600 to-indigo-700",
-                },
-                {
-                  id: "p2",
-                  name: "Signature Butter Croissant Slice",
-                  price: 35000,
-                  img: "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400&auto=format&fit=crop&q=80",
-                  cat: "BAKERY / MAKANAN",
-                  tag: "FAVORIT",
-                  badge: "from-blue-600 to-indigo-700",
-                },
-                {
-                  id: "p3",
-                  name: "Premium Flanel Shirt Casual Fit",
-                  price: 185000,
-                  img: "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=400&auto=format&fit=crop&q=80",
-                  cat: "RITEL / FASHION",
-                  tag: "BARU",
-                  badge: "from-blue-600 to-indigo-700",
-                },
-              ].map((prod) => (
-                <motion.div
-                  key={prod.id}
-                  variants={fadeUp}
-                  whileHover={{ y: -4, scale: 1.015 }}
-                  transition={{ type: "spring", stiffness: 200, damping: 18 }}
-                  className="group border border-white/10 bg-slate-950/60 p-3 rounded-2xl hover:border-white/25 hover:bg-slate-950/80 hover:shadow-[0_8px_32px_rgba(30,64,175,0.25)] transition-all duration-300 flex flex-col justify-between"
-                >
-                  <div className="space-y-2.5 text-left">
-                    <div className="relative h-28 sm:h-36 rounded-xl overflow-hidden bg-slate-900">
-                      <img
-                        src={prod.img}
-                        alt={prod.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                      <span
-                        className={`absolute top-2 left-2 px-2 py-0.5 rounded text-[8px] font-black text-white bg-gradient-to-r ${prod.badge} shadow-md`}
-                      >
-                        {prod.tag}
-                      </span>
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-[8px] font-bold text-blue-300 tracking-wider block uppercase">
-                        {prod.cat}
-                      </span>
-                      <h4 className="text-[11px] sm:text-xs font-bold text-white line-clamp-2 min-h-[30px] leading-snug">
-                        {prod.name}
-                      </h4>
-                      <div className="flex items-center gap-1 text-[9px] text-yellow-400">
-                        <Star className="w-2.5 h-2.5 fill-current" />
-                        <span className="font-bold">4.9</span>
-                        <span className="text-slate-100">(12 ulasan)</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="pt-2 border-t border-white/10 mt-3 flex items-center justify-between">
-                    <span className="text-xs font-mono font-extrabold text-blue-400">
-                      Rp {prod.price.toLocaleString("id-ID")}
-                    </span>
-                    <button
-                      onClick={() => handleSimulatePurchase(prod.name)}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-[9px] font-black text-white shadow-md active:scale-95 transition-all cursor-pointer"
-                    >
-                      <Plus className="w-3 h-3 text-white stroke-[3]" /> Add
-                    </button>
-                  </div>
-                </motion.div>
-              ))}
-            </motion.div>
-          </div>
+          </h2>
+          <p className="text-white/55 text-sm leading-relaxed">
+            Kelola operasional, keuangan, dan penjualan toko Anda dengan fitur-fitur handal dari Sippeto.
+          </p>
         </AnimSection>
+
+        <motion.div
+          variants={staggerContainer}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: "-50px" }}
+          className="grid md:grid-cols-12 gap-4"
+        >
+          <BentoCard
+            className="md:col-span-8"
+            icon={<Shield className="w-5 h-5 text-blue-400" />}
+            badge="KEAMANAN DATA"
+            title="Isolasi Data (Row Level Security)"
+            desc="Keamanan data transaksi dan keuangan terjamin dengan enkripsi tingkat lanjut."
+          />
+          <BentoCard
+            className="md:col-span-4"
+            icon={<Building className="w-5 h-5 text-blue-400" />}
+            badge="MULTICABANG"
+            title="Manajemen Inventori"
+            desc="Pantau perputaran stok di gudang maupun cabang retail secara presisi."
+          />
+          <BentoCard
+            className="md:col-span-4"
+            icon={<ArrowRightLeft className="w-5 h-5 text-blue-400" />}
+            badge="LOGISTIK"
+            title="Transfer Antar Cabang"
+            desc="Kelola perpindahan stok antar lokasi dengan riwayat pelacakan lengkap."
+          />
+          <BentoCard
+            className="md:col-span-8"
+            icon={<Smartphone className="w-5 h-5 text-blue-400" />}
+            badge="ONLINE ORDER"
+            title="Secure WhatsApp Order"
+            desc="Katalog publik dengan perlindungan spam untuk transaksi aman."
+          />
+          <BentoCard
+            className="md:col-span-6"
+            icon={<FileText className="w-5 h-5 text-blue-400" />}
+            badge="FINANSIAL"
+            title="Jurnal Keuangan"
+            desc="Catat arus kas dan pantau profitabilitas bisnis secara real-time."
+          />
+          <BentoCard
+            className="md:col-span-6"
+            icon={<Globe className="w-5 h-5 text-blue-400" />}
+            badge="STOREFRONT"
+            title="Katalog Digital Publik"
+            desc="Etalase online yang otomatis tersinkronisasi dengan stok toko Anda."
+          />
+        </motion.div>
       </section>
 
-      {/* ── SECTION: HOW IT WORKS ── */}
-      <section
-        id="how"
-        className="py-20 px-6 md:px-12 max-w-7xl mx-auto z-10 relative"
-      >
-        <div className="grid lg:grid-cols-12 gap-8 lg:gap-12 items-center bg-slate-950/65 border border-white/15 rounded-3xl p-6 md:p-10 shadow-2xl backdrop-blur-xl">
-          <AnimSection
-            variant={slideLeft}
-            className="lg:col-span-7 space-y-6 text-left"
-          >
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-white/15 bg-white/5 text-[9px] font-extrabold uppercase tracking-wider text-blue-300">
-              Panduan Aktivasi Toko
+      {/* ── HOW IT WORKS ── */}
+      <section id="how" className="py-20 px-6 md:px-12 max-w-7xl mx-auto z-10 relative">
+        <div className="grid lg:grid-cols-12 gap-8 lg:gap-12 items-center bg-white/[0.03] border border-white/8 rounded-3xl p-6 md:p-10 shadow-xl backdrop-blur-md">
+          <AnimSection variant={slideLeft} className="lg:col-span-7 space-y-6 text-left">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-[9px] font-extrabold uppercase tracking-wider text-blue-300">
+              Cara Kerja
             </span>
             <h2 className="font-extrabold text-2xl md:text-3xl text-white">
-              Cukup 3 Langkah <br />
-              <span className="text-yellow-400">Untuk Mulai Berjualan</span>
+              Mulai Digitalisasi <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-amber-400">
+                Dalam 3 Langkah Mudah
+              </span>
             </h2>
-            <p className="text-white text-xs md:text-sm">
-              Proses onboarding yang dirancang efisien dan minimalis agar
-              pemilik bisnis bisa segera fokus melayani transaksi.
+            <p className="text-white/55 text-sm leading-relaxed max-w-lg">
+              Langkah sederhana untuk mulai menggunakan Sippeto bagi kemajuan bisnis Anda.
             </p>
 
             <motion.div
               variants={staggerContainer}
               initial="hidden"
               whileInView="show"
-              viewport={{ once: true, margin: "-60px" }}
-              className="space-y-4 pt-3"
+              viewport={{ once: true, margin: "-50px" }}
+              className="space-y-5 pt-2"
             >
               {[
                 {
                   step: "01",
-                  title: "Registrasi Akun UMKM",
-                  desc: "Buat profil bisnis Anda di SiPetto dengan mengisi formulir singkat dan atur subdomain nama toko.",
+                  title: "Registrasi Akun",
+                  desc: "Buat akun bisnis Anda di Sippeto dan tentukan subdomain toko.",
                 },
                 {
                   step: "02",
-                  title: "Setup Cabang & Produk",
-                  desc: "Daftarkan cabang-cabang bisnis Anda, masukkan inventori produk beserta harga dasar & harga jual.",
+                  title: "Setup Operasional",
+                  desc: "Daftarkan cabang toko dan input data produk inventori.",
                 },
                 {
                   step: "03",
-                  title: "Bagikan Katalog & Transaksi POS",
-                  desc: "Mulai melayani kasir POS offline di cabang, serta bagikan tautan etalase toko digital ke pelanggan umum.",
+                  title: "Berjualan Maksimal",
+                  desc: "Mulai transaksi kasir POS dan sebarkan link katalog digital.",
                 },
               ].map((item, i) => (
-                <motion.div
-                  key={i}
-                  variants={fadeUp}
-                  className="flex gap-4 items-start group"
-                >
-                  <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-white/10 border border-white/15 text-yellow-400 flex items-center justify-center font-mono text-xs font-bold group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 transition-all duration-300">
+                <motion.div key={i} variants={fadeUp} className="flex gap-4 items-start group">
+                  <div className="shrink-0 w-9 h-9 rounded-xl bg-white/8 border border-white/10 text-yellow-400 flex items-center justify-center font-mono text-xs font-bold group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-500 transition-all duration-300">
                     {item.step}
                   </div>
                   <div>
-                    <h4 className="font-bold text-white text-xs md:text-sm mb-0.5 group-hover:text-blue-400 transition-colors">
+                    <h4 className="font-bold text-white text-sm mb-1 group-hover:text-blue-400 transition-colors">
                       {item.title}
                     </h4>
-                    <p className="text-slate-100 text-xs leading-relaxed max-w-lg">
-                      {item.desc}
-                    </p>
+                    <p className="text-white/50 text-xs leading-relaxed">{item.desc}</p>
                   </div>
                 </motion.div>
               ))}
             </motion.div>
           </AnimSection>
 
-          <AnimSection
-            variant={slideRight}
-            className="lg:col-span-5 relative flex justify-center"
-          >
-            <div className="w-full max-w-sm p-6 rounded-2xl border border-white/15 bg-slate-950/65 backdrop-blur-md shadow-xl text-left space-y-4">
-              <h4 className="text-[10px] font-bold text-slate-200 tracking-wider uppercase flex items-center gap-1.5">
+          <AnimSection variant={slideRight} className="lg:col-span-5 flex justify-center">
+            <div className="w-full max-w-sm p-5 rounded-2xl border border-white/8 bg-white/[0.04] backdrop-blur-md text-left space-y-4">
+              <h4 className="text-[10px] font-bold text-white/50 tracking-wider uppercase flex items-center gap-1.5">
                 <Store className="w-3.5 h-3.5 text-blue-300" />
-                Daftar Subdomain Contoh Toko
+                Contoh Subdomain
               </h4>
               <div className="space-y-2.5">
                 {[
-                  {
-                    n: "Kopi Aroma Nusantara",
-                    u: "sipetto.id/store/kopiaroma",
-                    l: "KA",
-                  },
-                  {
-                    n: "Bakery Pastry Mantap",
-                    u: "sipetto.id/store/pastrymantap",
-                    l: "BP",
-                  },
+                  { n: "Kopi Aroma Nusantara", u: "sipetto.id/store/kopiaroma", l: "KA" },
+                  { n: "Bakery Pastry Mantap", u: "sipetto.id/store/pastrymantap", l: "BP" },
+                  { n: "Warung Sembako Jaya", u: "sipetto.id/store/sembakojaya", l: "WS" },
                 ].map((t, idx) => (
                   <motion.div
                     key={idx}
-                    initial={{ opacity: 0, x: 16 }}
+                    initial={{ opacity: 0, x: 12 }}
                     whileInView={{ opacity: 1, x: 0 }}
                     viewport={{ once: true }}
-                    transition={{ delay: idx * 0.15, duration: 0.45 }}
-                    className="p-3 rounded-xl border border-white/10 bg-slate-950/60 flex items-center justify-between hover:border-white/20 hover:bg-slate-950/75 hover:scale-[1.01] transition-all"
+                    transition={{ delay: idx * 0.1, duration: 0.4 }}
+                    className="p-3 rounded-xl border border-white/8 bg-slate-950/40 flex items-center justify-between hover:border-white/15 hover:bg-slate-950/60 transition-all"
                   >
                     <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-white/10 text-blue-300 border border-white/10 flex items-center justify-center font-black text-[10px]">
+                      <div className="w-7 h-7 rounded-lg bg-blue-600/20 text-blue-300 border border-blue-500/20 flex items-center justify-center font-black text-[10px]">
                         {t.l}
                       </div>
                       <div className="leading-tight">
-                        <span className="text-[11px] font-bold text-white block truncate max-w-[150px]">
-                          {t.n}
-                        </span>
-                        <span className="text-yellow-400 font-mono text-[9px] font-semibold">
-                          {t.u}
-                        </span>
+                        <span className="text-[11px] font-bold text-white block">{t.n}</span>
+                        <span className="text-yellow-400/80 font-mono text-[9px]">{t.u}</span>
                       </div>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-white/70" />
+                    <ChevronRight className="w-3.5 h-3.5 text-white/30" />
                   </motion.div>
                 ))}
               </div>
-              <div className="p-3.5 rounded-xl bg-slate-950/50 border border-white/10 text-[9px] leading-relaxed text-white font-medium">
-                Setiap subdomain publik otomatis menampilkan katalog terupdate
-                tanpa mengganggu data pembukuan admin tenant — keamanan
-                terisolasi di tingkat database per tenant.
+              <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/15 text-[9px] leading-relaxed text-white/50 font-medium">
+                Katalog subdomain terupdate otomatis tanpa mengganggu data keuangan internal.
               </div>
             </div>
           </AnimSection>
         </div>
       </section>
 
-      {/* ── SECTION: CTA ── */}
+      {/* ── KASIR POS SECTION ── */}
+      <section id="pos" className="py-20 px-6 md:px-12 max-w-7xl mx-auto z-10 relative">
+        <AnimSection variant={fadeUp} className="text-center max-w-2xl mx-auto mb-12 space-y-3">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-[9px] font-extrabold uppercase tracking-wider text-blue-300">
+            Sistem Kasir POS
+          </span>
+          <h2 className="font-extrabold text-3xl md:text-4xl text-white">
+            Kasir Digital{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-amber-400">
+              Offline & Online
+            </span>
+          </h2>
+          <p className="text-white/55 text-sm leading-relaxed">
+            Transaksi tetap lancar dalam kondisi offline dan otomatis tersinkronisasi saat terhubung ke internet.
+          </p>
+        </AnimSection>
+
+        <motion.div
+          variants={staggerContainer}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: "-50px" }}
+          className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"
+        >
+          {[
+            {
+              icon: <Zap className="w-5 h-5 text-yellow-400" />,
+              title: "Transaksi Super Cepat",
+              desc: "Proses pembayaran instan untuk kelancaran antrean pelanggan.",
+              badge: "REAL-TIME",
+            },
+            {
+              icon: <Database className="w-5 h-5 text-blue-400" />,
+              title: "Sinkronisasi Stok",
+              desc: "Inventori terpotong otomatis saat transaksi terjadi di kasir.",
+              badge: "MULTI-CABANG",
+            },
+            {
+              icon: <FileText className="w-5 h-5 text-emerald-400" />,
+              title: "Laporan Penjualan",
+              desc: "Analitik pendapatan harian & bulanan yang mudah dibaca.",
+              badge: "ANALITIK",
+            },
+            {
+              icon: <Lock className="w-5 h-5 text-blue-400" />,
+              title: "Metode Pembayaran",
+              desc: "Dukung tunai, transfer, dan QRIS dengan pembukuan terintegrasi.",
+              badge: "FLEKSIBEL",
+            },
+            {
+              icon: <Building className="w-5 h-5 text-blue-400" />,
+              title: "Manajemen Shift",
+              desc: "Kontrol penuh atas setoran kasir di tiap cabang toko.",
+              badge: "OPERASIONAL",
+            },
+            {
+              icon: <ArrowRightLeft className="w-5 h-5 text-blue-400" />,
+              title: "Retur & Void",
+              desc: "Kelola pembatalan atau pengembalian dengan sistem audit aman.",
+              badge: "KONTROL",
+            },
+          ].map((card, i) => (
+            <BentoCard
+              key={i}
+              icon={card.icon}
+              title={card.title}
+              desc={card.desc}
+              badge={card.badge}
+            />
+          ))}
+        </motion.div>
+      </section>
+
+      {/* ── CTA ── */}
       <section className="relative py-20 px-6 md:px-12 max-w-7xl mx-auto z-10">
         <AnimSection variant={scaleIn}>
-          <div className="border border-white/15 bg-slate-950/65 backdrop-blur-md rounded-3xl p-8 md:p-14 shadow-2xl text-center space-y-6 relative overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full bg-blue-500/5 blur-[120px] pointer-events-none" />
+          <div className="border border-white/8 bg-white/[0.03] backdrop-blur-md rounded-3xl p-8 md:p-14 text-center space-y-6 relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-80 h-80 rounded-full bg-blue-600/5 blur-[100px]" />
+            </div>
 
             <motion.h2
               variants={fadeUp}
               initial="hidden"
               whileInView="show"
               viewport={{ once: true }}
-              className="font-extrabold text-3xl md:text-5xl leading-tight text-white"
+              className="font-extrabold text-3xl md:text-5xl leading-tight text-white relative z-10"
             >
-              Kelola Bisnis UMKM <br />
-              <span className="text-yellow-400">Lebih Terstruktur</span>
+              Mulai Kelola Bisnis <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-amber-400">
+                Secara Digital
+              </span>
             </motion.h2>
             <motion.p
               variants={fadeUp}
               initial="hidden"
               whileInView="show"
               viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-              className="text-white text-xs md:text-sm max-w-lg mx-auto leading-relaxed font-medium"
+              transition={{ delay: 0.08 }}
+              className="text-white/55 text-sm max-w-lg mx-auto leading-relaxed relative z-10"
             >
-              Hentikan pencatatan manual di buku kas kertas yang rentan hilang.
-              Optimalkan operasional kasir cabang dan perluas jangkauan pasar
-              online Anda sekarang.
+              Tinggalkan catatan manual. Optimalkan transaksi dan perluas jangkauan pasar Anda dengan Sippeto.
             </motion.p>
             <motion.div
               variants={fadeUp}
               initial="hidden"
               whileInView="show"
               viewport={{ once: true }}
-              transition={{ delay: 0.18 }}
-              className="flex flex-wrap justify-center gap-3.5 pt-3 relative z-10"
+              transition={{ delay: 0.15 }}
+              className="flex flex-wrap justify-center gap-3.5 pt-2 relative z-10"
             >
               <Link
                 href="/register"
-                className="px-6 py-3 bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-bold rounded-xl text-xs md:text-sm transition-all shadow-lg shadow-yellow-500/10 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                className="px-7 py-3 bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-bold rounded-xl text-sm transition-all shadow-lg shadow-yellow-500/15 hover:scale-[1.02] active:scale-[0.97]"
               >
                 Registrasi Sekarang
               </Link>
               <Link
                 href="/login"
-                className="px-6 py-3 border border-white/10 hover:border-white/20 hover:bg-white/10 rounded-xl font-semibold text-white text-xs md:text-sm transition-all"
+                className="px-7 py-3 border border-white/10 hover:border-white/20 hover:bg-white/5 rounded-xl font-semibold text-white/70 hover:text-white text-sm transition-all"
               >
                 Sudah Punya Akun? Masuk
               </Link>
             </motion.div>
+
+            {/* Social proof row */}
+            <div className="flex flex-wrap justify-center gap-6 pt-4 relative z-10">
+              {[
+                { icon: <Check className="w-3 h-3" />, text: "Tanpa biaya setup" },
+                { icon: <Check className="w-3 h-3" />, text: "Gratis 14 hari trial" },
+                { icon: <Check className="w-3 h-3" />, text: "Tanpa kartu kredit" },
+              ].map((item, i) => (
+                <div key={i} className="flex items-center gap-1.5 text-white/40 text-xs">
+                  <span className="text-emerald-400">{item.icon}</span>
+                  {item.text}
+                </div>
+              ))}
+            </div>
           </div>
         </AnimSection>
       </section>
 
       {/* ── FOOTER ── */}
       <AnimSection variant={fadeIn}>
-        <footer className="max-w-7xl mx-auto px-6 md:px-12 py-10 border-t border-white/10 z-10 relative">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md">
-                <Layers className="w-3.5 h-3.5 text-white" />
+        <footer className="max-w-7xl mx-auto px-6 md:px-12 py-10 border-t border-white/8 z-10 relative">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-5">
+            <div className="flex items-center gap-2.5">
+              <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+                <Layers className="w-3 h-3 text-white" />
               </div>
-              <span className="text-[11px] md:text-xs font-semibold text-blue-100/60">
-                © 2026 <strong>SiPetto</strong>. Sistem Pembukuan Finansial
-                &amp; Katalog UMKM Indonesia.
+              <span className="text-xs font-semibold text-white/30">
+                © 2026 <strong className="text-white/50">Sippeto</strong>. Sistem
+                Pembukuan & Katalog UMKM.
               </span>
             </div>
-            <div className="flex items-center gap-6 text-[11px] md:text-xs text-blue-100/60 font-semibold">
-              <a href="#" className="hover:text-blue-300 transition-colors">
-                Kebijakan Privasi
-              </a>
-              <a href="#" className="hover:text-blue-300 transition-colors">
-                Ketentuan Layanan
-              </a>
-              <a href="#" className="hover:text-blue-300 transition-colors">
-                Bantuan
-              </a>
+            <div className="flex items-center gap-6 text-xs text-white/30 font-semibold">
+              {[["Kebijakan Privasi", "#"], ["Ketentuan Layanan", "#"], ["Bantuan", "#"]].map(
+                ([label, href]) => (
+                  <a key={label} href={href} className="hover:text-white/70 transition-colors">
+                    {label}
+                  </a>
+                )
+              )}
             </div>
           </div>
         </footer>
       </AnimSection>
-
-      {/* ── NOTIFICATION TOAST ── */}
-      <AnimatePresence>
-        {notif && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.85, y: 30, x: "-50%" }}
-            animate={{ opacity: 1, scale: 1, y: 0, x: "-50%" }}
-            exit={{ opacity: 0, scale: 0.85, y: 30, x: "-50%" }}
-            className="fixed bottom-6 left-1/2 z-50 flex items-center gap-3 bg-slate-950 border border-yellow-500/25 px-5 py-3 rounded-2xl shadow-2xl min-w-[280px] max-w-sm text-left backdrop-blur-md"
-          >
-            <div className="w-8 h-8 rounded-full bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center text-yellow-400">
-              <Check className="w-4 h-4 stroke-[3]" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <span className="text-[8px] font-black uppercase tracking-wider text-yellow-400">
-                Keranjang Simulasi
-              </span>
-              <p className="text-xs font-bold text-white truncate">{notif}</p>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ── FLOATING CART COUNTER ── */}
-      <AnimatePresence>
-        {cartCount > 0 && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.8, y: 20 }}
-            className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 px-4 py-2.5 rounded-2xl shadow-xl hover:scale-[1.03] active:scale-[0.98] transition-all cursor-pointer font-bold"
-            onClick={() => {
-              alert(
-                `Order simulasi katalog Anda berisi ${cartCount} item siap dikirimkan ke WhatsApp Toko via API Redirect secure.`,
-              );
-            }}
-          >
-            <div className="relative shrink-0">
-              <ShoppingBag className="w-4 h-4 text-slate-950" />
-              <span className="absolute -top-2 -right-2 bg-white text-slate-950 font-black text-[9px] w-4 h-4 rounded-full flex items-center justify-center shadow-md animate-pulse">
-                {cartCount}
-              </span>
-            </div>
-            <div className="flex flex-col text-left">
-              <span className="text-[8px] font-black uppercase tracking-wider text-slate-900 leading-none">
-                Catalog Order
-              </span>
-              <span className="text-[10px] font-extrabold leading-tight">
-                Simulasi WhatsApp Order
-              </span>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

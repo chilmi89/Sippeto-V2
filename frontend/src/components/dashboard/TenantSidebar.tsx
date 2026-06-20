@@ -20,7 +20,12 @@ import {
   ChevronDown,
   Sliders,
   Globe,
-  ShoppingBag
+  ShoppingBag,
+  QrCode,
+  Copy,
+  Check,
+  ExternalLink,
+  Download
 } from "lucide-react";
 
 type NavItem = {
@@ -84,10 +89,18 @@ export const TenantSidebar = () => {
   const [userBranchId, setUserBranchId] = useState<string | null>(null);
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [loadingPermissions, setLoadingPermissions] = useState(true);
+  const [username, setUsername] = useState<string | null>(null);
+  const [businessName, setBusinessName] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [origin, setOrigin] = useState("");
 
   // 1. Fetch data user sekali saat mount
   useEffect(() => {
     setMounted(true);
+    if (typeof window !== "undefined") {
+      setOrigin(window.location.origin);
+    }
     fetchMeOnce().then(data => {
         if (data) {
           if (data.branch_id) {
@@ -95,6 +108,12 @@ export const TenantSidebar = () => {
           }
           if (data.permissions) {
             setUserPermissions(data.permissions as string[]);
+          }
+          if (data.username) {
+            setUsername(data.username as string);
+          }
+          if (data.business_name) {
+            setBusinessName(data.business_name as string);
           }
         }
         setLoadingPermissions(false);
@@ -280,6 +299,108 @@ export const TenantSidebar = () => {
                 </div>
               );
             })}
+
+          {/* QR Code Widget in Sidebar (Only when expanded/isOpen is true) */}
+          {isOpen && (
+            <div className="mt-3.5 pt-3.5 border-t border-white/5 animate-in fade-in duration-300">
+              {username ? (
+                <div className="bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/10 rounded-2xl p-4 flex flex-col items-center justify-center gap-4 w-full shadow-lg">
+                  <div className="flex items-center justify-between w-full border-b border-white/5 pb-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="text-[9px] font-black text-white/50 uppercase tracking-widest pl-0.5">QR Code Etalase</span>
+                    </div>
+                    <button 
+                      onClick={() => setShowQrModal(true)} 
+                      className="text-[9px] font-bold text-emerald-400 hover:text-emerald-300 transition-colors uppercase tracking-wider"
+                    >
+                      Perbesar
+                    </button>
+                  </div>
+                  <div 
+                    onClick={() => setShowQrModal(true)}
+                    className="flex items-center justify-center w-36 h-36 bg-white rounded-2xl border border-white/5 cursor-pointer hover:scale-[1.02] active:scale-95 transition-all mx-auto p-2.5 shadow-md relative group"
+                  >
+                    {/* Hover overlay hint */}
+                    <div className="absolute inset-0 bg-black/60 rounded-2xl opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-200">
+                      <span className="text-[9px] font-black text-white uppercase tracking-widest">Klik Perbesar</span>
+                    </div>
+                    <img 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`${origin}/store/${username}`)}`} 
+                      alt="QR Link Toko" 
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 w-full">
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${origin}/store/${username}`);
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      }}
+                      className={`flex items-center justify-center gap-1.5 py-2.5 px-2 border rounded-xl text-[9px] font-black uppercase tracking-wider transition-all select-none ${
+                        copied 
+                          ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" 
+                          : "bg-white/[0.03] hover:bg-white/[0.08] border-white/10 text-white/70 hover:text-white"
+                      }`}
+                    >
+                      {copied ? (
+                        <>
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Tersalin</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Salin Link</span>
+                        </>
+                      )}
+                    </button>
+                    <a
+                      href={`https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(`${origin}/store/${username}`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-1.5 py-2.5 px-2 bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 text-white/70 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all text-center select-none"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Unduh QR</span>
+                    </a>
+                  </div>
+                </div>
+              ) : (
+                <Link
+                  href="/backend/tenant/profile"
+                  onClick={() => { if (window.innerWidth < 1024) closeSidebar(); }}
+                  className="bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/10 rounded-2xl p-4 flex flex-col items-center text-center gap-2 hover:bg-white/[0.06] transition-all group"
+                >
+                  <QrCode className="w-6 h-6 text-white/20 group-hover:text-emerald-400 transition-colors" />
+                  <span className="text-[10px] font-bold text-white/80 uppercase tracking-wider">Katalog Belum Aktif</span>
+                  <span className="text-[9px] text-white/40 leading-relaxed font-semibold">Atur username toko Anda di profil untuk mengaktifkan QR Code</span>
+                </Link>
+              )}
+            </div>
+          )}
+
+          {/* Collapsed Mode QrCode Icon */}
+          {!isOpen && (
+            <div className="relative group/tooltip flex justify-center w-full mt-2.5 pt-2.5 border-t border-white/5">
+              <button
+                onClick={() => {
+                  if (username) {
+                    setShowQrModal(true);
+                  } else {
+                    router.push("/backend/tenant/profile");
+                  }
+                }}
+                className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all text-white/40 hover:bg-white/5 hover:text-white`}
+              >
+                <QrCode className="w-5 h-5" />
+              </button>
+              <div className="absolute left-16 top-1/2 -translate-y-1/2 ml-2 px-3 py-1.5 bg-[#030037] border border-white/10 text-white text-xs font-bold rounded-lg shadow-lg opacity-0 pointer-events-none group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap z-[100]">
+                {username ? "QR Code Etalase" : "Atur Username Toko"}
+              </div>
+            </div>
+          )}
         </nav>
 
         {/* Footer Help */}
@@ -304,6 +425,105 @@ export const TenantSidebar = () => {
           )}
         </div>
       </aside>
+
+      {/* Modal Dialog QR Code */}
+      {showQrModal && username && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 animate-in fade-in duration-250">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm" 
+            onClick={() => setShowQrModal(false)} 
+          />
+          
+          {/* Modal Container */}
+          <div className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden z-10 border border-zinc-100 animate-in zoom-in-95 duration-250">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100 bg-zinc-50/50">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <div>
+                  <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">QR Code Toko</p>
+                  <h2 className="text-base font-black text-[#030037] tracking-tight truncate max-w-[200px] mt-0.5">
+                    {businessName || "Etalase Toko"}
+                  </h2>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowQrModal(false)} 
+                className="w-8 h-8 rounded-xl bg-zinc-150 hover:bg-zinc-200 flex items-center justify-center text-zinc-500 transition-all outline-none"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 flex flex-col items-center justify-center gap-6 text-center">
+              <div className="p-4 bg-zinc-50 border border-zinc-150 rounded-2xl w-full flex items-center justify-center max-w-[220px] aspect-square shadow-inner">
+                <img 
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(`${origin}/store/${username}`)}`} 
+                  alt="QR Link Toko" 
+                  className="w-full h-full object-contain bg-white p-2 rounded-xl border border-zinc-200 shadow-sm"
+                />
+              </div>
+
+              <div className="w-full space-y-1 bg-zinc-50 border border-zinc-150 rounded-2xl p-3.5">
+                <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest block">Tautan Toko Anda</span>
+                <span className="text-xs font-mono font-black text-[#030037] break-all select-all block mt-1">
+                  {origin}/store/{username}
+                </span>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="grid grid-cols-2 gap-3 w-full">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${origin}/store/${username}`);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  }}
+                  className={`flex items-center justify-center gap-2 py-3 border rounded-2xl text-xs font-bold transition-all shadow-sm ${
+                    copied 
+                      ? "bg-emerald-50 border-emerald-200 text-emerald-600" 
+                      : "bg-zinc-50 border-zinc-200 hover:bg-zinc-100 text-zinc-700"
+                  }`}
+                >
+                  {copied ? (
+                    <>
+                      <Check className="w-4 h-4 text-emerald-500" />
+                      <span className="font-black text-emerald-600">Tersalin!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4 text-zinc-400" />
+                      <span className="font-black text-zinc-700">Salin Link</span>
+                    </>
+                  )}
+                </button>
+                
+                <a
+                  href={`https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(`${origin}/store/${username}`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 py-3 bg-zinc-50 border border-zinc-200 hover:bg-zinc-100 text-zinc-700 rounded-2xl text-xs font-bold transition-all shadow-sm"
+                >
+                  <Download className="w-4 h-4 text-zinc-455" />
+                  <span className="font-black text-zinc-700">Unduh QR</span>
+                </a>
+              </div>
+
+              <a
+                href={`${origin}/store/${username}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-3.5 bg-[#030037] hover:bg-indigo-900 text-white rounded-2xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#030037]/10"
+              >
+                <ExternalLink className="w-4 h-4" />
+                <span>Kunjungi Toko Online</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
