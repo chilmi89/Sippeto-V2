@@ -83,7 +83,7 @@ export const RegisterCard = () => {
             </div>
 
             <div className="space-y-1">
-              <label className="text-[9px] xl:text-[10px] font-black uppercase tracking-[0.1em] text-blue-100/90 ml-1">Password</label>
+              <label className="text-[9px] xl:text-[10px] font-black uppercase tracking-[0.1em] text-blue-100/90 ml-1">Password (Min. 8 Karakter)</label>
               <div className="relative group/input">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 group-focus-within/input:text-white transition-colors" />
                 <input 
@@ -93,6 +93,7 @@ export const RegisterCard = () => {
                   placeholder="••••••••" 
                   className="w-full bg-white/5 border border-white/10 text-white placeholder:text-white/40 rounded-xl py-1.5 xl:py-2 pl-9 pr-9 outline-none focus:ring-2 focus:ring-white/20 focus:bg-white/10 text-xs font-medium transition-all"
                   required
+                  minLength={8}
                   suppressHydrationWarning
                 />
                 <button 
