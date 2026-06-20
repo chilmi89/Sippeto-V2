@@ -2,6 +2,7 @@ package controller_auth
 
 import (
 	"net/http"
+	"strings"
 
 	"backend-golang/internal/modular/auth/dto_auth"
 	"backend-golang/internal/modular/auth/service_auth"
@@ -132,7 +133,16 @@ func (ctrl *AuthController) Logout(c *gin.Context) {
 func (ctrl *AuthController) Register(c *gin.Context) {
 	var req dto_auth.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Nama, email, dan password wajib diisi."})
+		errMsg := "Nama, email, dan password wajib diisi dengan benar."
+		errStr := err.Error()
+		if strings.Contains(errStr, "Password") && strings.Contains(errStr, "min") {
+			errMsg = "Password minimal harus 8 karakter."
+		} else if strings.Contains(errStr, "Email") && strings.Contains(errStr, "email") {
+			errMsg = "Format email tidak valid."
+		} else if strings.Contains(errStr, "required") {
+			errMsg = "Semua bidang (Nama, Email, Password) wajib diisi."
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
 		return
 	}
 
