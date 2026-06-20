@@ -402,20 +402,35 @@ export default function POSForm({
 
     doc.setFont("courier", "bold");
     doc.setFontSize(10);
-    
     doc.text(profile.business_name.toUpperCase(), 40, 10, { align: "center" });
+
     doc.setFont("courier", "normal");
     doc.setFontSize(8);
     doc.text(activeBranchName, 40, 14, { align: "center" });
-    doc.text("---------------------------------", 40, 18, { align: "center" });
     
-    doc.text(`Nota : #${lastTransaction.reference_number}`, 5, 23);
-    doc.text(`Tgl  : ${new Date(lastTransaction.transaction_date || "").toLocaleDateString()}`, 5, 27);
-    doc.text(`Cust : ${lastTransaction.customer_name}`, 5, 31);
-    doc.text(`Bayar: ${lastTransaction.payment_method}`, 5, 35);
-    doc.text("---------------------------------", 40, 40, { align: "center" });
+    let currentY = 14;
+    if (profile.address) {
+      doc.setFontSize(7);
+      const splitAddress = doc.splitTextToSize(profile.address, 70);
+      splitAddress.forEach((line: string) => {
+        currentY += 4;
+        doc.text(line, 40, currentY, { align: "center" });
+      });
+    }
+
+    doc.setFontSize(8);
+    currentY += 4;
+    doc.text("---------------------------------", 40, currentY, { align: "center" });
     
-    let yPos = 45;
+    doc.text(`Nota : #${lastTransaction.reference_number}`, 5, currentY + 5);
+    doc.text(`Tgl  : ${new Date(lastTransaction.transaction_date || "").toLocaleDateString()}`, 5, currentY + 9);
+    doc.text(`Cust : ${lastTransaction.customer_name}`, 5, currentY + 13);
+    doc.text(`Bayar: ${lastTransaction.payment_method}`, 5, currentY + 17);
+    
+    currentY += 22;
+    doc.text("---------------------------------", 40, currentY, { align: "center" });
+    
+    let yPos = currentY + 5;
     lastTransaction.items.forEach((item: CartItem) => {
       const name = item.product.name.slice(0, 18);
       const qtyText = `${item.quantity} x ${formatCurrency(item.product.sell_price).replace("Rp", "").trim()}`;
@@ -546,6 +561,9 @@ export default function POSForm({
 
       const activeBranchName = branches.find(b => b.id === selectedBranchId)?.name || "Cabang Utama";
       data += activeBranchName + LF;
+      if (profile.address) {
+        data += profile.address + LF;
+      }
       data += "--------------------------------" + LF;
 
       data += ESC + "a" + "\x00";
@@ -576,7 +594,7 @@ export default function POSForm({
 
       data += ESC + "a" + "\x01";
       data += "Terima kasih atas kunjungan Anda!" + LF;
-      data += "SiPetto POS System" + LF;
+      data += "Sippeto POS System" + LF;
       data += LF + LF + LF;
 
       data += GS + "V" + "\x41" + "\x03";
