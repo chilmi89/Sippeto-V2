@@ -44,6 +44,22 @@ const BT_NAME_PREFIXES = [
 // Cache printer device instance at page session level (prevents re-pairing on same page load)
 let cachedPrinterDevice: any = null;
 
+const getQuickCashPresets = (total: number): number[] => {
+  if (total <= 0) return [10000, 20000, 50000, 100000];
+  const presets = new Set<number>();
+  const nominals = [10000, 20000, 50000, 100000];
+  for (const nom of nominals) {
+    if (nom > total) {
+      presets.add(nom);
+    }
+  }
+  const nearest10k = Math.ceil(total / 10000) * 10000;
+  if (nearest10k > total) presets.add(nearest10k);
+  const nearest50k = Math.ceil(total / 50000) * 50000;
+  if (nearest50k > total) presets.add(nearest50k);
+  return Array.from(presets).sort((a, b) => a - b).slice(0, 3);
+};
+
 interface Product {
   id: string;
   name: string;
@@ -117,6 +133,8 @@ export default function POSForm({
   const [description, setDescription] = useState("");
   const [selectedProductId, setSelectedProductId] = useState<string>("");
   const [inputQty, setInputQty] = useState<number>(1);
+
+  const [cashPaid, setCashPaid] = useState<string>("");
 
   // Loadings
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -354,31 +372,37 @@ export default function POSForm({
       const res = await savePOSTransactionAction(payload);
 
       if (res.status === "success") {
+        const numericCashPaid = Number(cashPaid) || 0;
+        const changeAmount = numericCashPaid > cartSubtotal ? numericCashPaid - cartSubtotal : 0;
+
+        setLastTransaction({
+          ...res.data,
+          items: cart,
+          customer_name: customerName || "Pembeli Umum",
+          payment_method: paymentMethods.find(pm => pm.id === paymentMethodId)?.name || "Tunai",
+          cash_paid: numericCashPaid,
+          change: changeAmount
+        });
+
         if (isEditMode) {
           toast.success("Transaksi berhasil diperbarui dan stok telah disesuaikan!");
-          router.push("/backend/tenant/sales/history");
         } else {
-          setLastTransaction({
-            ...res.data,
-            items: cart,
-            customer_name: customerName || "Pembeli Umum",
-            payment_method: paymentMethods.find(pm => pm.id === paymentMethodId)?.name || "Tunai"
-          });
           toast.success("Transaksi kasir berhasil disimpan!");
-          
-          setCart([]);
-          setCustomerName("");
-          setCustomerPhone("");
-          setCustomerAddress("");
-          setDescription("");
-          
-          fetchProductsForBranch(selectedBranchId);
-
-          const now = new Date();
-          setReference(`POS-${now.getTime().toString().slice(-6)}`);
-          
-          setShowReceiptModal(true);
         }
+        
+        setCart([]);
+        setCustomerName("");
+        setCustomerPhone("");
+        setCustomerAddress("");
+        setDescription("");
+        setCashPaid("");
+        
+        fetchProductsForBranch(selectedBranchId);
+
+        const now = new Date();
+        setReference(`POS-${now.getTime().toString().slice(-6)}`);
+        
+        setShowReceiptModal(true);
       } else {
         toast.error(res.message || "Gagal memproses transaksi");
       }
@@ -450,10 +474,23 @@ export default function POSForm({
     const totalAmount = lastTransaction.items.reduce((sum: number, item: any) => sum + (item.product.sell_price * item.quantity), 0);
     doc.text(formatCurrency(totalAmount).replace("Rp", "").trim(), 75, yPos + 5, { align: "right" });
 
+    let nextY = yPos + 9;
+    if (lastTransaction.cash_paid !== undefined && lastTransaction.cash_paid > 0) {
+      doc.setFont("courier", "normal");
+      doc.text("BAYAR :", 5, nextY);
+      doc.text(formatCurrency(lastTransaction.cash_paid).replace("Rp", "").trim(), 75, nextY, { align: "right" });
+      nextY += 4;
+      doc.text("KEMBALI:", 5, nextY);
+      doc.text(formatCurrency(lastTransaction.change || 0).replace("Rp", "").trim(), 75, nextY, { align: "right" });
+      nextY += 5;
+    } else {
+      nextY += 5;
+    }
+
     doc.setFont("courier", "normal");
     doc.setFontSize(7);
-    doc.text("Terima kasih atas kunjungan Anda !", 40, yPos + 14, { align: "center" });
-    doc.text("Sippeto POS System", 40, yPos + 18, { align: "center" });
+    doc.text("Terima kasih atas kunjungan Anda !", 40, nextY + 5, { align: "center" });
+    doc.text("Sippeto POS System", 40, nextY + 9, { align: "center" });
 
     const pdfBlobUrl = doc.output("bloburl");
     window.open(pdfBlobUrl);
@@ -590,6 +627,18 @@ export default function POSForm({
       const totalVal = formatCurrency(lastTransaction.items.reduce((sum: number, i: CartItem) => sum + (i.product.sell_price * i.quantity), 0)).replace("Rp", "").trim();
       const totalSpaces = 32 - totalText.length - totalVal.length;
       data += totalText + " ".repeat(Math.max(1, totalSpaces)) + totalVal + LF;
+
+      if (lastTransaction.cash_paid !== undefined && lastTransaction.cash_paid > 0) {
+        const bayarText = "BAYAR :";
+        const bayarVal = formatCurrency(lastTransaction.cash_paid).replace("Rp", "").trim();
+        const bayarSpaces = 32 - bayarText.length - bayarVal.length;
+        data += bayarText + " ".repeat(Math.max(1, bayarSpaces)) + bayarVal + LF;
+
+        const kembaliText = "KEMBALI:";
+        const kembaliVal = formatCurrency(lastTransaction.change || 0).replace("Rp", "").trim();
+        const kembaliSpaces = 32 - kembaliText.length - kembaliVal.length;
+        data += kembaliText + " ".repeat(Math.max(1, kembaliSpaces)) + kembaliVal + LF;
+      }
       data += LF;
 
       data += ESC + "a" + "\x01";
@@ -631,6 +680,12 @@ export default function POSForm({
 
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(v);
+
+  const selectedPaymentMethod = paymentMethods.find(pm => pm.id === paymentMethodId);
+  const isCashPayment = selectedPaymentMethod?.name.toLowerCase().includes("tunai") || selectedPaymentMethod?.name.toLowerCase().includes("cash");
+  const numericCashPaid = Number(cashPaid) || 0;
+  const changeAmount = numericCashPaid > cartSubtotal ? numericCashPaid - cartSubtotal : 0;
+  const isPaymentEnough = !isCashPayment || numericCashPaid >= cartSubtotal;
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex flex-col pb-10" style={{ fontFamily: "var(--font-jakarta), sans-serif" }}>
@@ -676,13 +731,13 @@ export default function POSForm({
               )}
 
               {/* Branch Lock/Selector */}
-              <div className="flex items-center gap-2.5 bg-white border border-zinc-200 p-2 rounded-xl shadow-sm max-w-[240px]">
-                 <Store className="w-3.5 h-3.5 text-[#3c39d6]" />
-                 <div className="flex-1 min-w-0">
-                    <span className="block text-[7px] font-black text-zinc-400 uppercase tracking-wider leading-none mb-0.5">Cabang Aktif</span>
-                    <select
-                      disabled={!!profile.userBranchId}
-                      className="w-full bg-transparent border-0 p-0 text-[11px] font-bold text-zinc-805 text-black focus:ring-0 outline-none cursor-pointer appearance-none disabled:bg-transparent"
+               <div className="flex items-center gap-3 bg-white border border-zinc-200 p-2.5 rounded-xl shadow-sm max-w-[260px]">
+                  <Store className="w-4 h-4 text-[#3c39d6]" />
+                  <div className="flex-1 min-w-0">
+                     <span className="block text-[9px] font-black text-zinc-500 uppercase tracking-wider leading-none mb-1">Cabang Aktif</span>
+                     <select
+                       disabled={!!profile.userBranchId}
+                       className="w-full bg-transparent border-0 p-0 text-xs font-bold text-black focus:ring-0 outline-none cursor-pointer appearance-none disabled:bg-transparent"
                       value={selectedBranchId}
                       onChange={(e) => setSelectedBranchId(e.target.value)}
                     >
@@ -724,142 +779,188 @@ export default function POSForm({
          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
             
             {/* LEFT COLUMN: Detail Transaksi */}
-            <div className="lg:col-span-5 bg-white border border-zinc-200 rounded-2xl p-4 shadow-sm space-y-4">
-               <h3 className="text-xs font-black text-[#030037] uppercase tracking-widest border-b border-zinc-150 pb-2">
-                  Detail Transaksi
-               </h3>
+             <div className="lg:col-span-5 bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm space-y-5">
+                <h3 className="text-sm font-black text-[#030037] uppercase tracking-widest border-b border-zinc-200 pb-3">
+                   Detail Transaksi
+                </h3>
 
-               <div className="space-y-3">
-                  {/* Row 1: Nota & Tanggal */}
-                  <div className="grid grid-cols-2 gap-2">
-                     <div className="space-y-0.5">
-                        <label className="text-[8px] font-black text-zinc-950 uppercase tracking-widest block pl-0.5">No. Nota</label>
-                        <input 
-                           type="text"
-                           className="w-full px-2.5 py-1.5 bg-zinc-50 border border-zinc-200 rounded-lg text-xs font-bold text-black outline-none focus:bg-white focus:border-[#10b981] focus:ring-2 focus:ring-emerald-500/10 transition-all"
-                           value={reference}
-                           onChange={(e) => setReference(e.target.value)}
-                        />
-                     </div>
-                     <div className="space-y-0.5">
-                        <label className="text-[8px] font-black text-zinc-950 uppercase tracking-widest block pl-0.5">Tanggal</label>
-                        <input 
-                           type="date"
-                           className="w-full px-2.5 py-1.5 bg-zinc-50 border border-zinc-200 rounded-lg text-xs font-bold text-black outline-none focus:bg-white focus:border-[#10b981] focus:ring-2 focus:ring-emerald-500/10 transition-all"
-                           value={date}
-                           onChange={(e) => setDate(e.target.value)}
-                        />
-                     </div>
-                  </div>
+                <div className="space-y-4">
+                   {/* Row 1: Nota & Tanggal */}
+                   <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                         <label className="text-[10px] font-black text-zinc-800 uppercase tracking-widest block pl-0.5">No. Nota</label>
+                         <input 
+                            type="text"
+                            className="w-full px-3.5 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm font-bold text-black outline-none focus:bg-white focus:border-[#10b981] focus:ring-2 focus:ring-emerald-500/10 shadow-sm transition-all"
+                            value={reference}
+                            onChange={(e) => setReference(e.target.value)}
+                         />
+                      </div>
+                      <div className="space-y-1">
+                         <label className="text-[10px] font-black text-zinc-800 uppercase tracking-widest block pl-0.5">Tanggal</label>
+                         <input 
+                            type="date"
+                            className="w-full px-3.5 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm font-bold text-black outline-none focus:bg-white focus:border-[#10b981] focus:ring-2 focus:ring-emerald-500/10 shadow-sm transition-all"
+                            value={date}
+                            onChange={(e) => setDate(e.target.value)}
+                         />
+                      </div>
+                   </div>
 
                   {/* Row 2: Nama Pelanggan */}
-                  <div className="space-y-0.5">
-                     <label className="text-[8px] font-black text-zinc-950 uppercase tracking-widest block pl-0.5">Pelanggan</label>
-                     <div className="relative flex items-center">
-                        <User className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
-                        <input 
-                           type="text" 
-                           placeholder="Pembeli Umum (Default)" 
-                           className="w-full pl-8 pr-2 py-1.5 bg-zinc-50 border border-zinc-200 rounded-lg text-xs font-bold outline-none focus:bg-white focus:border-[#10b981] focus:ring-2 focus:ring-emerald-500/10 text-black transition-all"
-                           value={customerName}
-                           onChange={(e) => setCustomerName(e.target.value)}
-                        />
-                     </div>
-                  </div>
+                   <div className="space-y-1">
+                      <label className="text-[10px] font-black text-zinc-800 uppercase tracking-widest block pl-0.5">Pelanggan</label>
+                      <div className="relative flex items-center">
+                         <User className="absolute left-3 w-4 h-4 text-zinc-400" />
+                         <input 
+                            type="text" 
+                            placeholder="Pembeli Umum (Default)" 
+                            className="w-full pl-9 pr-3 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm font-bold outline-none focus:bg-white focus:border-[#10b981] focus:ring-2 focus:ring-emerald-500/10 text-black shadow-sm transition-all"
+                            value={customerName}
+                            onChange={(e) => setCustomerName(e.target.value)}
+                         />
+                      </div>
+                   </div>
 
                   {/* Row 3: Metode Pembayaran */}
-                  <div className="space-y-1">
-                     <label className="text-[8px] font-black text-zinc-950 uppercase tracking-widest block pl-0.5">Metode Bayar</label>
-                     <div className="grid grid-cols-3 gap-1.5">
-                       {paymentMethods.map(pm => {
-                         const isActive = paymentMethodId === pm.id;
-                         return (
-                           <button
-                             key={pm.id}
-                             type="button"
-                             onClick={() => setPaymentMethodId(pm.id)}
-                             className={`px-2 py-2 rounded-xl text-xs font-bold border transition-all duration-200 flex flex-col items-center justify-center gap-1 select-none ${
-                               isActive 
-                                 ? "bg-[#10b981] border-[#10b981] text-white shadow-sm shadow-emerald-500/20" 
-                                 : "bg-zinc-50 border-zinc-200 text-zinc-900 hover:bg-zinc-100 hover:text-zinc-800"
-                             }`}
-                           >
-                             <CreditCard className={`w-3.5 h-3.5 ${isActive ? "text-white" : "text-zinc-400"}`} />
-                             <span className="text-[9px] truncate max-w-full text-center leading-tight font-black">{pm.name}</span>
-                           </button>
-                         );
-                       })}
-                     </div>
-                  </div>
+                   <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-zinc-800 uppercase tracking-widest block pl-0.5">Metode Bayar</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {paymentMethods.map(pm => {
+                          const isActive = paymentMethodId === pm.id;
+                          return (
+                            <button
+                              key={pm.id}
+                              type="button"
+                              onClick={() => setPaymentMethodId(pm.id)}
+                              className={`px-3 py-3 rounded-xl text-sm font-bold border transition-all duration-200 flex flex-col items-center justify-center gap-1.5 select-none ${
+                                isActive 
+                                  ? "bg-[#10b981] border-[#10b981] text-white shadow-md shadow-emerald-500/20" 
+                                  : "bg-white border-zinc-300 text-zinc-900 hover:bg-zinc-50 hover:text-zinc-800 shadow-sm"
+                              }`}
+                            >
+                              <CreditCard className={`w-4 h-4 ${isActive ? "text-white" : "text-zinc-400"}`} />
+                              <span className="text-[10px] truncate max-w-full text-center leading-tight font-black">{pm.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                   </div>
+
+                  {/* Uang Dibayar & Kembalian (Khusus Pembayaran Tunai) */}
+                   {isCashPayment && (
+                      <div className="space-y-2 border-t border-zinc-200/50 pt-3">
+                         <label className="text-[10px] font-black text-zinc-800 uppercase tracking-widest block pl-0.5">Uang Dibayar (Tunai)</label>
+                         <div className="relative flex items-center">
+                            <span className="absolute left-3 text-sm font-black text-zinc-900">Rp</span>
+                            <input 
+                               type="number" 
+                               placeholder="0" 
+                               className="w-full pl-9 pr-3 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm font-mono font-bold outline-none text-black shadow-sm transition-all focus:bg-white focus:border-[#10b981] focus:ring-2 focus:ring-emerald-500/10"
+                               value={cashPaid}
+                               onChange={(e) => setCashPaid(e.target.value)}
+                            />
+                         </div>
+                         
+                         {/* Tombol Pintas Uang */}
+                         <div className="flex flex-wrap gap-1.5">
+                            <button 
+                               type="button" 
+                               onClick={() => setCashPaid(cartSubtotal.toString())} 
+                               className="px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 border border-zinc-300 rounded text-xs font-black text-zinc-900 transition-colors uppercase tracking-wider"
+                            >
+                               Uang Pas
+                            </button>
+                            {getQuickCashPresets(cartSubtotal).map((preset) => (
+                               <button 
+                                  key={preset}
+                                  type="button" 
+                                  onClick={() => setCashPaid(preset.toString())} 
+                                  className="px-3 py-1.5 bg-zinc-100 hover:bg-[#10b981] hover:text-white border border-zinc-300 rounded text-xs font-black text-zinc-900 transition-colors"
+                               >
+                                  {formatCurrency(preset).replace("Rp", "").trim()}
+                               </button>
+                            ))}
+                         </div>
+
+                         {/* Info Kembalian */}
+                         <div className="flex justify-between items-center text-xs font-black uppercase tracking-wider pl-0.5 pt-2 border-t border-zinc-100">
+                            <span className="text-zinc-500">Kembalian:</span>
+                            <span className={`font-mono text-lg font-black ${isPaymentEnough ? "text-emerald-600" : "text-red-500"}`}>
+                               {formatCurrency(changeAmount)}
+                            </span>
+                         </div>
+                      </div>
+                   )}
 
                   {/* Total Summary */}
-                  <div className="bg-gradient-to-br from-[#030037] to-[#120f4c] text-white p-3.5 rounded-xl flex justify-between items-center shadow-sm border border-white/5">
-                     <div>
-                        <span className="text-[7.5px] font-bold text-white/50 uppercase tracking-widest block">Total Belanja</span>
-                        <span className="text-[9.5px] font-bold text-white/45">
-                           {cart.reduce((sum, item) => sum + item.quantity, 0)} produk
-                        </span>
-                     </div>
-                     <span className="text-xl font-black font-mono text-emerald-400">
-                        {formatCurrency(cartSubtotal)}
-                     </span>
-                  </div>
+                   <div className="bg-gradient-to-br from-[#030037] to-[#120f4c] text-white p-4.5 rounded-2xl flex justify-between items-center shadow-sm border border-white/5">
+                      <div>
+                         <span className="text-[10px] font-black text-white/60 uppercase tracking-widest block leading-none mb-1">Total Belanja</span>
+                         <span className="text-xs font-bold text-white/50">
+                            {cart.reduce((sum, item) => sum + item.quantity, 0)} produk
+                         </span>
+                      </div>
+                      <span className="text-2xl font-black font-mono text-emerald-400">
+                         {formatCurrency(cartSubtotal)}
+                      </span>
+                   </div>
 
                   {/* Actions */}
-                  <div className="flex gap-2 pt-2">
-                     <button 
-                        disabled={isSubmitting}
-                        onClick={() => {
-                           if (editId) {
-                             router.push('/backend/tenant/sales/history');
-                           } else if (cart.length > 0 && confirm("Kosongkan keranjang?")) {
-                             setCart([]);
-                           }
-                        }}
-                        className="px-3.5 py-2.5 bg-zinc-100 hover:bg-zinc-250 text-zinc-500 hover:text-zinc-700 transition-colors font-bold text-xs rounded-lg border border-zinc-200 disabled:opacity-50"
-                     >
-                        {editId ? "Batal Edit" : "Reset"}
-                     </button>
-                     <button
-                        onClick={handleSubmitTransaction}
-                        disabled={cart.length === 0 || isSubmitting}
-                        className={`flex-1 py-2.5 text-white transition-all font-black text-xs uppercase tracking-widest rounded-lg shadow-sm active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 ${
-                          editId 
-                            ? "bg-amber-500 hover:bg-amber-600" 
-                            : "bg-[#10b981] hover:bg-[#059669] shadow-emerald-500/10"
-                        }`}
-                     >
-                        {isSubmitting ? <Check className="w-3.5 h-3.5 animate-pulse" /> : (editId ? <Edit2 className="w-3.5 h-3.5" /> : <Check className="w-3.5 h-3.5" />)}
-                        {isSubmitting ? "Memproses..." : (editId ? "Simpan Perubahan" : "Bayar & Selesaikan")}
-                     </button>
-                  </div>
+                   <div className="flex gap-2 pt-2.5">
+                      <button 
+                         disabled={isSubmitting}
+                         onClick={() => {
+                            if (editId) {
+                              router.push('/backend/tenant/sales/history');
+                            } else if (cart.length > 0 && confirm("Kosongkan keranjang?")) {
+                              setCart([]);
+                            }
+                         }}
+                         className="px-4.5 py-3.5 bg-zinc-150 hover:bg-zinc-200 text-zinc-700 hover:text-zinc-900 transition-colors font-bold text-xs uppercase tracking-wider rounded-xl border border-zinc-300 disabled:opacity-50 shadow-sm"
+                      >
+                         {editId ? "Batal Edit" : "Reset"}
+                      </button>
+                      <button
+                         onClick={handleSubmitTransaction}
+                         disabled={cart.length === 0 || isSubmitting || (isCashPayment && !isPaymentEnough)}
+                         className={`flex-1 py-3.5 text-white transition-all font-black text-xs uppercase tracking-widest rounded-xl shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+                           editId 
+                             ? "bg-amber-500 hover:bg-amber-600 shadow-amber-500/10" 
+                             : "bg-[#10b981] hover:bg-[#059669] shadow-emerald-500/15"
+                         }`}
+                      >
+                         {isSubmitting ? <Check className="w-4 h-4 animate-pulse" /> : (editId ? <Edit2 className="w-4 h-4" /> : <Check className="w-4 h-4" />)}
+                         {isSubmitting ? "Memproses..." : (editId ? "Simpan Perubahan" : "Bayar & Selesaikan")}
+                      </button>
+                   </div>
                </div>
             </div>
 
             {/* RIGHT COLUMN: Pilih Produk & Keranjang Belanja */}
-            <div className="lg:col-span-7 bg-white border border-zinc-200 rounded-2xl p-4 shadow-sm space-y-4">
-               
-               {/* 1. Pilih Produk Ke Keranjang */}
-               <div>
-                  <h3 className="text-xs font-black text-[#030037] uppercase tracking-widest pl-0.5 mb-2">
-                     Pilih Produk Ke Keranjang
-                  </h3>
-                  
-                  <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
-                     {/* Dropdown Select Product (Searchable Combobox) */}
-                     <div className="flex-1 min-w-0 relative">
-                        <input
-                           type="text"
-                           placeholder="Ketik untuk mencari produk..."
-                           value={productSearchQuery}
-                           onFocus={() => setShowProductDropdown(true)}
-                           onChange={(e) => {
-                              setProductSearchQuery(e.target.value);
-                              setShowProductDropdown(true);
-                              if (selectedProductId) setSelectedProductId("");
-                           }}
-                           className="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-bold text-black outline-none focus:bg-white focus:border-[#10b981] transition-all"
-                        />
+             <div className="lg:col-span-7 bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm space-y-5">
+                
+                {/* 1. Pilih Produk Ke Keranjang */}
+                <div>
+                   <h3 className="text-sm font-black text-[#030037] uppercase tracking-widest pl-0.5 mb-3">
+                      Pilih Produk Ke Keranjang
+                   </h3>
+                   
+                   <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+                      {/* Dropdown Select Product (Searchable Combobox) */}
+                      <div className="flex-1 min-w-0 relative">
+                         <input
+                            type="text"
+                            placeholder="Ketik untuk mencari produk..."
+                            value={productSearchQuery}
+                            onFocus={() => setShowProductDropdown(true)}
+                            onChange={(e) => {
+                               setProductSearchQuery(e.target.value);
+                               setShowProductDropdown(true);
+                               if (selectedProductId) setSelectedProductId("");
+                            }}
+                            className="w-full px-4 py-3 bg-white border border-zinc-300 rounded-xl text-sm font-bold text-black outline-none focus:bg-white focus:border-[#10b981] shadow-sm transition-all"
+                         />
                         
                         {showProductDropdown && (
                            <>
@@ -887,16 +988,24 @@ export default function POSForm({
                                                 setProductSearchQuery(p.name);
                                                 setShowProductDropdown(false);
                                              }}
-                                             className={`w-full px-3 py-2 text-left text-xs font-bold transition-colors flex justify-between items-center ${
+                                             className={`w-full px-4 py-3 text-left text-sm font-bold transition-all duration-150 flex items-center justify-between gap-4 border-l-2 border-transparent ${
                                                 isOutOfStock
-                                                   ? "opacity-45 cursor-not-allowed bg-zinc-50 text-zinc-400"
-                                                   : "hover:bg-[#10b981]/10 text-zinc-900"
+                                                   ? "opacity-50 cursor-not-allowed bg-zinc-50 text-zinc-400"
+                                                   : "hover:bg-emerald-50/50 hover:border-emerald-500 text-zinc-900"
                                              }`}
                                           >
-                                             <span className="truncate max-w-[200px]">{p.name}</span>
-                                             <span className="shrink-0 text-[10px] font-mono text-emerald-600">
-                                                {formatCurrency(p.sell_price)} (Stok: {stock})
-                                             </span>
+                                             <span className="truncate flex-1 min-w-0 text-zinc-900 font-semibold text-left">{p.name}</span>
+                                             <div className="flex items-center gap-2 shrink-0">
+                                                <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold whitespace-nowrap ${
+                                                   isOutOfStock 
+                                                      ? "bg-zinc-100 text-zinc-400" 
+                                                      : stock < 10 
+                                                         ? "bg-amber-50 border border-amber-200/50 text-amber-600" 
+                                                         : "bg-emerald-50 border border-emerald-100/50 text-emerald-600"
+                                                }`}>
+                                                   Stok: {stock}
+                                                </span>
+                                             </div>
                                           </button>
                                        );
                                     })
@@ -906,65 +1015,65 @@ export default function POSForm({
                         )}
                      </div>
 
-                     {/* Qty Input Controls */}
-                     <div className="flex items-center justify-center gap-1.5 bg-zinc-50 border border-zinc-200 px-2.5 py-1.5 rounded-xl w-32 shrink-0">
-                        <button
-                           type="button"
-                           onClick={() => setInputQty(Math.max(1, inputQty - 1))}
-                           className="p-1 text-zinc-400 hover:text-[#3c39d6] transition-colors"
-                        >
-                           <Minus className="w-3 h-3" />
-                        </button>
-                        <input
-                           type="number"
-                           className="w-10 border-none bg-transparent text-center text-xs font-bold focus:ring-0 p-0 text-black"
-                           value={inputQty}
-                           min={1}
-                           onChange={(e) => setInputQty(Math.max(1, parseInt(e.target.value) || 1))}
-                        />
-                        <button
-                           type="button"
-                           onClick={() => setInputQty(inputQty + 1)}
-                           className="p-1 text-zinc-400 hover:text-[#3c39d6] transition-colors"
-                        >
-                           <Plus className="w-3 h-3" />
-                        </button>
-                     </div>
-
-                     {/* Tombol Tambah */}
-                     <button
-                        type="button"
-                        onClick={handleAddProductFromSelect}
-                        className="px-4 py-2 bg-[#10b981] hover:bg-[#059669] text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-sm flex items-center justify-center gap-1 shrink-0"
-                     >
-                        <Plus className="w-3.5 h-3.5" /> Tambah
-                     </button>
+                      {/* Qty Input Controls */}
+                      <div className="flex items-center justify-center gap-2 bg-white border border-zinc-300 px-3.5 py-2.5 rounded-xl w-36 shrink-0 shadow-sm">
+                         <button
+                            type="button"
+                            onClick={() => setInputQty(Math.max(1, inputQty - 1))}
+                            className="p-1.5 text-zinc-700 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                         >
+                            <Minus className="w-3.5 h-3.5" />
+                         </button>
+                         <input
+                            type="number"
+                            className="w-12 border-none bg-transparent text-center text-sm font-bold focus:ring-0 p-0 text-zinc-900"
+                            value={inputQty}
+                            min={1}
+                            onChange={(e) => setInputQty(Math.max(1, parseInt(e.target.value) || 1))}
+                         />
+                         <button
+                            type="button"
+                            onClick={() => setInputQty(inputQty + 1)}
+                            className="p-1.5 text-zinc-700 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                         >
+                            <Plus className="w-3.5 h-3.5" />
+                         </button>
+                      </div>
+ 
+                      {/* Tombol Tambah */}
+                      <button
+                         type="button"
+                         onClick={handleAddProductFromSelect}
+                         className="px-6 py-3 bg-[#10b981] hover:bg-[#059669] text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 shrink-0"
+                      >
+                         <Plus className="w-4 h-4" /> Tambah
+                      </button>
                   </div>
                </div>
 
                {/* 2. Daftar Keranjang Belanja */}
                <div className="pt-2 border-t border-zinc-100">
                   <div className="flex items-center justify-between mb-2">
-                     <h3 className="text-xs font-black text-[#030037] uppercase tracking-widest flex items-center gap-1.5">
-                        <ShoppingCart className="w-3.5 h-3.5 text-[#3c39d6]" /> Keranjang Belanja
-                     </h3>
-                     <span className="text-[9px] font-black bg-[#3c39d6]/10 text-[#3c39d6] px-2 py-0.5 rounded-full">
-                        {cart.length} produk terpilih
-                     </span>
-                  </div>
-
-                  <div className="border border-zinc-150 rounded-xl overflow-hidden bg-zinc-50/30 shadow-sm">
-                     <div data-lenis-prevent className="max-h-[350px] overflow-y-auto scrollbar-thin">
-                        <table className="w-full text-left border-collapse">
-                           <thead>
-                              <tr className="bg-zinc-50 border-b border-zinc-150 text-[8px] font-black text-zinc-400 uppercase tracking-widest">
-                                 <th className="px-3 py-2">Produk</th>
-                                 <th className="px-3 py-2 text-right">Harga</th>
-                                 <th className="px-3 py-2 text-center">Qty</th>
-                                 <th className="px-3 py-2 text-right">Subtotal</th>
-                                 <th className="px-3 py-2 text-center">Aksi</th>
-                              </tr>
-                           </thead>
+                      <h3 className="text-sm font-black text-[#030037] uppercase tracking-widest flex items-center gap-2">
+                         <ShoppingCart className="w-4.5 h-4.5 text-[#3c39d6]" /> Keranjang Belanja
+                      </h3>
+                      <span className="text-[10px] font-black bg-[#3c39d6]/10 text-[#3c39d6] px-2.5 py-1 rounded-full">
+                         {cart.length} produk terpilih
+                      </span>
+                   </div>
+ 
+                   <div className="border border-zinc-200 rounded-xl overflow-hidden bg-zinc-50/30 shadow-sm">
+                      <div data-lenis-prevent className="max-h-[380px] overflow-y-auto scrollbar-thin">
+                         <table className="w-full text-left border-collapse">
+                            <thead>
+                               <tr className="bg-zinc-50 border-b border-zinc-200 text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+                                  <th className="px-4 py-3">Produk</th>
+                                  <th className="px-4 py-3 text-right">Harga</th>
+                                  <th className="px-4 py-3 text-center">Qty</th>
+                                  <th className="px-4 py-3 text-right">Subtotal</th>
+                                  <th className="px-4 py-3 text-center">Aksi</th>
+                               </tr>
+                            </thead>
                            <tbody className="divide-y divide-zinc-150">
                               {cart.length === 0 ? (
                                  <tr>
@@ -974,51 +1083,51 @@ export default function POSForm({
                                     </td>
                                  </tr>
                               ) : (
-                                 cart.map((item) => (
-                                    <tr key={item.product.id} className="hover:bg-zinc-100/50 bg-white transition-all text-xs font-bold text-zinc-800">
-                                       <td className="px-3 py-3.5">
-                                          <div className="whitespace-normal break-words max-w-[180px] sm:max-w-[240px]" title={item.product.name}>
-                                             {item.product.name}
-                                          </div>
-                                       </td>
-                                       <td className="px-3 py-3.5 text-right font-mono">
-                                          {formatCurrency(item.product.sell_price)}
-                                       </td>
-                                       <td className="px-3 py-3.5">
-                                          <div className="flex items-center justify-center gap-0.5 bg-zinc-50 border border-zinc-200 px-1 py-0.5 rounded-md w-16 mx-auto">
+                                  cart.map((item) => (
+                                     <tr key={item.product.id} className="hover:bg-zinc-100/50 bg-white transition-all text-xs font-bold text-zinc-900 border-b border-zinc-100">
+                                        <td className="px-4 py-4">
+                                           <div className="whitespace-normal break-words max-w-[180px] sm:max-w-[240px]" title={item.product.name}>
+                                              {item.product.name}
+                                           </div>
+                                        </td>
+                                        <td className="px-4 py-4 text-right font-mono">
+                                           {formatCurrency(item.product.sell_price)}
+                                        </td>
+                                        <td className="px-4 py-4">
+                                            <div className="flex items-center justify-center gap-0.5 bg-white border border-zinc-300 px-1.5 py-0.5 rounded-md w-16 mx-auto">
                                              <button 
                                                 type="button"
                                                 onClick={() => updateQuantity(item.product.id, -1)}
-                                                className="p-0.5 text-zinc-400 hover:text-[#3c39d6] transition-colors"
+                                                className="p-0.5 text-zinc-700 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-all"
                                              >
                                                 <Minus className="w-2.5 h-2.5" />
                                              </button>
                                              <input 
                                                 type="text" 
-                                                className="w-6 border-none bg-transparent text-center text-[10px] font-bold focus:ring-0 p-0 text-black"
+                                                className="w-6 border-none bg-transparent text-center text-[10px] font-bold focus:ring-0 p-0 text-zinc-900"
                                                 value={item.quantity}
                                                 onChange={(e) => handleQtyInput(item.product.id, e.target.value)}
                                              />
                                              <button 
                                                 type="button"
                                                 onClick={() => updateQuantity(item.product.id, 1)}
-                                                className="p-0.5 text-zinc-450 hover:text-[#3c39d6] transition-colors"
+                                                className="p-0.5 text-zinc-700 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-all"
                                              >
                                                 <Plus className="w-2.5 h-2.5" />
                                              </button>
                                           </div>
                                        </td>
-                                       <td className="px-3 py-3.5 text-right font-mono text-emerald-600">
-                                          {formatCurrency(item.product.sell_price * item.quantity)}
-                                       </td>
-                                       <td className="px-3 py-3.5 text-center">
-                                          <button 
-                                             type="button"
-                                             onClick={() => removeFromCart(item.product.id)}
-                                             className="p-1 text-rose-500 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-100 rounded-md transition-all"
-                                          >
-                                             <Trash2 className="w-3 h-3" />
-                                          </button>
+                                        <td className="px-4 py-4 text-right font-mono text-emerald-600">
+                                           {formatCurrency(item.product.sell_price * item.quantity)}
+                                        </td>
+                                        <td className="px-4 py-4 text-center">
+                                           <button 
+                                              type="button"
+                                              onClick={() => removeFromCart(item.product.id)}
+                                              className="p-1.5 text-rose-500 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-100 rounded-md transition-all shadow-sm"
+                                           >
+                                              <Trash2 className="w-3.5 h-3.5" />
+                                           </button>
                                        </td>
                                     </tr>
                                  ))
@@ -1036,7 +1145,12 @@ export default function POSForm({
       {/* Success Modal Receipt */}
       {showReceiptModal && lastTransaction && (
         <div 
-          onClick={() => setShowReceiptModal(false)}
+          onClick={() => {
+             setShowReceiptModal(false);
+             if (editId) {
+                router.push('/backend/tenant/sales');
+             }
+          }}
           className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 cursor-pointer"
         >
            <div 
@@ -1067,6 +1181,18 @@ export default function POSForm({
                           {formatCurrency(lastTransaction.items ? lastTransaction.items.reduce((sum: number, item: any) => sum + (item.product.sell_price * item.quantity), 0) : 0)}
                        </span>
                     </div>
+                    {lastTransaction.cash_paid !== undefined && lastTransaction.cash_paid > 0 && (
+                       <>
+                          <div className="flex justify-between border-t border-zinc-200/30 pt-2 text-xs font-bold text-zinc-700">
+                             <span className="text-zinc-400">Bayar (Tunai):</span>
+                             <span className="font-mono text-zinc-900">{formatCurrency(lastTransaction.cash_paid)}</span>
+                          </div>
+                          <div className="flex justify-between text-xs font-bold text-zinc-700">
+                             <span className="text-zinc-400">Kembalian:</span>
+                             <span className="font-mono text-emerald-600">{formatCurrency(lastTransaction.change || 0)}</span>
+                          </div>
+                       </>
+                    )}
                  </div>
 
                  <div className="flex flex-col gap-2">
@@ -1127,12 +1253,17 @@ export default function POSForm({
                        </div>
                     )}
 
-                    <button
-                       onClick={() => setShowReceiptModal(false)}
-                       className="w-full py-2 text-zinc-400 hover:text-zinc-600 text-[10px] font-bold tracking-widest transition-colors"
-                    >
-                       + Transaksi Baru
-                    </button>
+                     <button
+                        onClick={() => {
+                           setShowReceiptModal(false);
+                           if (editId) {
+                              router.push('/backend/tenant/sales');
+                           }
+                        }}
+                        className="w-full py-2 text-zinc-400 hover:text-zinc-600 text-[10px] font-bold tracking-widest transition-colors"
+                     >
+                        + Transaksi Baru
+                     </button>
                  </div>
               </div>
            </div>

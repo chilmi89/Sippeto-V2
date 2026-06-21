@@ -10,6 +10,7 @@ import {
     deleteBranchAction
 } from "@/app/actions/branch";
 import { uploadFileAction } from "@/app/actions/upload";
+import { compressImageToWebp } from "@/lib/image";
 
 interface Branch {
     id: string;
@@ -60,19 +61,24 @@ export default function BranchesPage() {
     const [formManagerEmail, setFormManagerEmail] = useState("");
     const [formManagerPassword, setFormManagerPassword] = useState("");
 
-    const handleQrChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleQrChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
         if (!file.type.startsWith('image/')) {
             alert("Hanya file gambar!");
             return;
         }
-        if (file.size > 5 * 1024 * 1024) {
-            alert("Ukuran file maksimal 5MB");
-            return;
+        
+        try {
+            // Kompres QR Code menjadi format WebP dengan resolusi maks 600px untuk kejelasan scan dan hemat memori
+            const compressedFile = await compressImageToWebp(file, 600, 0.75);
+            setQrFile(compressedFile);
+            setQrPreview(URL.createObjectURL(compressedFile));
+        } catch (compressErr) {
+            console.error("Gagal melakukan kompresi QR Code:", compressErr);
+            setQrFile(file);
+            setQrPreview(URL.createObjectURL(file));
         }
-        setQrFile(file);
-        setQrPreview(URL.createObjectURL(file));
     };
 
     const uploadQrToServer = async (file: File, oldUrl?: string | null) => {
