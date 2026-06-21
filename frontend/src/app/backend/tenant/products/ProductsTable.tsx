@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
+import { compressImageToWebp } from "@/lib/image";
 import { saveProductAction, deleteProductAction } from "./actions";
 
 interface ProductStock {
@@ -148,7 +149,7 @@ export default function ProductsTable({
         return json.data.url;
     };
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const fileList = e.target.files;
         if (!fileList || fileList.length === 0) return;
         const file = fileList[0];
@@ -158,10 +159,18 @@ export default function ProductsTable({
             URL.revokeObjectURL(formImageUrl);
         }
 
-        // Preview lokal saja, upload menyusul saat submit
-        const previewUrl = URL.createObjectURL(file);
-        setFormImageUrl(previewUrl);
-        setPendingFile(file);
+        try {
+            // Kompres gambar menjadi format WebP dengan kualitas 0.75 dan max resolusi 800px untuk menghemat penyimpanan MinIO
+            const compressedFile = await compressImageToWebp(file, 800, 0.75);
+            const previewUrl = URL.createObjectURL(compressedFile);
+            setFormImageUrl(previewUrl);
+            setPendingFile(compressedFile);
+        } catch (compressErr) {
+            console.error("Gagal melakukan kompresi gambar:", compressErr);
+            const previewUrl = URL.createObjectURL(file);
+            setFormImageUrl(previewUrl);
+            setPendingFile(file);
+        }
     };
 
     const closeModal = () => {

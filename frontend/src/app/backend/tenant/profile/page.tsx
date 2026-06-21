@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { uploadFileAction } from '@/app/actions/upload';
+import { compressImageToWebp } from '@/lib/image';
 
 interface Profile {
   id: string;
@@ -73,15 +74,29 @@ const ProfileTenantPage = () => {
 
     useEffect(() => { fetchProfile(); }, []);
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'banner' | 'qr') => {
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'banner' | 'qr') => {
         const file = e.target.files?.[0];
         if (!file) return;
         if (!file.type.startsWith('image/')) { toast.error("Hanya file gambar!"); return; }
-        if (file.size > 5 * 1024 * 1024) { toast.error("Maks 5MB"); return; }
-        const url = URL.createObjectURL(file);
-        if (type === 'avatar') { setAvatarFile(file); setAvatarPreview(url); }
-        else if (type === 'banner') { setBannerFile(file); setBannerPreview(url); }
-        else { setQrFile(file); setQrPreview(url); }
+        
+        try {
+            // Tentukan resolusi maksimum berdasarkan tipe gambar: avatar (400px), QR (600px), banner (1000px)
+            const maxDimension = type === 'avatar' ? 400 : type === 'qr' ? 600 : 1000;
+            // Kompres gambar menjadi format WebP dengan kualitas 0.75
+            const compressedFile = await compressImageToWebp(file, maxDimension, 0.75);
+            const url = URL.createObjectURL(compressedFile);
+            
+            if (type === 'avatar') { setAvatarFile(compressedFile); setAvatarPreview(url); }
+            else if (type === 'banner') { setBannerFile(compressedFile); setBannerPreview(url); }
+            else { setQrFile(compressedFile); setQrPreview(url); }
+        } catch (compressErr) {
+            console.error("Gagal melakukan kompresi gambar:", compressErr);
+            // Fallback ke file asli jika terjadi kegagalan kompresi
+            const url = URL.createObjectURL(file);
+            if (type === 'avatar') { setAvatarFile(file); setAvatarPreview(url); }
+            else if (type === 'banner') { setBannerFile(file); setBannerPreview(url); }
+            else { setQrFile(file); setQrPreview(url); }
+        }
     };
 
     const uploadFileToServer = async (file: File, type: 'avatar' | 'banner' | 'qr', oldUrl?: string | null) => {
