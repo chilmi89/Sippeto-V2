@@ -43,6 +43,8 @@ const BT_NAME_PREFIXES = [
 
 // Cache printer device instance at page session level (prevents re-pairing on same page load)
 let cachedPrinterDevice: any = null;
+let cachedGattServer: any = null;
+let cachedWriteChar: any = null;
 
 const getQuickCashPresets = (total: number): number[] => {
   if (total <= 0) return [10000, 20000, 50000, 100000];
@@ -150,6 +152,8 @@ export default function POSForm({
   const [isBluetoothSupported, setIsBluetoothSupported] = useState(false);
   const [productSearchQuery, setProductSearchQuery] = useState("");
   const [showProductDropdown, setShowProductDropdown] = useState(false);
+  const [isBtConnected, setIsBtConnected] = useState(false);
+  const [bluetoothDeviceName, setBluetoothDeviceName] = useState<string | null>(null);
 
   const checkBluetoothSupport = useCallback(() => {
     setIsBluetoothSupported(typeof window !== "undefined" && !!(navigator as any).bluetooth);
@@ -158,6 +162,19 @@ export default function POSForm({
   useEffect(() => {
     checkBluetoothSupport();
   }, [checkBluetoothSupport]);
+
+  useEffect(() => {
+    if (cachedPrinterDevice && cachedPrinterDevice.gatt?.connected) {
+      setIsBtConnected(true);
+      setBluetoothDeviceName(cachedPrinterDevice.name || "Thermal Printer");
+    }
+    return () => {
+      if (cachedPrinterDevice && cachedPrinterDevice.gatt?.connected) {
+        console.log("Disconnecting printer on page unmount...");
+        cachedPrinterDevice.gatt.disconnect();
+      }
+    };
+  }, []);
 
   // Searched Products for custom combobox
   const searchedProducts = useMemo(() => {
@@ -496,41 +513,37 @@ export default function POSForm({
     window.open(pdfBlobUrl);
   };
 
-  const handlePrintBluetoothDirect = async () => {
-    if (!lastTransaction) return;
-    try {
-      setIsPrintingBt(true);
+  const connectBluetoothPrinter = async (forceNewScan = false) => {
+    if (!(navigator as any).bluetooth) {
+      throw new Error("Browser Anda tidak mendukung Web Bluetooth. Silakan gunakan Google Chrome versi terbaru.");
+    }
 
-      if (!(navigator as any).bluetooth) {
-        toast.error("Browser Anda tidak mendukung Web Bluetooth. Silakan gunakan Google Chrome versi terbaru.");
-        return;
+    let device = cachedPrinterDevice;
+
+    if (forceNewScan || !device) {
+      if (cachedPrinterDevice?.gatt?.connected) {
+        try {
+          cachedPrinterDevice.gatt.disconnect();
+        } catch (_) {}
       }
-
-      let device: any = cachedPrinterDevice;
-
-      // 1. Coba gunakan printer dari cache sesi halaman terlebih dahulu
-      if (device) {
-        console.log("Menggunakan printer Bluetooth dari cache sesi halaman:", device.name);
-      }
-
-      // 2. Jika tidak ada di cache, coba dapatkan perangkat yang sudah di-pair sebelumnya
-      if (!device && typeof (navigator as any).bluetooth.getDevices === "function") {
+      cachedPrinterDevice = null;
+      cachedGattServer = null;
+      cachedWriteChar = null;
+      setIsBtConnected(false);
+      setBluetoothDeviceName(null);
+      
+      if (!forceNewScan && typeof (navigator as any).bluetooth.getDevices === "function") {
         try {
           const pairedDevices = await (navigator as any).bluetooth.getDevices();
           device = pairedDevices.find((d: any) => {
             const name = d.name || "";
             return BT_NAME_PREFIXES.some(p => name.startsWith(p));
           });
-          if (device) {
-            console.log("Menggunakan printer Bluetooth terpasang:", device.name);
-            cachedPrinterDevice = device;
-          }
         } catch (e) {
           console.warn("Gagal membaca daftar perangkat terpasang:", e);
         }
       }
 
-      // 3. Jika tidak ditemukan perangkat terpasang, tampilkan dialog pencarian
       if (!device) {
         device = await (navigator as any).bluetooth.requestDevice({
           filters: [
@@ -539,24 +552,39 @@ export default function POSForm({
           ],
           optionalServices: BT_SERVICE_UUIDS,
         });
-        cachedPrinterDevice = device;
       }
+      cachedPrinterDevice = device;
+    }
 
-      if (!device.gatt) throw new Error("Perangkat tidak mendukung GATT");
+    if (device && !device.listenerAdded) {
+      device.addEventListener("gattserverdisconnected", () => {
+        console.log("Printer terputus (GATT disconnected)");
+        cachedGattServer = null;
+        cachedWriteChar = null;
+        setIsBtConnected(false);
+        setBluetoothDeviceName(null);
+      });
+      device.listenerAdded = true;
+    }
 
-      let server: any = null;
+    let server = cachedGattServer;
+    if (!server || !device.gatt.connected) {
       try {
         server = await device.gatt.connect();
+        cachedGattServer = server;
       } catch (connectErr: any) {
-        console.error("Gagal menghubungkan ke cached printer:", connectErr);
-        // Reset cache agar kueri pencarian baru dapat dipicu kembali jika terjadi kegagalan koneksi
+        console.error("Gagal menghubungkan ke printer:", connectErr);
         cachedPrinterDevice = null;
-        throw new Error(`Gagal terhubung ke printer. Pastikan printer menyala dan berada dalam jangkauan. (${connectErr.message || connectErr})`);
+        cachedGattServer = null;
+        cachedWriteChar = null;
+        setIsBtConnected(false);
+        setBluetoothDeviceName(null);
+        throw new Error(`Gagal terhubung ke printer. Pastikan printer menyala, berada dalam jangkauan, dan tidak terhubung ke perangkat lain.`);
       }
-      if (!server) throw new Error("Gagal menghubungkan ke printer");
+    }
 
-      // Auto-discover write characteristic across all known service UUIDs
-      let writeChar: any = null;
+    let writeChar = cachedWriteChar;
+    if (!writeChar) {
       for (const uuid of BT_SERVICE_UUIDS) {
         try {
           const service = await server.getPrimaryService(uuid);
@@ -566,11 +594,10 @@ export default function POSForm({
           );
           if (writeChar) break;
         } catch {
-          // Try next UUID
+          // Lanjutkan ke UUID berikutnya
         }
       }
 
-      // Fallback: try all available services on device
       if (!writeChar) {
         const allServices = await server.getPrimaryServices();
         for (const service of allServices) {
@@ -582,7 +609,59 @@ export default function POSForm({
         }
       }
 
-      if (!writeChar) throw new Error("Tidak menemukan port tulis data printer");
+      if (!writeChar) {
+        throw new Error("Tidak menemukan port tulis data printer (Write Characteristic)");
+      }
+      cachedWriteChar = writeChar;
+    }
+
+    setIsBtConnected(true);
+    setBluetoothDeviceName(device.name || "Thermal Printer");
+    return writeChar;
+  };
+
+  const handleConnectPrinterManual = async () => {
+    try {
+      setIsPrintingBt(true);
+      await connectBluetoothPrinter(true);
+      toast.success("Printer berhasil dihubungkan!");
+    } catch (err: any) {
+      console.error(err);
+      if (err.name === "NotFoundError" || err.message?.includes("cancelled") || err.message?.includes("dibatalkan")) return;
+      toast.error(`Gagal menghubungkan printer: ${err.message || err}`);
+    } finally {
+      setIsPrintingBt(false);
+    }
+  };
+
+  const handleDisconnectPrinterManual = async () => {
+    try {
+      if (cachedPrinterDevice?.gatt?.connected) {
+        await cachedPrinterDevice.gatt.disconnect();
+      }
+      cachedPrinterDevice = null;
+      cachedGattServer = null;
+      cachedWriteChar = null;
+      setIsBtConnected(false);
+      setBluetoothDeviceName(null);
+      toast.success("Koneksi printer diputuskan.");
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Gagal memutuskan koneksi printer");
+    }
+  };
+
+  const handlePrintBluetoothDirect = async () => {
+    if (!lastTransaction) return;
+    try {
+      setIsPrintingBt(true);
+
+      if (!(navigator as any).bluetooth) {
+        toast.error("Browser Anda tidak mendukung Web Bluetooth. Silakan gunakan Google Chrome versi terbaru.");
+        return;
+      }
+
+      const writeChar = await connectBluetoothPrinter(false);
 
       const encoder = new TextEncoder();
       const ESC = "\x1b";
@@ -661,14 +740,12 @@ export default function POSForm({
             await writeChar.writeValue(chunk);
           }
         } catch {
-          // Fallback: try writeValue if the preferred method fails
           await writeChar.writeValue(chunk);
         }
         await new Promise(resolve => setTimeout(resolve, 30));
       }
 
       toast.success("Nota berhasil dicetak via Bluetooth!");
-      await device.gatt.disconnect();
     } catch (err: any) {
       console.error(err);
       if (err.name === "NotFoundError" || err.message?.includes("cancelled") || err.message?.includes("dibatalkan")) return;
@@ -1212,14 +1289,42 @@ export default function POSForm({
                     </div>
                     
                     {isBluetoothSupported ? (
-                       <button 
-                          onClick={handlePrintBluetoothDirect}
-                          disabled={isPrintingBt}
-                          className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-[#3c39d6] hover:bg-black disabled:bg-zinc-400 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors"
-                       >
-                          <Printer className={`w-3.5 h-3.5 ${isPrintingBt ? "animate-pulse" : ""}`} />
-                          {isPrintingBt ? "Menghubungkan Printer..." : "Cetak Bluetooth (Direct)"}
-                       </button>
+                      <div className="space-y-2">
+                        <button 
+                           onClick={handlePrintBluetoothDirect}
+                           disabled={isPrintingBt}
+                           className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-[#3c39d6] hover:bg-black disabled:bg-zinc-400 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors"
+                        >
+                           <Printer className={`w-3.5 h-3.5 ${isPrintingBt ? "animate-pulse" : ""}`} />
+                           {isPrintingBt ? "Memproses..." : "Cetak Bluetooth (Direct)"}
+                        </button>
+                        <div className="flex items-center justify-between px-1 text-[9px] font-black uppercase tracking-wider">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`w-2.5 h-2.5 rounded-full ${isBtConnected ? "bg-emerald-500 animate-pulse" : "bg-zinc-400"}`}></span>
+                            <span className="text-zinc-900">
+                              Status: {isBtConnected ? `Terhubung (${bluetoothDeviceName})` : "Terputus"}
+                            </span>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={handleConnectPrinterManual}
+                              className="text-[#3c39d6] hover:text-black font-black hover:underline"
+                            >
+                              {isBtConnected ? "Ganti" : "Hubungkan"}
+                            </button>
+                            {isBtConnected && (
+                              <button
+                                type="button"
+                                onClick={handleDisconnectPrinterManual}
+                                className="text-red-600 hover:text-red-800 font-black hover:underline"
+                              >
+                                Putus
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     ) : (
                        <div className="w-full p-3 bg-amber-50 border border-amber-200 text-amber-800 text-[9px] font-bold text-center rounded-xl space-y-1.5">
                           <p className="text-[10px] leading-tight">
