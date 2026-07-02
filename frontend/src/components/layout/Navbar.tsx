@@ -1,6 +1,6 @@
 "use client";
 
-import { Home, LogIn, Menu, UserPlus, X } from "lucide-react";
+import { Home, LogIn, Menu, UserPlus, X, Info } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -29,6 +29,13 @@ export const Navbar = () => {
           >
             <Home className="w-3.5 h-3.5" />
             <span>Home</span>
+          </Link>
+          <Link
+            href="/about"
+            className="px-4 py-2.5 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all duration-300 flex items-center gap-1.5"
+          >
+            <Info className="w-3.5 h-3.5" />
+            <span>Tentang Kami</span>
           </Link>
           <Link
             href="/login"
@@ -64,6 +71,14 @@ export const Navbar = () => {
             >
               <Home className="w-4 h-4" />
               <span>Home</span>
+            </Link>
+            <Link
+              href="/about"
+              onClick={() => setIsOpen(false)}
+              className="w-full px-4 py-3 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all flex items-center gap-2.5 text-xs font-bold"
+            >
+              <Info className="w-4 h-4" />
+              <span>Tentang Kami</span>
             </Link>
             <Link
               href="/login"
