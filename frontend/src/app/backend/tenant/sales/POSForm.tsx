@@ -16,12 +16,14 @@ import {
   ChevronDown,
   Edit2,
   Receipt,
-  Search
+  Search,
+  Layers
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import jsPDF from "jspdf";
 import { getPOSProductsAction, savePOSTransactionAction } from "./actions";
+import { div } from "framer-motion/client";
 
 // Bluetooth thermal printer constants
 const BT_SERVICE_UUIDS = [
@@ -162,6 +164,33 @@ export default function POSForm({
   const [usbDeviceName, setUsbDeviceName] = useState<string | null>(null);
   const [isPrintingUsb, setIsPrintingUsb] = useState(false);
   const [printMethod, setPrintMethod] = useState<"bluetooth" | "usb">("usb");
+
+  // Pagination & Search Cache optimization
+  const ITEMS_PER_PAGE = 8;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const filteredProducts = useMemo(() => {
+    return products.filter((p) => {
+      const matchesSearch = !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesCategory = selectedCategoryId === "all" || p.category_id === selectedCategoryId;
+      return matchesSearch && matchesCategory;
+    });
+  }, [products, searchQuery, selectedCategoryId]);
+
+  const totalPages = useMemo(() => {
+    return Math.max(1, Math.ceil(filteredProducts.length / ITEMS_PER_PAGE));
+  }, [filteredProducts]);
+
+  const paginatedProducts = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredProducts.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredProducts, currentPage]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(1);
+    }
+  }, [totalPages, currentPage]);
 
   const checkBluetoothSupport = useCallback(() => {
     setIsBluetoothSupported(typeof window !== "undefined" && !!(navigator as any).bluetooth);
@@ -1125,281 +1154,169 @@ export default function POSForm({
          {/* Layout Grid */}
          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
             
-            {/* LEFT COLUMN: Detail Transaksi */}
-             <div className="lg:col-span-5 bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm space-y-5">
-                <h3 className="text-sm font-black text-[#030037] uppercase tracking-widest border-b border-zinc-200 pb-3">
-                   Detail Transaksi
-                </h3>
+            {/* LEFT COLUMN: Detail Transaksi & Keranjang Belanja */}
+            <div className="lg:col-span-5 space-y-4">
+               {/* Card 1: Detail Transaksi */}
+               <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm space-y-5">
+                  <h3 className="text-sm font-black text-[#030037] uppercase tracking-widest border-b border-zinc-200 pb-3">
+                     Detail Transaksi
+                  </h3>
 
-                <div className="space-y-4">
-                   {/* Row 1: Nota & Tanggal */}
-                   <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                         <label className="text-[10px] font-black text-zinc-800 uppercase tracking-widest block pl-0.5">No. Nota</label>
-                         <input 
-                            type="text"
-                            className="w-full px-3.5 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm font-bold text-black outline-none focus:bg-white focus:border-[#10b981] focus:ring-2 focus:ring-emerald-500/10 shadow-sm transition-all"
-                            value={reference}
-                            onChange={(e) => setReference(e.target.value)}
-                         />
-                      </div>
-                      <div className="space-y-1">
-                         <label className="text-[10px] font-black text-zinc-800 uppercase tracking-widest block pl-0.5">Tanggal</label>
-                         <input 
-                            type="date"
-                            className="w-full px-3.5 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm font-bold text-black outline-none focus:bg-white focus:border-[#10b981] focus:ring-2 focus:ring-emerald-500/10 shadow-sm transition-all"
-                            value={date}
-                            onChange={(e) => setDate(e.target.value)}
-                         />
-                      </div>
-                   </div>
-
-                  {/* Row 2: Nama Pelanggan */}
-                   <div className="space-y-1">
-                      <label className="text-[10px] font-black text-zinc-800 uppercase tracking-widest block pl-0.5">Pelanggan</label>
-                      <div className="relative flex items-center">
-                         <User className="absolute left-3 w-4 h-4 text-zinc-400" />
-                         <input 
-                            type="text" 
-                            placeholder="Pembeli Umum (Default)" 
-                            className="w-full pl-9 pr-3 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm font-bold outline-none focus:bg-white focus:border-[#10b981] focus:ring-2 focus:ring-emerald-500/10 text-black shadow-sm transition-all"
-                            value={customerName}
-                            onChange={(e) => setCustomerName(e.target.value)}
-                         />
-                      </div>
-                   </div>
-
-                  {/* Row 3: Metode Pembayaran */}
-                   <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-zinc-800 uppercase tracking-widest block pl-0.5">Metode Bayar</label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {paymentMethods.map(pm => {
-                          const isActive = paymentMethodId === pm.id;
-                          return (
-                            <button
-                              key={pm.id}
-                              type="button"
-                              onClick={() => setPaymentMethodId(pm.id)}
-                              className={`px-3 py-3 rounded-xl text-sm font-bold border transition-all duration-200 flex flex-col items-center justify-center gap-1.5 select-none ${
-                                isActive 
-                                  ? "bg-[#10b981] border-[#10b981] text-white shadow-md shadow-emerald-500/20" 
-                                  : "bg-white border-zinc-300 text-zinc-900 hover:bg-zinc-50 hover:text-zinc-800 shadow-sm"
-                              }`}
-                            >
-                              <CreditCard className={`w-4 h-4 ${isActive ? "text-white" : "text-zinc-400"}`} />
-                              <span className="text-[10px] truncate max-w-full text-center leading-tight font-black">{pm.name}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                   </div>
-
-                  {/* Uang Dibayar & Kembalian (Khusus Pembayaran Tunai) */}
-                   {isCashPayment && (
-                      <div className="space-y-2 border-t border-zinc-200/50 pt-3">
-                         <label className="text-[10px] font-black text-zinc-800 uppercase tracking-widest block pl-0.5">Uang Dibayar (Tunai)</label>
-                         <div className="relative flex items-center">
-                            <span className="absolute left-3 text-sm font-black text-zinc-900">Rp</span>
-                            <input 
-                               type="number" 
-                               placeholder="0" 
-                               className="w-full pl-9 pr-3 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm font-mono font-bold outline-none text-black shadow-sm transition-all focus:bg-white focus:border-[#10b981] focus:ring-2 focus:ring-emerald-500/10"
-                               value={cashPaid}
-                               onChange={(e) => setCashPaid(e.target.value)}
-                            />
-                         </div>
-                         
-                         {/* Tombol Pintas Uang */}
-                         <div className="flex flex-wrap gap-1.5">
-                            <button 
-                               type="button" 
-                               onClick={() => setCashPaid(cartSubtotal.toString())} 
-                               className="px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 border border-zinc-300 rounded text-xs font-black text-zinc-900 transition-colors uppercase tracking-wider"
-                            >
-                               Uang Pas
-                            </button>
-                            {getQuickCashPresets(cartSubtotal).map((preset) => (
-                               <button 
-                                  key={preset}
-                                  type="button" 
-                                  onClick={() => setCashPaid(preset.toString())} 
-                                  className="px-3 py-1.5 bg-zinc-100 hover:bg-[#10b981] hover:text-white border border-zinc-300 rounded text-xs font-black text-zinc-900 transition-colors"
-                               >
-                                  {formatCurrency(preset).replace("Rp", "").trim()}
-                               </button>
-                            ))}
-                         </div>
-
-                         {/* Info Kembalian */}
-                         <div className="flex justify-between items-center text-xs font-black uppercase tracking-wider pl-0.5 pt-2 border-t border-zinc-100">
-                            <span className="text-zinc-500">Kembalian:</span>
-                            <span className={`font-mono text-lg font-black ${isPaymentEnough ? "text-emerald-600" : "text-red-500"}`}>
-                               {formatCurrency(changeAmount)}
-                            </span>
-                         </div>
-                      </div>
-                   )}
-
-                  {/* Total Summary */}
-                   <div className="bg-gradient-to-br from-[#030037] to-[#120f4c] text-white p-4.5 rounded-2xl flex justify-between items-center shadow-sm border border-white/5">
-                      <div>
-                         <span className="text-[10px] font-black text-white/60 uppercase tracking-widest block leading-none mb-1">Total Belanja</span>
-                         <span className="text-xs font-bold text-white/50">
-                            {cart.reduce((sum, item) => sum + item.quantity, 0)} produk
-                         </span>
-                      </div>
-                      <span className="text-2xl font-black font-mono text-emerald-400">
-                         {formatCurrency(cartSubtotal)}
-                      </span>
-                   </div>
-
-                  {/* Actions */}
-                   <div className="flex gap-2 pt-2.5">
-                      <button 
-                         disabled={isSubmitting}
-                         onClick={() => {
-                            if (editId) {
-                              router.push('/backend/tenant/sales/history');
-                            } else if (cart.length > 0 && confirm("Kosongkan keranjang?")) {
-                              setCart([]);
-                            }
-                         }}
-                         className="px-4.5 py-3.5 bg-zinc-150 hover:bg-zinc-200 text-zinc-700 hover:text-zinc-900 transition-colors font-bold text-xs uppercase tracking-wider rounded-xl border border-zinc-300 disabled:opacity-50 shadow-sm"
-                      >
-                         {editId ? "Batal Edit" : "Reset"}
-                      </button>
-                      <button
-                         onClick={handleSubmitTransaction}
-                         disabled={cart.length === 0 || isSubmitting || (isCashPayment && !isPaymentEnough)}
-                         className={`flex-1 py-3.5 text-white transition-all font-black text-xs uppercase tracking-widest rounded-xl shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
-                           editId 
-                             ? "bg-amber-500 hover:bg-amber-600 shadow-amber-500/10" 
-                             : "bg-[#10b981] hover:bg-[#059669] shadow-emerald-500/15"
-                         }`}
-                      >
-                         {isSubmitting ? <Check className="w-4 h-4 animate-pulse" /> : (editId ? <Edit2 className="w-4 h-4" /> : <Check className="w-4 h-4" />)}
-                         {isSubmitting ? "Memproses..." : (editId ? "Simpan Perubahan" : "Bayar & Selesaikan")}
-                      </button>
-                   </div>
-               </div>
-            </div>
-
-            {/* RIGHT COLUMN: Pilih Produk & Keranjang Belanja */}
-             <div className="lg:col-span-7 bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm space-y-5">
-                
-                {/* 1. Pilih Produk Ke Keranjang */}
-                <div>
-                   <h3 className="text-sm font-black text-[#030037] uppercase tracking-widest pl-0.5 mb-3">
-                      Pilih Produk Ke Keranjang
-                   </h3>
-                   
-                   <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-                      {/* Dropdown Select Product (Searchable Combobox) */}
-                      <div className="flex-1 min-w-0 relative">
-                         <input
-                            type="text"
-                            placeholder="Ketik untuk mencari produk..."
-                            value={productSearchQuery}
-                            onFocus={() => setShowProductDropdown(true)}
-                            onChange={(e) => {
-                               setProductSearchQuery(e.target.value);
-                               setShowProductDropdown(true);
-                               if (selectedProductId) setSelectedProductId("");
-                            }}
-                            className="w-full px-4 py-3 bg-white border border-zinc-300 rounded-xl text-sm font-bold text-black outline-none focus:bg-white focus:border-[#10b981] shadow-sm transition-all"
-                         />
-                        
-                        {showProductDropdown && (
-                           <>
-                              {/* Overlay Backdrop to close dropdown */}
-                              <div 
-                                 className="fixed inset-0 z-10" 
-                                 onClick={() => setShowProductDropdown(false)}
-                              />
-                              <div data-lenis-prevent className="absolute left-0 right-0 mt-1 bg-white border border-zinc-200 rounded-xl shadow-lg max-h-48 overflow-y-auto z-25 divide-y divide-zinc-100 scrollbar-thin">
-                                 {searchedProducts.length === 0 ? (
-                                    <div className="px-3 py-2 text-xs text-zinc-400 font-bold text-center">
-                                       Produk tidak ditemukan
-                                    </div>
-                                 ) : (
-                                    searchedProducts.map((p) => {
-                                       const stock = p.current_branch_stock ?? 0;
-                                       const isOutOfStock = stock <= 0;
-                                       return (
-                                          <button
-                                             key={p.id}
-                                             type="button"
-                                             disabled={isOutOfStock}
-                                             onClick={() => {
-                                                setSelectedProductId(p.id);
-                                                setProductSearchQuery(p.name);
-                                                setShowProductDropdown(false);
-                                             }}
-                                             className={`w-full px-4 py-3 text-left text-sm font-bold transition-all duration-150 flex items-center justify-between gap-4 border-l-2 border-transparent ${
-                                                isOutOfStock
-                                                   ? "opacity-50 cursor-not-allowed bg-zinc-50 text-zinc-400"
-                                                   : "hover:bg-emerald-50/50 hover:border-emerald-500 text-zinc-900"
-                                             }`}
-                                          >
-                                             <span className="truncate flex-1 min-w-0 text-zinc-900 font-semibold text-left">{p.name}</span>
-                                             <div className="flex items-center gap-2 shrink-0">
-                                                <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold whitespace-nowrap ${
-                                                   isOutOfStock 
-                                                      ? "bg-zinc-100 text-zinc-400" 
-                                                      : stock < 10 
-                                                         ? "bg-amber-50 border border-amber-200/50 text-amber-600" 
-                                                         : "bg-emerald-50 border border-emerald-100/50 text-emerald-600"
-                                                }`}>
-                                                   Stok: {stock}
-                                                </span>
-                                             </div>
-                                          </button>
-                                       );
-                                    })
-                                 )}
-                              </div>
-                           </>
-                        )}
+                  <div className="space-y-4">
+                     {/* Row 1: Nota & Tanggal */}
+                     <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                           <label className="text-[10px] font-black text-zinc-800 uppercase tracking-widest block pl-0.5">No. Nota</label>
+                           <input 
+                              type="text"
+                              className="w-full px-3.5 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm font-bold text-black outline-none focus:bg-white focus:border-[#10b981] focus:ring-2 focus:ring-emerald-500/10 shadow-sm transition-all"
+                              value={reference}
+                              onChange={(e) => setReference(e.target.value)}
+                           />
+                        </div>
+                        <div className="space-y-1">
+                           <label className="text-[10px] font-black text-zinc-800 uppercase tracking-widest block pl-0.5">Tanggal</label>
+                           <input 
+                              type="date"
+                              className="w-full px-3.5 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm font-bold text-black outline-none focus:bg-white focus:border-[#10b981] focus:ring-2 focus:ring-emerald-500/10 shadow-sm transition-all"
+                              value={date}
+                              onChange={(e) => setDate(e.target.value)}
+                           />
+                        </div>
                      </div>
 
-                      {/* Qty Input Controls */}
-                      <div className="flex items-center justify-center gap-2 bg-white border border-zinc-300 px-3.5 py-2.5 rounded-xl w-36 shrink-0 shadow-sm">
-                         <button
-                            type="button"
-                            onClick={() => setInputQty(Math.max(1, inputQty - 1))}
-                            className="p-1.5 text-zinc-700 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
-                         >
-                            <Minus className="w-3.5 h-3.5" />
-                         </button>
-                         <input
-                            type="number"
-                            className="w-12 border-none bg-transparent text-center text-sm font-bold focus:ring-0 p-0 text-zinc-900"
-                            value={inputQty}
-                            min={1}
-                            onChange={(e) => setInputQty(Math.max(1, parseInt(e.target.value) || 1))}
-                         />
-                         <button
-                            type="button"
-                            onClick={() => setInputQty(inputQty + 1)}
-                            className="p-1.5 text-zinc-700 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
-                         >
-                            <Plus className="w-3.5 h-3.5" />
-                         </button>
-                      </div>
- 
-                      {/* Tombol Tambah */}
-                      <button
-                         type="button"
-                         onClick={handleAddProductFromSelect}
-                         className="px-6 py-3 bg-[#10b981] hover:bg-[#059669] text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 shrink-0"
-                      >
-                         <Plus className="w-4 h-4" /> Tambah
-                      </button>
-                  </div>
+                    {/* Row 2: Nama Pelanggan */}
+                     <div className="space-y-1">
+                        <label className="text-[10px] font-black text-zinc-800 uppercase tracking-widest block pl-0.5">Pelanggan</label>
+                        <div className="relative flex items-center">
+                           <User className="absolute left-3 w-4 h-4 text-zinc-400" />
+                           <input 
+                              type="text" 
+                              placeholder="Pembeli Umum (Default)" 
+                              className="w-full pl-9 pr-3 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm font-bold outline-none focus:bg-white focus:border-[#10b981] focus:ring-2 focus:ring-emerald-500/10 text-black shadow-sm transition-all"
+                              value={customerName}
+                              onChange={(e) => setCustomerName(e.target.value)}
+                           />
+                        </div>
+                     </div>
+
+                    {/* Row 3: Metode Pembayaran */}
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-zinc-800 uppercase tracking-widest block pl-0.5">Metode Bayar</label>
+                        <div className="grid grid-cols-3 gap-2">
+                          {paymentMethods.map(pm => {
+                            const isActive = paymentMethodId === pm.id;
+                            return (
+                              <button
+                                key={pm.id}
+                                type="button"
+                                onClick={() => setPaymentMethodId(pm.id)}
+                                className={`px-3 py-3 rounded-xl text-sm font-bold border transition-all duration-200 flex flex-col items-center justify-center gap-1.5 select-none ${
+                                  isActive 
+                                    ? "bg-[#10b981] border-[#10b981] text-white shadow-md shadow-emerald-500/20" 
+                                    : "bg-white border-zinc-300 text-zinc-900 hover:bg-zinc-50 hover:text-zinc-800 shadow-sm"
+                                }`}
+                              >
+                                <CreditCard className={`w-4 h-4 ${isActive ? "text-white" : "text-zinc-400"}`} />
+                                <span className="text-[10px] truncate max-w-full text-center leading-tight font-black">{pm.name}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                     </div>
+
+                    {/* Uang Dibayar & Kembalian (Khusus Pembayaran Tunai) */}
+                     {isCashPayment && (
+                        <div className="space-y-2 border-t border-zinc-200/50 pt-3">
+                           <label className="text-[10px] font-black text-zinc-800 uppercase tracking-widest block pl-0.5">Uang Dibayar (Tunai)</label>
+                           <div className="relative flex items-center">
+                              <span className="absolute left-3 text-sm font-black text-zinc-900">Rp</span>
+                              <input 
+                                 type="number" 
+                                 placeholder="0" 
+                                 className="w-full pl-9 pr-3 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm font-mono font-bold outline-none text-black shadow-sm transition-all focus:bg-white focus:border-[#10b981] focus:ring-2 focus:ring-emerald-500/10"
+                                 value={cashPaid}
+                                 onChange={(e) => setCashPaid(e.target.value)}
+                              />
+                           </div>
+                           
+                           {/* Tombol Pintas Uang */}
+                           <div className="flex flex-wrap gap-1.5">
+                              <button 
+                                 type="button" 
+                                 onClick={() => setCashPaid(cartSubtotal.toString())} 
+                                 className="px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 border border-zinc-300 rounded text-xs font-black text-zinc-900 transition-colors uppercase tracking-wider"
+                              >
+                                 Uang Pas
+                              </button>
+                              {getQuickCashPresets(cartSubtotal).map((preset) => (
+                                 <button 
+                                    key={preset}
+                                    type="button" 
+                                    onClick={() => setCashPaid(preset.toString())} 
+                                    className="px-3 py-1.5 bg-zinc-100 hover:bg-[#10b981] hover:text-white border border-zinc-300 rounded text-xs font-black text-zinc-900 transition-colors"
+                                 >
+                                    {formatCurrency(preset).replace("Rp", "").trim()}
+                                 </button>
+                              ))}
+                           </div>
+
+                           {/* Info Kembalian */}
+                           <div className="flex justify-between items-center text-xs font-black uppercase tracking-wider pl-0.5 pt-2 border-t border-zinc-100">
+                              <span className="text-zinc-500">Kembalian:</span>
+                              <span className={`font-mono text-lg font-black ${isPaymentEnough ? "text-emerald-600" : "text-red-500"}`}>
+                                 {formatCurrency(changeAmount)}
+                              </span>
+                           </div>
+                        </div>
+                     )}
+
+                    {/* Total Summary */}
+                     <div className="bg-gradient-to-br from-[#030037] to-[#120f4c] text-white p-4.5 rounded-2xl flex justify-between items-center shadow-sm border border-white/5">
+                        <div>
+                           <span className="text-[10px] font-black text-white/60 uppercase tracking-widest block leading-none mb-1">Total Belanja</span>
+                           <span className="text-xs font-bold text-white/50">
+                              {cart.reduce((sum, item) => sum + item.quantity, 0)} produk
+                           </span>
+                        </div>
+                        <span className="text-2xl font-black font-mono text-emerald-400">
+                           {formatCurrency(cartSubtotal)}
+                        </span>
+                     </div>
+
+                    {/* Actions */}
+                     <div className="flex gap-2 pt-2.5">
+                        <button 
+                           disabled={isSubmitting}
+                           onClick={() => {
+                              if (editId) {
+                                router.push('/backend/tenant/sales/history');
+                              } else if (cart.length > 0 && confirm("Kosongkan keranjang?")) {
+                                setCart([]);
+                              }
+                           }}
+                           className="px-4.5 py-3.5 bg-zinc-150 hover:bg-zinc-200 text-zinc-700 hover:text-zinc-900 transition-colors font-bold text-xs uppercase tracking-wider rounded-xl border border-zinc-300 disabled:opacity-50 shadow-sm"
+                        >
+                           {editId ? "Batal Edit" : "Reset"}
+                        </button>
+                        <button
+                           onClick={handleSubmitTransaction}
+                           disabled={cart.length === 0 || isSubmitting || (isCashPayment && !isPaymentEnough)}
+                           className={`flex-1 py-3.5 text-white transition-all font-black text-xs uppercase tracking-widest rounded-xl shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+                             editId 
+                               ? "bg-amber-500 hover:bg-amber-600 shadow-amber-500/10" 
+                               : "bg-[#10b981] hover:bg-[#059669] shadow-emerald-500/15"
+                           }`}
+                        >
+                           {isSubmitting ? <Check className="w-4 h-4 animate-pulse" /> : (editId ? <Edit2 className="w-4 h-4" /> : <Check className="w-4 h-4" />)}
+                           {isSubmitting ? "Memproses..." : (editId ? "Simpan Perubahan" : "Bayar & Selesaikan")}
+                        </button>
+                     </div>
+                 </div>
                </div>
 
-               {/* 2. Daftar Keranjang Belanja */}
-               <div className="pt-2 border-t border-zinc-100">
+               {/* Card 2: Daftar Keranjang Belanja */}
+               <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm space-y-5">
                   <div className="flex items-center justify-between mb-2">
                       <h3 className="text-sm font-black text-[#030037] uppercase tracking-widest flex items-center gap-2">
                          <ShoppingCart className="w-4.5 h-4.5 text-[#3c39d6]" /> Keranjang Belanja
@@ -1408,7 +1325,7 @@ export default function POSForm({
                          {cart.length} produk terpilih
                       </span>
                    </div>
- 
+
                    <div className="border border-zinc-200 rounded-xl overflow-hidden bg-zinc-50/30 shadow-sm">
                       <div data-lenis-prevent className="max-h-[380px] overflow-y-auto scrollbar-thin">
                          <table className="w-full text-left border-collapse">
@@ -1482,14 +1399,179 @@ export default function POSForm({
                            </tbody>
                         </table>
                      </div>
-                  </div>
-               </div>
+                   </div>
+                </div>
+             </div>
 
-            </div>
+            {/* RIGHT COLUMN: Pilih Produk */}
+             <div className="lg:col-span-7 bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm space-y-5">
+                
+                {/* 1. Pilih Produk Ke Keranjang (Grid Visual optimized) */}
+                <div className="space-y-4">
+                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-zinc-100">
+                      <h3 className="text-sm font-black text-[#030037] uppercase tracking-widest pl-0.5">
+                         Pilih Produk Ke Keranjang
+                      </h3>
+                      <span className="text-[10px] font-black bg-[#10b981]/10 text-[#10b981] px-2.5 py-1 rounded-full uppercase tracking-wider">
+                         {filteredProducts.length} Produk Tersedia
+                      </span>
+                   </div>
+                   
+                   {/* Search Bar */}
+                   <div className="relative">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                      <input 
+                         type="text" 
+                         placeholder="Cari produk berdasarkan nama..." 
+                         value={searchQuery}
+                         onChange={(e) => {
+                            setSearchQuery(e.target.value);
+                            setCurrentPage(1);
+                         }}
+                         className="w-full pl-11 pr-10 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm font-bold text-black outline-none focus:bg-white focus:border-[#10b981] shadow-sm transition-all"
+                      />
+                      {searchQuery && (
+                         <button
+                            type="button"
+                            onClick={() => { setSearchQuery(""); setCurrentPage(1); }}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-655"
+                         >
+                            <X className="w-4 h-4" />
+                         </button>
+                      )}
+                   </div>
 
-         </div>
+                   {/* Kategori Slider */}
+                   <div className="flex gap-2 overflow-x-auto pb-2 shrink-0 scrollbar-thin select-none">
+                      <button
+                         type="button"
+                         onClick={() => { setSelectedCategoryId("all"); setCurrentPage(1); }}
+                         className={`px-4 py-2 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all border whitespace-nowrap ${
+                            selectedCategoryId === "all"
+                               ? "bg-[#3c39d6] text-white border-transparent shadow-sm"
+                               : "bg-zinc-50 text-zinc-500 border-zinc-200 hover:bg-zinc-100"
+                         }`}
+                      >
+                         📂 Semua Kategori
+                      </button>
+                      {categories.map((c) => (
+                         <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => { setSelectedCategoryId(c.id); setCurrentPage(1); }}
+                            className={`px-4 py-2 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all border whitespace-nowrap ${
+                               selectedCategoryId === c.id
+                                  ? "bg-[#3c39d6] text-white border-transparent shadow-sm"
+                                  : "bg-zinc-50 text-zinc-500 border-zinc-200 hover:bg-zinc-100"
+                            }`}
+                         >
+                            {c.name}
+                         </button>
+                      ))}
+                   </div>
+
+                   {/* Grid Produk */}
+                   {paginatedProducts.length === 0 ? (
+                      <div className="p-8 text-center flex flex-col items-center gap-2 bg-zinc-50/50 rounded-2xl border border-zinc-150">
+                         <Package className="w-10 h-10 text-zinc-300" />
+                         <span className="text-xs font-bold text-zinc-400">Tidak ada produk ditemukan</span>
+                      </div>
+                   ) : (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+                         {paginatedProducts.map((p) => {
+                            const stock = p.current_branch_stock ?? 0;
+                            const isOutOfStock = stock <= 0;
+                            return (
+                               <div
+                                  key={p.id}
+                                  onClick={() => !isOutOfStock && addToCart(p)}
+                                  className={`group relative p-2.5 bg-white border border-zinc-200 rounded-2xl flex flex-col justify-between overflow-hidden transition-all duration-200 shadow-sm ${
+                                     isOutOfStock
+                                        ? "opacity-50 cursor-not-allowed bg-zinc-50"
+                                        : "cursor-pointer hover:border-[#10b981] hover:shadow-md hover:scale-[1.01]"
+                                  }`}
+                               >
+                                  {/* Gambar */}
+                                  <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-zinc-50/80 border border-zinc-100 flex items-center justify-center mb-2 shrink-0">
+                                     {p.image_url ? (
+                                        <img 
+                                           src={p.image_url} 
+                                           alt={p.name}
+                                           loading="lazy"
+                                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                        />
+                                     ) : (
+                                        <Package className="w-7 h-7 text-zinc-300 group-hover:scale-110 transition-transform duration-300" />
+                                     )}
+
+                                     {/* Overlay Stock / Badge */}
+                                     {isOutOfStock ? (
+                                        <div className="absolute inset-0 bg-black/45 flex items-center justify-center p-1">
+                                           <span className="text-[8px] font-black uppercase tracking-wider text-white bg-rose-600 px-1.5 py-0.5 rounded-md">
+                                              Habis
+                                           </span>
+                                        </div>
+                                     ) : stock < 10 ? (
+                                        <span className="absolute top-1.5 right-1.5 text-[8px] font-black uppercase bg-amber-500 text-white px-1.5 py-0.5 rounded-full shadow-sm">
+                                           Stok: {stock}
+                                        </span>
+                                     ) : null}
+                                  </div>
+
+                                  {/* Info Produk */}
+                                  <div className="space-y-1.5">
+                                     <h4 className="text-[10px] font-bold text-zinc-900 leading-tight line-clamp-2 h-7" title={p.name}>
+                                        {p.name}
+                                     </h4>
+                                     <div className="flex items-center justify-between pt-1.5 border-t border-zinc-100">
+                                        <span className="text-[11px] font-black text-emerald-600 font-mono">
+                                           {formatCurrency(p.sell_price).replace("Rp", "").trim()}
+                                        </span>
+                                        {!isOutOfStock && stock >= 10 && (
+                                           <span className="text-[9px] font-bold text-zinc-400">
+                                              Stok: {stock}
+                                           </span>
+                                        )}
+                                     </div>
+                                  </div>
+                               </div>
+                            );
+                         })}
+                      </div>
+                   )}
+
+                   {/* Pagination Controls */}
+                   {totalPages > 1 && (
+                      <div className="flex items-center justify-between border-t border-zinc-100 pt-3 mt-1.5">
+                         <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest pl-0.5">
+                            Hal {currentPage} / {totalPages} ({filteredProducts.length} Produk)
+                         </span>
+                         <div className="flex gap-2">
+                            <button
+                               type="button"
+                               disabled={currentPage === 1}
+                               onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                               className="px-3.5 py-1.5 bg-zinc-50 border border-zinc-200 hover:bg-zinc-100 text-zinc-600 rounded-xl text-[9px] font-black uppercase tracking-wider disabled:opacity-40 transition-all cursor-pointer"
+                            >
+                               Prev
+                            </button>
+                            <button
+                               type="button"
+                               disabled={currentPage === totalPages}
+                               onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                               className="px-3.5 py-1.5 bg-zinc-50 border border-zinc-200 hover:bg-zinc-100 text-zinc-600 rounded-xl text-[9px] font-black uppercase tracking-wider disabled:opacity-40 transition-all cursor-pointer"
+                            >
+                               Next
+                            </button>
+                         </div>
+                      </div>
+                   )}
+                </div>
+             </div>
+          </div>
 
       {/* Success Modal Receipt */}
+      
       {showReceiptModal && lastTransaction && (
         <div 
           onClick={() => {
@@ -1717,7 +1799,7 @@ export default function POSForm({
            </div>
         </div>
       )}
-      </div>
+      </div>  
     </div>
   );
 }
