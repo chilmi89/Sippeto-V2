@@ -23,6 +23,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import jsPDF from "jspdf";
 import { getPOSProductsAction, savePOSTransactionAction } from "./actions";
+import { div } from "framer-motion/client";
 
 // Bluetooth thermal printer constants
 const BT_SERVICE_UUIDS = [
@@ -1153,166 +1154,256 @@ export default function POSForm({
          {/* Layout Grid */}
          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
             
-            {/* LEFT COLUMN: Detail Transaksi */}
-             <div className="lg:col-span-5 bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm space-y-5">
-                <h3 className="text-sm font-black text-[#030037] uppercase tracking-widest border-b border-zinc-200 pb-3">
-                   Detail Transaksi
-                </h3>
+            {/* LEFT COLUMN: Detail Transaksi & Keranjang Belanja */}
+            <div className="lg:col-span-5 space-y-4">
+               {/* Card 1: Detail Transaksi */}
+               <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm space-y-5">
+                  <h3 className="text-sm font-black text-[#030037] uppercase tracking-widest border-b border-zinc-200 pb-3">
+                     Detail Transaksi
+                  </h3>
 
-                <div className="space-y-4">
-                   {/* Row 1: Nota & Tanggal */}
-                   <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                         <label className="text-[10px] font-black text-zinc-800 uppercase tracking-widest block pl-0.5">No. Nota</label>
-                         <input 
-                            type="text"
-                            className="w-full px-3.5 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm font-bold text-black outline-none focus:bg-white focus:border-[#10b981] focus:ring-2 focus:ring-emerald-500/10 shadow-sm transition-all"
-                            value={reference}
-                            onChange={(e) => setReference(e.target.value)}
-                         />
-                      </div>
-                      <div className="space-y-1">
-                         <label className="text-[10px] font-black text-zinc-800 uppercase tracking-widest block pl-0.5">Tanggal</label>
-                         <input 
-                            type="date"
-                            className="w-full px-3.5 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm font-bold text-black outline-none focus:bg-white focus:border-[#10b981] focus:ring-2 focus:ring-emerald-500/10 shadow-sm transition-all"
-                            value={date}
-                            onChange={(e) => setDate(e.target.value)}
-                         />
-                      </div>
-                   </div>
+                  <div className="space-y-4">
+                     {/* Row 1: Nota & Tanggal */}
+                     <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                           <label className="text-[10px] font-black text-zinc-800 uppercase tracking-widest block pl-0.5">No. Nota</label>
+                           <input 
+                              type="text"
+                              className="w-full px-3.5 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm font-bold text-black outline-none focus:bg-white focus:border-[#10b981] focus:ring-2 focus:ring-emerald-500/10 shadow-sm transition-all"
+                              value={reference}
+                              onChange={(e) => setReference(e.target.value)}
+                           />
+                        </div>
+                        <div className="space-y-1">
+                           <label className="text-[10px] font-black text-zinc-800 uppercase tracking-widest block pl-0.5">Tanggal</label>
+                           <input 
+                              type="date"
+                              className="w-full px-3.5 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm font-bold text-black outline-none focus:bg-white focus:border-[#10b981] focus:ring-2 focus:ring-emerald-500/10 shadow-sm transition-all"
+                              value={date}
+                              onChange={(e) => setDate(e.target.value)}
+                           />
+                        </div>
+                     </div>
 
-                  {/* Row 2: Nama Pelanggan */}
-                   <div className="space-y-1">
-                      <label className="text-[10px] font-black text-zinc-800 uppercase tracking-widest block pl-0.5">Pelanggan</label>
-                      <div className="relative flex items-center">
-                         <User className="absolute left-3 w-4 h-4 text-zinc-400" />
-                         <input 
-                            type="text" 
-                            placeholder="Pembeli Umum (Default)" 
-                            className="w-full pl-9 pr-3 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm font-bold outline-none focus:bg-white focus:border-[#10b981] focus:ring-2 focus:ring-emerald-500/10 text-black shadow-sm transition-all"
-                            value={customerName}
-                            onChange={(e) => setCustomerName(e.target.value)}
-                         />
-                      </div>
-                   </div>
+                    {/* Row 2: Nama Pelanggan */}
+                     <div className="space-y-1">
+                        <label className="text-[10px] font-black text-zinc-800 uppercase tracking-widest block pl-0.5">Pelanggan</label>
+                        <div className="relative flex items-center">
+                           <User className="absolute left-3 w-4 h-4 text-zinc-400" />
+                           <input 
+                              type="text" 
+                              placeholder="Pembeli Umum (Default)" 
+                              className="w-full pl-9 pr-3 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm font-bold outline-none focus:bg-white focus:border-[#10b981] focus:ring-2 focus:ring-emerald-500/10 text-black shadow-sm transition-all"
+                              value={customerName}
+                              onChange={(e) => setCustomerName(e.target.value)}
+                           />
+                        </div>
+                     </div>
 
-                  {/* Row 3: Metode Pembayaran */}
-                   <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-zinc-800 uppercase tracking-widest block pl-0.5">Metode Bayar</label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {paymentMethods.map(pm => {
-                          const isActive = paymentMethodId === pm.id;
-                          return (
-                            <button
-                              key={pm.id}
-                              type="button"
-                              onClick={() => setPaymentMethodId(pm.id)}
-                              className={`px-3 py-3 rounded-xl text-sm font-bold border transition-all duration-200 flex flex-col items-center justify-center gap-1.5 select-none ${
-                                isActive 
-                                  ? "bg-[#10b981] border-[#10b981] text-white shadow-md shadow-emerald-500/20" 
-                                  : "bg-white border-zinc-300 text-zinc-900 hover:bg-zinc-50 hover:text-zinc-800 shadow-sm"
-                              }`}
-                            >
-                              <CreditCard className={`w-4 h-4 ${isActive ? "text-white" : "text-zinc-400"}`} />
-                              <span className="text-[10px] truncate max-w-full text-center leading-tight font-black">{pm.name}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                   </div>
+                    {/* Row 3: Metode Pembayaran */}
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-zinc-800 uppercase tracking-widest block pl-0.5">Metode Bayar</label>
+                        <div className="grid grid-cols-3 gap-2">
+                          {paymentMethods.map(pm => {
+                            const isActive = paymentMethodId === pm.id;
+                            return (
+                              <button
+                                key={pm.id}
+                                type="button"
+                                onClick={() => setPaymentMethodId(pm.id)}
+                                className={`px-3 py-3 rounded-xl text-sm font-bold border transition-all duration-200 flex flex-col items-center justify-center gap-1.5 select-none ${
+                                  isActive 
+                                    ? "bg-[#10b981] border-[#10b981] text-white shadow-md shadow-emerald-500/20" 
+                                    : "bg-white border-zinc-300 text-zinc-900 hover:bg-zinc-50 hover:text-zinc-800 shadow-sm"
+                                }`}
+                              >
+                                <CreditCard className={`w-4 h-4 ${isActive ? "text-white" : "text-zinc-400"}`} />
+                                <span className="text-[10px] truncate max-w-full text-center leading-tight font-black">{pm.name}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                     </div>
 
-                  {/* Uang Dibayar & Kembalian (Khusus Pembayaran Tunai) */}
-                   {isCashPayment && (
-                      <div className="space-y-2 border-t border-zinc-200/50 pt-3">
-                         <label className="text-[10px] font-black text-zinc-800 uppercase tracking-widest block pl-0.5">Uang Dibayar (Tunai)</label>
-                         <div className="relative flex items-center">
-                            <span className="absolute left-3 text-sm font-black text-zinc-900">Rp</span>
-                            <input 
-                               type="number" 
-                               placeholder="0" 
-                               className="w-full pl-9 pr-3 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm font-mono font-bold outline-none text-black shadow-sm transition-all focus:bg-white focus:border-[#10b981] focus:ring-2 focus:ring-emerald-500/10"
-                               value={cashPaid}
-                               onChange={(e) => setCashPaid(e.target.value)}
-                            />
-                         </div>
-                         
-                         {/* Tombol Pintas Uang */}
-                         <div className="flex flex-wrap gap-1.5">
-                            <button 
-                               type="button" 
-                               onClick={() => setCashPaid(cartSubtotal.toString())} 
-                               className="px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 border border-zinc-300 rounded text-xs font-black text-zinc-900 transition-colors uppercase tracking-wider"
-                            >
-                               Uang Pas
-                            </button>
-                            {getQuickCashPresets(cartSubtotal).map((preset) => (
-                               <button 
-                                  key={preset}
-                                  type="button" 
-                                  onClick={() => setCashPaid(preset.toString())} 
-                                  className="px-3 py-1.5 bg-zinc-100 hover:bg-[#10b981] hover:text-white border border-zinc-300 rounded text-xs font-black text-zinc-900 transition-colors"
-                               >
-                                  {formatCurrency(preset).replace("Rp", "").trim()}
-                               </button>
-                            ))}
-                         </div>
+                    {/* Uang Dibayar & Kembalian (Khusus Pembayaran Tunai) */}
+                     {isCashPayment && (
+                        <div className="space-y-2 border-t border-zinc-200/50 pt-3">
+                           <label className="text-[10px] font-black text-zinc-800 uppercase tracking-widest block pl-0.5">Uang Dibayar (Tunai)</label>
+                           <div className="relative flex items-center">
+                              <span className="absolute left-3 text-sm font-black text-zinc-900">Rp</span>
+                              <input 
+                                 type="number" 
+                                 placeholder="0" 
+                                 className="w-full pl-9 pr-3 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm font-mono font-bold outline-none text-black shadow-sm transition-all focus:bg-white focus:border-[#10b981] focus:ring-2 focus:ring-emerald-500/10"
+                                 value={cashPaid}
+                                 onChange={(e) => setCashPaid(e.target.value)}
+                              />
+                           </div>
+                           
+                           {/* Tombol Pintas Uang */}
+                           <div className="flex flex-wrap gap-1.5">
+                              <button 
+                                 type="button" 
+                                 onClick={() => setCashPaid(cartSubtotal.toString())} 
+                                 className="px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 border border-zinc-300 rounded text-xs font-black text-zinc-900 transition-colors uppercase tracking-wider"
+                              >
+                                 Uang Pas
+                              </button>
+                              {getQuickCashPresets(cartSubtotal).map((preset) => (
+                                 <button 
+                                    key={preset}
+                                    type="button" 
+                                    onClick={() => setCashPaid(preset.toString())} 
+                                    className="px-3 py-1.5 bg-zinc-100 hover:bg-[#10b981] hover:text-white border border-zinc-300 rounded text-xs font-black text-zinc-900 transition-colors"
+                                 >
+                                    {formatCurrency(preset).replace("Rp", "").trim()}
+                                 </button>
+                              ))}
+                           </div>
 
-                         {/* Info Kembalian */}
-                         <div className="flex justify-between items-center text-xs font-black uppercase tracking-wider pl-0.5 pt-2 border-t border-zinc-100">
-                            <span className="text-zinc-500">Kembalian:</span>
-                            <span className={`font-mono text-lg font-black ${isPaymentEnough ? "text-emerald-600" : "text-red-500"}`}>
-                               {formatCurrency(changeAmount)}
-                            </span>
-                         </div>
-                      </div>
-                   )}
+                           {/* Info Kembalian */}
+                           <div className="flex justify-between items-center text-xs font-black uppercase tracking-wider pl-0.5 pt-2 border-t border-zinc-100">
+                              <span className="text-zinc-500">Kembalian:</span>
+                              <span className={`font-mono text-lg font-black ${isPaymentEnough ? "text-emerald-600" : "text-red-500"}`}>
+                                 {formatCurrency(changeAmount)}
+                              </span>
+                           </div>
+                        </div>
+                     )}
 
-                  {/* Total Summary */}
-                   <div className="bg-gradient-to-br from-[#030037] to-[#120f4c] text-white p-4.5 rounded-2xl flex justify-between items-center shadow-sm border border-white/5">
-                      <div>
-                         <span className="text-[10px] font-black text-white/60 uppercase tracking-widest block leading-none mb-1">Total Belanja</span>
-                         <span className="text-xs font-bold text-white/50">
-                            {cart.reduce((sum, item) => sum + item.quantity, 0)} produk
-                         </span>
-                      </div>
-                      <span className="text-2xl font-black font-mono text-emerald-400">
-                         {formatCurrency(cartSubtotal)}
+                    {/* Total Summary */}
+                     <div className="bg-gradient-to-br from-[#030037] to-[#120f4c] text-white p-4.5 rounded-2xl flex justify-between items-center shadow-sm border border-white/5">
+                        <div>
+                           <span className="text-[10px] font-black text-white/60 uppercase tracking-widest block leading-none mb-1">Total Belanja</span>
+                           <span className="text-xs font-bold text-white/50">
+                              {cart.reduce((sum, item) => sum + item.quantity, 0)} produk
+                           </span>
+                        </div>
+                        <span className="text-2xl font-black font-mono text-emerald-400">
+                           {formatCurrency(cartSubtotal)}
+                        </span>
+                     </div>
+
+                    {/* Actions */}
+                     <div className="flex gap-2 pt-2.5">
+                        <button 
+                           disabled={isSubmitting}
+                           onClick={() => {
+                              if (editId) {
+                                router.push('/backend/tenant/sales/history');
+                              } else if (cart.length > 0 && confirm("Kosongkan keranjang?")) {
+                                setCart([]);
+                              }
+                           }}
+                           className="px-4.5 py-3.5 bg-zinc-150 hover:bg-zinc-200 text-zinc-700 hover:text-zinc-900 transition-colors font-bold text-xs uppercase tracking-wider rounded-xl border border-zinc-300 disabled:opacity-50 shadow-sm"
+                        >
+                           {editId ? "Batal Edit" : "Reset"}
+                        </button>
+                        <button
+                           onClick={handleSubmitTransaction}
+                           disabled={cart.length === 0 || isSubmitting || (isCashPayment && !isPaymentEnough)}
+                           className={`flex-1 py-3.5 text-white transition-all font-black text-xs uppercase tracking-widest rounded-xl shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+                             editId 
+                               ? "bg-amber-500 hover:bg-amber-600 shadow-amber-500/10" 
+                               : "bg-[#10b981] hover:bg-[#059669] shadow-emerald-500/15"
+                           }`}
+                        >
+                           {isSubmitting ? <Check className="w-4 h-4 animate-pulse" /> : (editId ? <Edit2 className="w-4 h-4" /> : <Check className="w-4 h-4" />)}
+                           {isSubmitting ? "Memproses..." : (editId ? "Simpan Perubahan" : "Bayar & Selesaikan")}
+                        </button>
+                     </div>
+                 </div>
+               </div>
+
+               {/* Card 2: Daftar Keranjang Belanja */}
+               <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm space-y-5">
+                  <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-sm font-black text-[#030037] uppercase tracking-widest flex items-center gap-2">
+                         <ShoppingCart className="w-4.5 h-4.5 text-[#3c39d6]" /> Keranjang Belanja
+                      </h3>
+                      <span className="text-[10px] font-black bg-[#3c39d6]/10 text-[#3c39d6] px-2.5 py-1 rounded-full">
+                         {cart.length} produk terpilih
                       </span>
                    </div>
 
-                  {/* Actions */}
-                   <div className="flex gap-2 pt-2.5">
-                      <button 
-                         disabled={isSubmitting}
-                         onClick={() => {
-                            if (editId) {
-                              router.push('/backend/tenant/sales/history');
-                            } else if (cart.length > 0 && confirm("Kosongkan keranjang?")) {
-                              setCart([]);
-                            }
-                         }}
-                         className="px-4.5 py-3.5 bg-zinc-150 hover:bg-zinc-200 text-zinc-700 hover:text-zinc-900 transition-colors font-bold text-xs uppercase tracking-wider rounded-xl border border-zinc-300 disabled:opacity-50 shadow-sm"
-                      >
-                         {editId ? "Batal Edit" : "Reset"}
-                      </button>
-                      <button
-                         onClick={handleSubmitTransaction}
-                         disabled={cart.length === 0 || isSubmitting || (isCashPayment && !isPaymentEnough)}
-                         className={`flex-1 py-3.5 text-white transition-all font-black text-xs uppercase tracking-widest rounded-xl shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
-                           editId 
-                             ? "bg-amber-500 hover:bg-amber-600 shadow-amber-500/10" 
-                             : "bg-[#10b981] hover:bg-[#059669] shadow-emerald-500/15"
-                         }`}
-                      >
-                         {isSubmitting ? <Check className="w-4 h-4 animate-pulse" /> : (editId ? <Edit2 className="w-4 h-4" /> : <Check className="w-4 h-4" />)}
-                         {isSubmitting ? "Memproses..." : (editId ? "Simpan Perubahan" : "Bayar & Selesaikan")}
-                      </button>
+                   <div className="border border-zinc-200 rounded-xl overflow-hidden bg-zinc-50/30 shadow-sm">
+                      <div data-lenis-prevent className="max-h-[380px] overflow-y-auto scrollbar-thin">
+                         <table className="w-full text-left border-collapse">
+                            <thead>
+                               <tr className="bg-zinc-50 border-b border-zinc-200 text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+                                  <th className="px-4 py-3">Produk</th>
+                                  <th className="px-4 py-3 text-right">Harga</th>
+                                  <th className="px-4 py-3 text-center">Qty</th>
+                                  <th className="px-4 py-3 text-right">Subtotal</th>
+                                  <th className="px-4 py-3 text-center">Aksi</th>
+                               </tr>
+                            </thead>
+                           <tbody className="divide-y divide-zinc-150">
+                              {cart.length === 0 ? (
+                                 <tr>
+                                    <td colSpan={5} className="py-16 text-center text-zinc-400 bg-white">
+                                       <ShoppingCart className="w-8 h-8 mx-auto mb-2 opacity-30 text-zinc-400" />
+                                       <p className="text-[9px] font-black uppercase tracking-wider text-zinc-400">Keranjang masih kosong</p>
+                                    </td>
+                                 </tr>
+                              ) : (
+                                  cart.map((item) => (
+                                     <tr key={item.product.id} className="hover:bg-zinc-100/50 bg-white transition-all text-xs font-bold text-zinc-900 border-b border-zinc-100">
+                                        <td className="px-4 py-4">
+                                           <div className="whitespace-normal break-words max-w-[180px] sm:max-w-[240px]" title={item.product.name}>
+                                              {item.product.name}
+                                           </div>
+                                        </td>
+                                        <td className="px-4 py-4 text-right font-mono">
+                                           {formatCurrency(item.product.sell_price)}
+                                        </td>
+                                        <td className="px-4 py-4">
+                                            <div className="flex items-center justify-center gap-0.5 bg-white border border-zinc-300 px-1.5 py-0.5 rounded-md w-16 mx-auto">
+                                             <button 
+                                                type="button"
+                                                onClick={() => updateQuantity(item.product.id, -1)}
+                                                className="p-0.5 text-zinc-700 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-all"
+                                             >
+                                                <Minus className="w-2.5 h-2.5" />
+                                             </button>
+                                             <input 
+                                                type="text" 
+                                                className="w-6 border-none bg-transparent text-center text-[10px] font-bold focus:ring-0 p-0 text-zinc-900"
+                                                value={item.quantity}
+                                                onChange={(e) => handleQtyInput(item.product.id, e.target.value)}
+                                             />
+                                             <button 
+                                                type="button"
+                                                onClick={() => updateQuantity(item.product.id, 1)}
+                                                className="p-0.5 text-zinc-700 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-all"
+                                             >
+                                                <Plus className="w-2.5 h-2.5" />
+                                             </button>
+                                          </div>
+                                       </td>
+                                        <td className="px-4 py-4 text-right font-mono text-emerald-600">
+                                           {formatCurrency(item.product.sell_price * item.quantity)}
+                                        </td>
+                                        <td className="px-4 py-4 text-center">
+                                           <button 
+                                              type="button"
+                                              onClick={() => removeFromCart(item.product.id)}
+                                              className="p-1.5 text-rose-500 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-100 rounded-md transition-all shadow-sm"
+                                           >
+                                              <Trash2 className="w-3.5 h-3.5" />
+                                           </button>
+                                       </td>
+                                    </tr>
+                                 ))
+                              )}
+                           </tbody>
+                        </table>
+                     </div>
                    </div>
-               </div>
-            </div>
+                </div>
+             </div>
 
-            {/* RIGHT COLUMN: Pilih Produk & Keranjang Belanja */}
+            {/* RIGHT COLUMN: Pilih Produk */}
              <div className="lg:col-span-7 bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm space-y-5">
                 
                 {/* 1. Pilih Produk Ke Keranjang (Grid Visual optimized) */}
@@ -1476,99 +1567,11 @@ export default function POSForm({
                       </div>
                    )}
                 </div>
-
-               {/* 2. Daftar Keranjang Belanja */}
-               <div className="pt-2 border-t border-zinc-100">
-                  <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-sm font-black text-[#030037] uppercase tracking-widest flex items-center gap-2">
-                         <ShoppingCart className="w-4.5 h-4.5 text-[#3c39d6]" /> Keranjang Belanja
-                      </h3>
-                      <span className="text-[10px] font-black bg-[#3c39d6]/10 text-[#3c39d6] px-2.5 py-1 rounded-full">
-                         {cart.length} produk terpilih
-                      </span>
-                   </div>
- 
-                   <div className="border border-zinc-200 rounded-xl overflow-hidden bg-zinc-50/30 shadow-sm">
-                      <div data-lenis-prevent className="max-h-[380px] overflow-y-auto scrollbar-thin">
-                         <table className="w-full text-left border-collapse">
-                            <thead>
-                               <tr className="bg-zinc-50 border-b border-zinc-200 text-[10px] font-black text-zinc-500 uppercase tracking-widest">
-                                  <th className="px-4 py-3">Produk</th>
-                                  <th className="px-4 py-3 text-right">Harga</th>
-                                  <th className="px-4 py-3 text-center">Qty</th>
-                                  <th className="px-4 py-3 text-right">Subtotal</th>
-                                  <th className="px-4 py-3 text-center">Aksi</th>
-                               </tr>
-                            </thead>
-                           <tbody className="divide-y divide-zinc-150">
-                              {cart.length === 0 ? (
-                                 <tr>
-                                    <td colSpan={5} className="py-16 text-center text-zinc-400 bg-white">
-                                       <ShoppingCart className="w-8 h-8 mx-auto mb-2 opacity-30 text-zinc-400" />
-                                       <p className="text-[9px] font-black uppercase tracking-wider text-zinc-400">Keranjang masih kosong</p>
-                                    </td>
-                                 </tr>
-                              ) : (
-                                  cart.map((item) => (
-                                     <tr key={item.product.id} className="hover:bg-zinc-100/50 bg-white transition-all text-xs font-bold text-zinc-900 border-b border-zinc-100">
-                                        <td className="px-4 py-4">
-                                           <div className="whitespace-normal break-words max-w-[180px] sm:max-w-[240px]" title={item.product.name}>
-                                              {item.product.name}
-                                           </div>
-                                        </td>
-                                        <td className="px-4 py-4 text-right font-mono">
-                                           {formatCurrency(item.product.sell_price)}
-                                        </td>
-                                        <td className="px-4 py-4">
-                                            <div className="flex items-center justify-center gap-0.5 bg-white border border-zinc-300 px-1.5 py-0.5 rounded-md w-16 mx-auto">
-                                             <button 
-                                                type="button"
-                                                onClick={() => updateQuantity(item.product.id, -1)}
-                                                className="p-0.5 text-zinc-700 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-all"
-                                             >
-                                                <Minus className="w-2.5 h-2.5" />
-                                             </button>
-                                             <input 
-                                                type="text" 
-                                                className="w-6 border-none bg-transparent text-center text-[10px] font-bold focus:ring-0 p-0 text-zinc-900"
-                                                value={item.quantity}
-                                                onChange={(e) => handleQtyInput(item.product.id, e.target.value)}
-                                             />
-                                             <button 
-                                                type="button"
-                                                onClick={() => updateQuantity(item.product.id, 1)}
-                                                className="p-0.5 text-zinc-700 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-all"
-                                             >
-                                                <Plus className="w-2.5 h-2.5" />
-                                             </button>
-                                          </div>
-                                       </td>
-                                        <td className="px-4 py-4 text-right font-mono text-emerald-600">
-                                           {formatCurrency(item.product.sell_price * item.quantity)}
-                                        </td>
-                                        <td className="px-4 py-4 text-center">
-                                           <button 
-                                              type="button"
-                                              onClick={() => removeFromCart(item.product.id)}
-                                              className="p-1.5 text-rose-500 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-100 rounded-md transition-all shadow-sm"
-                                           >
-                                              <Trash2 className="w-3.5 h-3.5" />
-                                           </button>
-                                       </td>
-                                    </tr>
-                                 ))
-                              )}
-                           </tbody>
-                        </table>
-                     </div>
-                  </div>
-               </div>
-
-            </div>
-
-         </div>
+             </div>
+          </div>
 
       {/* Success Modal Receipt */}
+      
       {showReceiptModal && lastTransaction && (
         <div 
           onClick={() => {
@@ -1796,7 +1799,7 @@ export default function POSForm({
            </div>
         </div>
       )}
-      </div>
+      </div>  
     </div>
   );
 }
