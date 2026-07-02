@@ -312,6 +312,12 @@ export default function LandingPage() {
                 {label}
               </a>
             ))}
+            <Link
+              href="/about"
+              className="text-white/60 hover:text-white text-xs font-semibold tracking-wide transition-colors"
+            >
+              Tentang Kami
+            </Link>
           </div>
 
           {/* Actions */}
@@ -379,6 +385,13 @@ export default function LandingPage() {
                     {label}
                   </a>
                 ))}
+                <Link
+                  href="/about"
+                  className="text-white/60 hover:text-white text-sm font-semibold py-1.5 transition-colors"
+                  onClick={() => setMobileMenu(false)}
+                >
+                  Tentang Kami
+                </Link>
                 <div className="flex flex-col gap-2 pt-3 border-t border-white/8">
                   <Link
                     href="/login"

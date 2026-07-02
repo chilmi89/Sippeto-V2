@@ -558,18 +558,25 @@ export default function POSForm({
 
     if (device && !device.listenerAdded) {
       device.addEventListener("gattserverdisconnected", () => {
-        console.log("Printer terputus (GATT disconnected)");
+        console.log("Printer terputus (GATT disconnected) — reset semua cache");
+        // Invalidate semua cache agar reconnect dipaksa pada cetak berikutnya
         cachedGattServer = null;
         cachedWriteChar = null;
+        // Jangan null-kan cachedPrinterDevice agar device object tetap tersedia untuk reconnect
+        // namun tandai bahwa perlu koneksi ulang
         setIsBtConnected(false);
         setBluetoothDeviceName(null);
       });
       device.listenerAdded = true;
     }
 
+    // Selalu reconnect jika GATT tidak terhubung (menangani auto-disconnect setelah idle)
     let server = cachedGattServer;
     if (!server || !device.gatt.connected) {
+      // Reset writeChar juga karena server sudah disconnected
+      cachedWriteChar = null;
       try {
+        console.log("Menghubungkan ulang ke GATT server...");
         server = await device.gatt.connect();
         cachedGattServer = server;
       } catch (connectErr: any) {
@@ -583,8 +590,10 @@ export default function POSForm({
       }
     }
 
+    // Selalu discover ulang writeChar jika null (akibat disconnect)
     let writeChar = cachedWriteChar;
     if (!writeChar) {
+      console.log("Mencari Write Characteristic...");
       for (const uuid of BT_SERVICE_UUIDS) {
         try {
           const service = await server.getPrimaryService(uuid);
@@ -599,13 +608,21 @@ export default function POSForm({
       }
 
       if (!writeChar) {
-        const allServices = await server.getPrimaryServices();
-        for (const service of allServices) {
-          const characteristics = await service.getCharacteristics();
-          writeChar = characteristics.find(
-            (c: any) => c.properties.write || c.properties.writeWithoutResponse
-          );
-          if (writeChar) break;
+        try {
+          const allServices = await server.getPrimaryServices();
+          for (const service of allServices) {
+            const characteristics = await service.getCharacteristics();
+            writeChar = characteristics.find(
+              (c: any) => c.properties.write || c.properties.writeWithoutResponse
+            );
+            if (writeChar) break;
+          }
+        } catch (svcErr: any) {
+          // Jika getPrimaryServices gagal karena server disconnected, lempar error yang jelas
+          console.error("getPrimaryServices gagal:", svcErr);
+          cachedGattServer = null;
+          cachedWriteChar = null;
+          throw new Error(`Server printer terputus saat mencari service. Coba cetak lagi untuk menghubungkan ulang secara otomatis.`);
         }
       }
 
@@ -659,6 +676,13 @@ export default function POSForm({
       if (!(navigator as any).bluetooth) {
         toast.error("Browser Anda tidak mendukung Web Bluetooth. Silakan gunakan Google Chrome versi terbaru.");
         return;
+      }
+
+      // Jika cache writeChar ada tapi koneksi sudah terputus, paksa reset sebelum connect
+      if (cachedWriteChar && cachedPrinterDevice && !cachedPrinterDevice.gatt?.connected) {
+        console.log("Koneksi GATT terputus sejak cetak terakhir — reset cache sebelum reconnect");
+        cachedGattServer = null;
+        cachedWriteChar = null;
       }
 
       const writeChar = await connectBluetoothPrinter(false);
