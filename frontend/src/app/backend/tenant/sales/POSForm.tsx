@@ -45,6 +45,7 @@ const BT_NAME_PREFIXES = [
 let cachedPrinterDevice: any = null;
 let cachedGattServer: any = null;
 let cachedWriteChar: any = null;
+let cachedUsbDevice: any = null;
 
 const getQuickCashPresets = (total: number): number[] => {
   if (total <= 0) return [10000, 20000, 50000, 100000];
@@ -155,18 +156,44 @@ export default function POSForm({
   const [isBtConnected, setIsBtConnected] = useState(false);
   const [bluetoothDeviceName, setBluetoothDeviceName] = useState<string | null>(null);
 
+  // USB Thermal Printer States
+  const [isUsbSupported, setIsUsbSupported] = useState(false);
+  const [isUsbConnected, setIsUsbConnected] = useState(false);
+  const [usbDeviceName, setUsbDeviceName] = useState<string | null>(null);
+  const [isPrintingUsb, setIsPrintingUsb] = useState(false);
+  const [printMethod, setPrintMethod] = useState<"bluetooth" | "usb">("usb");
+
   const checkBluetoothSupport = useCallback(() => {
     setIsBluetoothSupported(typeof window !== "undefined" && !!(navigator as any).bluetooth);
   }, []);
 
+  const checkUsbSupport = useCallback(() => {
+    setIsUsbSupported(typeof window !== "undefined" && !!(navigator as any).usb);
+  }, []);
+
   useEffect(() => {
     checkBluetoothSupport();
-  }, [checkBluetoothSupport]);
+    checkUsbSupport();
+  }, [checkBluetoothSupport, checkUsbSupport]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (!!(navigator as any).usb) {
+        setPrintMethod("usb");
+      } else if (!!(navigator as any).bluetooth) {
+        setPrintMethod("bluetooth");
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (cachedPrinterDevice && cachedPrinterDevice.gatt?.connected) {
       setIsBtConnected(true);
       setBluetoothDeviceName(cachedPrinterDevice.name || "Thermal Printer");
+    }
+    if (cachedUsbDevice && cachedUsbDevice.opened) {
+      setIsUsbConnected(true);
+      setUsbDeviceName(cachedUsbDevice.productName || "USB Printer");
     }
     return () => {
       if (cachedPrinterDevice && cachedPrinterDevice.gatt?.connected) {
@@ -665,6 +692,225 @@ export default function POSForm({
     } catch (err: any) {
       console.error(err);
       toast.error("Gagal memutuskan koneksi printer");
+    }
+  };
+
+  const connectUsbPrinter = async (forceNewScan = false) => {
+    if (!(navigator as any).usb) {
+      throw new Error("Browser Anda tidak mendukung WebUSB. Silakan gunakan Google Chrome.");
+    }
+
+    let device = cachedUsbDevice;
+
+    if (forceNewScan || !device || !device.opened) {
+      cachedUsbDevice = null;
+      setIsUsbConnected(false);
+      setUsbDeviceName(null);
+
+      if (!forceNewScan) {
+        try {
+          const pairedDevices = await (navigator as any).usb.getDevices();
+          if (pairedDevices.length > 0) {
+            device = pairedDevices[0];
+          }
+        } catch (e) {
+          console.warn("Gagal membaca daftar perangkat USB terpasang:", e);
+        }
+      }
+
+      if (!device) {
+        device = await (navigator as any).usb.requestDevice({
+          filters: []
+        });
+      }
+      cachedUsbDevice = device;
+    }
+
+    if (!device.opened) {
+      await device.open();
+    }
+
+    if (device.configuration === null) {
+      await device.selectConfiguration(1);
+    }
+
+    let interfaceNumber: number | null = null;
+    let endpointNumber: number | null = null;
+
+    for (const config of device.configurations) {
+      for (const iface of config.interfaces) {
+        for (const alternate of iface.alternates) {
+          if (alternate.interfaceClass === 7) {
+            interfaceNumber = iface.interfaceNumber;
+            const outEndpoint = alternate.endpoints.find(
+              (ep: any) => ep.direction === "out" && ep.type === "bulk"
+            );
+            if (outEndpoint) {
+              endpointNumber = outEndpoint.endpointNumber;
+              break;
+            }
+          }
+        }
+        if (interfaceNumber !== null) break;
+      }
+      if (interfaceNumber !== null) break;
+    }
+
+    if (interfaceNumber === null || endpointNumber === null) {
+      console.warn("Printer class 7 not found, trying fallback to any bulk-out endpoint...");
+      for (const config of device.configurations) {
+        for (const iface of config.interfaces) {
+          for (const alternate of iface.alternates) {
+            const outEndpoint = alternate.endpoints.find(
+              (ep: any) => ep.direction === "out" && ep.type === "bulk"
+            );
+            if (outEndpoint) {
+              interfaceNumber = iface.interfaceNumber;
+              endpointNumber = outEndpoint.endpointNumber;
+              break;
+            }
+          }
+          if (interfaceNumber !== null) break;
+        }
+        if (interfaceNumber !== null) break;
+      }
+    }
+
+    if (interfaceNumber === null || endpointNumber === null) {
+      throw new Error("Tidak dapat menemukan interface/endpoint bulk out printer pada perangkat USB ini.");
+    }
+
+    try {
+      await device.claimInterface(interfaceNumber);
+    } catch (claimErr: any) {
+      console.warn("Claim interface failed, attempting anyway:", claimErr);
+    }
+
+    setIsUsbConnected(true);
+    setUsbDeviceName(device.productName || "USB Printer");
+
+    return { device, endpointNumber, interfaceNumber };
+  };
+
+  const handleConnectUsbManual = async () => {
+    try {
+      setIsPrintingUsb(true);
+      await connectUsbPrinter(true);
+      toast.success("Printer USB berhasil dihubungkan!");
+    } catch (err: any) {
+      console.error(err);
+      if (err.name === "NotFoundError" || err.message?.includes("cancelled") || err.message?.includes("dibatalkan")) return;
+      toast.error(`Gagal menghubungkan printer USB: ${err.message || err}`);
+    } finally {
+      setIsPrintingUsb(false);
+    }
+  };
+
+  const handleDisconnectUsbManual = async () => {
+    try {
+      if (cachedUsbDevice && cachedUsbDevice.opened) {
+        await cachedUsbDevice.close();
+      }
+      cachedUsbDevice = null;
+      setIsUsbConnected(false);
+      setUsbDeviceName(null);
+      toast.success("Koneksi printer USB diputuskan.");
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Gagal memutuskan koneksi printer USB");
+    }
+  };
+
+  const handlePrintUsbDirect = async () => {
+    if (!lastTransaction) return;
+    try {
+      setIsPrintingUsb(true);
+
+      if (!(navigator as any).usb) {
+        toast.error("Browser Anda tidak mendukung WebUSB. Silakan gunakan Google Chrome.");
+        return;
+      }
+
+      const { device, endpointNumber } = await connectUsbPrinter(false);
+
+      const encoder = new TextEncoder();
+      const ESC = "\x1b";
+      const GS = "\x1d";
+      const LF = "\n";
+
+      let data = "";
+      data += ESC + "@";
+      data += ESC + "a" + "\x01";
+      data += ESC + "!" + "\x10";
+      data += (profile.business_name || "TOKO UMKM").toUpperCase() + LF;
+      data += ESC + "!" + "\x00";
+
+      const activeBranchName = branches.find(b => b.id === selectedBranchId)?.name || "Cabang Utama";
+      data += activeBranchName + LF;
+      if (profile.address) {
+        data += profile.address + LF;
+      }
+      data += "--------------------------------" + LF;
+
+      data += ESC + "a" + "\x00";
+      data += `Nota : #${lastTransaction.reference_number}` + LF;
+      data += `Tgl  : ${new Date(lastTransaction.transaction_date || "").toLocaleDateString("id-ID")}` + LF;
+      data += `Cust : ${lastTransaction.customer_name}` + LF;
+      data += `Bayar: ${lastTransaction.payment_method}` + LF;
+      data += "--------------------------------" + LF;
+
+      lastTransaction.items.forEach((item: CartItem) => {
+        const name = item.product.name.slice(0, 18);
+        const qtyText = `${item.quantity} x ${formatCurrency(item.product.sell_price).replace("Rp", "").trim()}`;
+        const subtotalText = formatCurrency(item.product.sell_price * item.quantity).replace("Rp", "").trim();
+
+        data += name + LF;
+        const spacesCount = 32 - qtyText.length - subtotalText.length;
+        const spaces = " ".repeat(Math.max(1, spacesCount));
+        data += qtyText + spaces + subtotalText + LF;
+      });
+
+      data += "--------------------------------" + LF;
+
+      const totalText = "TOTAL :";
+      const totalVal = formatCurrency(lastTransaction.items.reduce((sum: number, i: CartItem) => sum + (i.product.sell_price * i.quantity), 0)).replace("Rp", "").trim();
+      const totalSpaces = 32 - totalText.length - totalVal.length;
+      data += totalText + " ".repeat(Math.max(1, totalSpaces)) + totalVal + LF;
+
+      if (lastTransaction.cash_paid !== undefined && lastTransaction.cash_paid > 0) {
+        const bayarText = "BAYAR :";
+        const bayarVal = formatCurrency(lastTransaction.cash_paid).replace("Rp", "").trim();
+        const bayarSpaces = 32 - bayarText.length - bayarVal.length;
+        data += bayarText + " ".repeat(Math.max(1, bayarSpaces)) + bayarVal + LF;
+
+        const kembaliText = "KEMBALI:";
+        const kembaliVal = formatCurrency(lastTransaction.change || 0).replace("Rp", "").trim();
+        const kembaliSpaces = 32 - kembaliText.length - kembaliVal.length;
+        data += kembaliText + " ".repeat(Math.max(1, kembaliSpaces)) + kembaliVal + LF;
+      }
+      data += LF;
+
+      data += ESC + "a" + "\x01";
+      data += "Terima kasih atas kunjungan Anda!" + LF;
+      data += "Sippeto POS System" + LF;
+      data += LF + LF + LF;
+
+      data += GS + "V" + "\x41" + "\x03";
+
+      const bytes = encoder.encode(data);
+      const chunkSize = 64;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.slice(i, i + chunkSize);
+        await device.transferOut(endpointNumber, chunk);
+      }
+
+      toast.success("Nota berhasil dicetak via Kabel USB!");
+    } catch (err: any) {
+      console.error(err);
+      if (err.name === "NotFoundError" || err.message?.includes("cancelled") || err.message?.includes("dibatalkan")) return;
+      toast.error(`Gagal cetak Kabel USB: ${err.message || err}`);
+    } finally {
+      setIsPrintingUsb(false);
     }
   };
 
@@ -1312,74 +1558,147 @@ export default function POSForm({
                        </button>
                     </div>
                     
-                    {isBluetoothSupported ? (
+                    {/* Segmented Tab Selector */}
+                    <div className="p-1 bg-zinc-100 rounded-xl flex gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setPrintMethod("usb")}
+                        className={`flex-1 py-1.5 text-center text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${
+                          printMethod === "usb"
+                            ? "bg-white text-zinc-900 shadow-sm"
+                            : "text-zinc-500 hover:text-zinc-855"
+                        }`}
+                      >
+                        🔌 Kabel USB
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPrintMethod("bluetooth")}
+                        className={`flex-1 py-1.5 text-center text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${
+                          printMethod === "bluetooth"
+                            ? "bg-white text-zinc-900 shadow-sm"
+                            : "text-zinc-500 hover:text-zinc-855"
+                        }`}
+                      >
+                        📶 Bluetooth
+                      </button>
+                    </div>
+
+                    {/* Print Method Content */}
+                    {printMethod === "usb" ? (
                       <div className="space-y-2">
-                        <button 
-                           onClick={handlePrintBluetoothDirect}
-                           disabled={isPrintingBt}
-                           className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-[#3c39d6] hover:bg-black disabled:bg-zinc-400 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors"
-                        >
-                           <Printer className={`w-3.5 h-3.5 ${isPrintingBt ? "animate-pulse" : ""}`} />
-                           {isPrintingBt ? "Memproses..." : "Cetak Bluetooth (Direct)"}
-                        </button>
-                        <div className="flex items-center justify-between px-1 text-[9px] font-black uppercase tracking-wider">
-                          <div className="flex items-center gap-1.5">
-                            <span className={`w-2.5 h-2.5 rounded-full ${isBtConnected ? "bg-emerald-500 animate-pulse" : "bg-zinc-400"}`}></span>
-                            <span className="text-zinc-900">
-                              Status: {isBtConnected ? `Terhubung (${bluetoothDeviceName})` : "Terputus"}
-                            </span>
-                          </div>
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={handleConnectPrinterManual}
-                              className="text-[#3c39d6] hover:text-black font-black hover:underline"
+                        {isUsbSupported ? (
+                          <>
+                            <button 
+                               type="button"
+                               onClick={handlePrintUsbDirect}
+                               disabled={isPrintingUsb}
+                               className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-[#3c39d6] hover:bg-black disabled:bg-zinc-400 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors"
                             >
-                              {isBtConnected ? "Ganti" : "Hubungkan"}
+                               <Printer className={`w-3.5 h-3.5 ${isPrintingUsb ? "animate-pulse" : ""}`} />
+                               {isPrintingUsb ? "Memproses..." : "Cetak via Kabel (Direct)"}
                             </button>
-                            {isBtConnected && (
-                              <button
-                                type="button"
-                                onClick={handleDisconnectPrinterManual}
-                                className="text-red-600 hover:text-red-800 font-black hover:underline"
-                              >
-                                Putus
-                              </button>
-                            )}
+                            <div className="flex items-center justify-between px-1 text-[9px] font-black uppercase tracking-wider">
+                              <div className="flex items-center gap-1.5">
+                                <span className={`w-2.5 h-2.5 rounded-full ${isUsbConnected ? "bg-emerald-500 animate-pulse" : "bg-zinc-400"}`}></span>
+                                <span className="text-zinc-900">
+                                  Status: {isUsbConnected ? `Terhubung (${usbDeviceName})` : "Terputus"}
+                                </span>
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={handleConnectUsbManual}
+                                  className="text-[#3c39d6] hover:text-black font-black hover:underline"
+                                >
+                                  {isUsbConnected ? "Ganti" : "Hubungkan"}
+                                </button>
+                                {isUsbConnected && (
+                                  <button
+                                    type="button"
+                                    onClick={handleDisconnectUsbManual}
+                                    className="text-red-600 hover:text-red-800 font-black hover:underline"
+                                  >
+                                    Putus
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="w-full p-3 bg-amber-50 border border-amber-200 text-amber-800 text-[9px] font-bold text-center rounded-xl">
+                            <p className="text-[10px] leading-tight">
+                              Kabel USB: <span className="text-red-600">Tidak didukung browser</span>
+                            </p>
+                            <p className="text-[8px] font-normal opacity-75 mt-1">
+                              Gunakan Google Chrome atau Microsoft Edge untuk dukungan WebUSB.
+                            </p>
                           </div>
-                        </div>
+                        )}
                       </div>
                     ) : (
-                       <div className="w-full p-3 bg-amber-50 border border-amber-200 text-amber-800 text-[9px] font-bold text-center rounded-xl space-y-1.5">
-                          <p className="text-[10px] leading-tight">
-                            Printer Bluetooth: <span className="text-red-600">Tidak tersedia</span>
-                          </p>
-                          <p className="text-[8px] font-normal opacity-75">
-                            Browser: Chrome | HTTPS
-                          </p>
-                          {navigator.userAgent.includes("Linux") && (
-                            <p className="text-[8px] font-normal leading-tight">
-                              Di Linux, pastikan: &nbsp;
-                              <code className="bg-amber-100 px-1 rounded">sudo apt install bluez</code> &nbsp;
-                              dan user ada di grup <code className="bg-amber-100 px-1 rounded">bluetooth</code>.
-                              Restart Chrome setelahnya.
-                            </p>
-                          )}
-                          <div className="flex gap-1.5 justify-center mt-1">
-                            <button
-                              onClick={checkBluetoothSupport}
-                              className="flex items-center gap-1 bg-amber-100 hover:bg-amber-200 text-amber-700 px-2.5 py-1.5 rounded-lg transition-colors text-[9px]"
+                      <div className="space-y-2">
+                        {isBluetoothSupported ? (
+                          <>
+                            <button 
+                               type="button"
+                               onClick={handlePrintBluetoothDirect}
+                               disabled={isPrintingBt}
+                               className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-[#3c39d6] hover:bg-black disabled:bg-zinc-400 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors"
                             >
-                              <Package className="w-2.5 h-2.5" /> Cek Ulang
+                               <Printer className={`w-3.5 h-3.5 ${isPrintingBt ? "animate-pulse" : ""}`} />
+                               {isPrintingBt ? "Memproses..." : "Cetak via Bluetooth (Direct)"}
                             </button>
+                            <div className="flex items-center justify-between px-1 text-[9px] font-black uppercase tracking-wider">
+                              <div className="flex items-center gap-1.5">
+                                <span className={`w-2.5 h-2.5 rounded-full ${isBtConnected ? "bg-emerald-500 animate-pulse" : "bg-zinc-400"}`}></span>
+                                <span className="text-zinc-900">
+                                  Status: {isBtConnected ? `Terhubung (${bluetoothDeviceName})` : "Terputus"}
+                                </span>
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={handleConnectPrinterManual}
+                                  className="text-[#3c39d6] hover:text-black font-black hover:underline"
+                                >
+                                  {isBtConnected ? "Ganti" : "Hubungkan"}
+                                </button>
+                                {isBtConnected && (
+                                  <button
+                                    type="button"
+                                    onClick={handleDisconnectPrinterManual}
+                                    className="text-red-600 hover:text-red-800 font-black hover:underline"
+                                  >
+                                    Putus
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="w-full p-3 bg-amber-50 border border-amber-200 text-amber-800 text-[9px] font-bold text-center rounded-xl space-y-1.5">
+                            <p className="text-[10px] leading-tight">
+                              Printer Bluetooth: <span className="text-red-600">Tidak tersedia</span>
+                            </p>
+                            <p className="text-[8px] font-normal opacity-75">
+                              Browser: Chrome | HTTPS
+                            </p>
+                            {navigator.userAgent.includes("Linux") && (
+                              <p className="text-[8px] font-normal leading-tight">
+                                Di Linux, pastikan user ada di grup <code className="bg-amber-100 px-1 rounded">bluetooth</code>.
+                              </p>
+                            )}
                             <button
-                              onClick={handlePrintReceipt}
-                              className="flex items-center gap-1 bg-amber-200 hover:bg-amber-300 text-amber-900 px-2.5 py-1.5 rounded-lg transition-colors text-[9px]"
+                              type="button"
+                              onClick={checkBluetoothSupport}
+                              className="w-full bg-amber-100 hover:bg-amber-200 text-amber-700 py-1.5 rounded-lg transition-colors text-[9px]"
                             >
-                              <Printer className="w-2.5 h-2.5" /> Cetak PDF
+                              Cek Ulang Bluetooth
                             </button>
                           </div>
-                       </div>
+                        )}
+                      </div>
                     )}
 
                      <button
