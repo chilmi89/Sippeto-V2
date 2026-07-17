@@ -202,8 +202,11 @@ func (r *transactionRepository) CreateGroup(ctx context.Context, req dto_transac
 	if req.TransactionDate != nil && *req.TransactionDate != "" {
 		txDate, err = time.Parse(time.RFC3339, *req.TransactionDate)
 		if err != nil {
-			// fallback
-			txDate = time.Now()
+			txDate, err = time.Parse("2006-01-02", *req.TransactionDate)
+			if err != nil {
+				// fallback
+				txDate = time.Now()
+			}
 		}
 	} else {
 		txDate = time.Now()
@@ -381,9 +384,15 @@ func (r *transactionRepository) UpdateGroup(ctx context.Context, req dto_transac
 		args = append(args, *req.ReferenceNumber)
 	}
 	if req.TransactionDate != nil && *req.TransactionDate != "" {
-		txDate, _ := time.Parse(time.RFC3339, *req.TransactionDate)
-		setClause += ", transaction_date = ?"
-		args = append(args, txDate)
+		var txDate time.Time
+		txDate, err = time.Parse(time.RFC3339, *req.TransactionDate)
+		if err != nil {
+			txDate, err = time.Parse("2006-01-02", *req.TransactionDate)
+		}
+		if err == nil {
+			setClause += ", transaction_date = ?"
+			args = append(args, txDate)
+		}
 	}
 	if req.Description != nil {
 		setClause += ", description = ?"
