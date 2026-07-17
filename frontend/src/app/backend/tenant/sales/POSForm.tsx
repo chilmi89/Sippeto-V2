@@ -135,6 +135,7 @@ export default function POSForm({
   const [paymentMethodId, setPaymentMethodId] = useState("");
   const [reference, setReference] = useState("");
   const [date, setDate] = useState("");
+  const [isAutoDate, setIsAutoDate] = useState(true);
   const [description, setDescription] = useState("");
   const [selectedProductId, setSelectedProductId] = useState<string>("");
   const [inputQty, setInputQty] = useState<number>(1);
@@ -245,6 +246,7 @@ export default function POSForm({
     if (editTransaction) {
       setReference(editTransaction.reference_number || "");
       setDate(editTransaction.transaction_date?.split("T")[0] || new Date().toISOString().split("T")[0]);
+      setIsAutoDate(false);
       setDescription(editTransaction.description || "");
       setCustomerName(editTransaction.customer_name || "");
       if (editTransaction.customer_phone) setCustomerPhone(editTransaction.customer_phone);
@@ -274,6 +276,7 @@ export default function POSForm({
     } else {
       const now = new Date();
       setDate(now.toISOString().split("T")[0]);
+      setIsAutoDate(true);
       setReference(`POS-${now.getTime().toString().slice(-6)}`);
       if (paymentMethods.length > 0) {
         const defaultMethod = paymentMethods.find(
@@ -473,6 +476,8 @@ export default function POSForm({
         fetchProductsForBranch(selectedBranchId);
 
         const now = new Date();
+        setDate(now.toISOString().split("T")[0]);
+        setIsAutoDate(true);
         setReference(`POS-${now.getTime().toString().slice(-6)}`);
         
         setShowReceiptModal(true);
@@ -1175,12 +1180,40 @@ export default function POSForm({
                            />
                         </div>
                         <div className="space-y-1">
-                           <label className="text-[10px] font-black text-zinc-800 uppercase tracking-widest block pl-0.5">Tanggal</label>
+                           <div className="flex items-center justify-between pl-0.5 mb-1">
+                              <label className="text-[10px] font-black text-zinc-800 uppercase tracking-widest block">Tanggal</label>
+                              <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                                 <span className="text-[9px] font-black text-zinc-500 uppercase tracking-wider">Otomatis</span>
+                                 <div className="relative flex items-center">
+                                    <input 
+                                       type="checkbox"
+                                       className="sr-only peer"
+                                       checked={isAutoDate}
+                                       onChange={(e) => {
+                                          setIsAutoDate(e.target.checked);
+                                          if (e.target.checked) {
+                                             setDate(new Date().toISOString().split("T")[0]);
+                                          }
+                                       }}
+                                    />
+                                    <div className="w-[32px] h-[18px] bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-[14px] after:w-[14px] after:transition-all peer-checked:bg-[#10b981] shadow-inner relative"></div>
+                                 </div>
+                              </label>
+                           </div>
                            <input 
                               type="date"
-                              className="w-full px-3.5 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm font-bold text-black outline-none focus:bg-white focus:border-[#10b981] focus:ring-2 focus:ring-emerald-500/10 shadow-sm transition-all"
+                              className={`w-full px-3.5 py-2.5 border rounded-xl text-sm font-bold outline-none shadow-sm transition-all text-black ${
+                                 isAutoDate 
+                                    ? "bg-zinc-50 border-zinc-200 text-zinc-700 cursor-not-allowed" 
+                                    : "bg-white border-zinc-300 focus:bg-white focus:border-[#10b981] focus:ring-2 focus:ring-emerald-500/10"
+                              }`}
                               value={date}
-                              onChange={(e) => setDate(e.target.value)}
+                              onChange={(e) => {
+                                 if (!isAutoDate) {
+                                    setDate(e.target.value);
+                                 }
+                              }}
+                              disabled={isAutoDate}
                            />
                         </div>
                      </div>
