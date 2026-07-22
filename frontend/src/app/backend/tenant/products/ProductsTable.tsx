@@ -63,6 +63,7 @@ interface Branch {
 interface Category {
     id: string;
     name: string;
+    profile_id?: string | null;
 }
 
 interface ProductsTableProps {
@@ -428,12 +429,23 @@ export default function ProductsTable({
                     <select 
                         value={selectedCategory}
                         onChange={(e) => setSelectedCategory(e.target.value)}
-                        className="bg-transparent border-0 text-black text-xs font-semibold focus:outline-none cursor-pointer w-full md:w-36 text-black bg-white"
+                        className="bg-transparent border-0 text-black text-xs font-semibold focus:outline-none cursor-pointer w-full md:w-40 text-black bg-white"
                     >
                         <option value="all" className="text-black bg-white">Semua Kategori</option>
-                        {categories.map((c) => (
-                            <option key={c.id} value={c.id} className="text-black bg-white">{c.name}</option>
-                        ))}
+                        {categories.some(c => c.profile_id != null) && (
+                            <optgroup label="Kategori Custom Saya" className="text-black bg-white font-bold">
+                                {categories.filter(c => c.profile_id != null).map((c) => (
+                                    <option key={c.id} value={c.id} className="text-black bg-white">{c.name}</option>
+                                ))}
+                            </optgroup>
+                        )}
+                        {categories.some(c => c.profile_id == null) && (
+                            <optgroup label="Kategori Bawaan Pusat" className="text-black bg-white font-bold">
+                                {categories.filter(c => c.profile_id == null).map((c) => (
+                                    <option key={c.id} value={c.id} className="text-black bg-white">{c.name}</option>
+                                ))}
+                            </optgroup>
+                        )}
                     </select>
                 </div>
 
@@ -658,10 +670,21 @@ export default function ProductsTable({
                                                 onChange={(e) => setFormCategoryId(e.target.value)}
                                                 className="w-full bg-zinc-50/40 hover:bg-zinc-50/70 border border-zinc-200/80 rounded-xl px-4 py-3 text-sm text-black focus:outline-none focus:border-[#3c39d6] focus:ring-4 focus:ring-[#3c39d6]/5 focus:bg-white transition-all duration-200 cursor-pointer font-bold text-black bg-white"
                                             >
-                                                <option value="" className="text-black bg-white">Pilih Kategori</option>
-                                                {categories.map((c) => (
-                                                    <option key={c.id} value={c.id} className="text-black bg-white">{c.name}</option>
-                                                ))}
+                                                <option value="" className="text-black bg-white">Pilih Kategori Produk</option>
+                                                {categories.some(c => c.profile_id != null) && (
+                                                    <optgroup label="✨ Kategori Custom Saya" className="text-black bg-white font-bold">
+                                                        {categories.filter(c => c.profile_id != null).map((c) => (
+                                                            <option key={c.id} value={c.id} className="text-black bg-white">{c.name}</option>
+                                                        ))}
+                                                    </optgroup>
+                                                )}
+                                                {categories.some(c => c.profile_id == null) && (
+                                                    <optgroup label="🌐 Kategori Bawaan Pusat" className="text-black bg-white font-bold">
+                                                        {categories.filter(c => c.profile_id == null).map((c) => (
+                                                            <option key={c.id} value={c.id} className="text-black bg-white">{c.name}</option>
+                                                        ))}
+                                                    </optgroup>
+                                                )}
                                             </select>
                                         </div>
                                         <div className="space-y-2">

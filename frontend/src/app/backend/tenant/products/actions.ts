@@ -140,7 +140,7 @@ export async function getProductsPageData() {
       },
       products: mappedProducts,
       branches: branches.map((b: any) => ({ id: b.id, name: b.name })),
-      categories: categories.map((c: any) => ({ id: c.id, name: c.name })),
+      categories: categories.map((c: any) => ({ id: c.id, name: c.name, profile_id: c.profile_id || null })),
     };
   } catch (error) {
     console.error("getProductsPageData error:", error);
