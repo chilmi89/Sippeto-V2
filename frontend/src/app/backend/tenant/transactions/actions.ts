@@ -39,11 +39,14 @@ export async function getTransactionPageData(editId?: string | null) {
       next: { revalidate: 0 }
     });
     const categoriesData = await categoriesRes.json();
-    const categories = (categoriesData.data || []).map((c: any) => ({
-      id: c.id,
-      name: c.name,
-      type: c.type === "INCOME" ? "pemasukan" : "pengeluaran"
-    }));
+    const categories = (categoriesData.data || []).map((c: any) => {
+      const rawType = (c.type || "").toLowerCase();
+      return {
+        id: c.id,
+        name: c.name,
+        type: (rawType === "income" || rawType === "pemasukan") ? "pemasukan" : "pengeluaran"
+      };
+    });
 
     // 3. Ambil payment methods
     const pmRes = await fetch(`${GOLANG_BASE}/payment_kategori?profile_id=${profile.tenant_owner_id}&limit=100`, { 
@@ -87,14 +90,17 @@ export async function getTransactionPageData(editId?: string | null) {
             customer_address: tx.customer_address,
             order_status: tx.order_status,
             branch_id: tx.branch_id,
-            items: (tx.transaction_items || []).map((it: any) => ({
-              id: it.id,
-              name: it.name,
-              amount: it.amount,
-              category_id: it.category_id,
-              payment_method_id: it.payment_method_id,
-              type: it.type === "INCOME" ? "pemasukan" : "pengeluaran"
-            }))
+            items: (tx.transaction_items || []).map((it: any) => {
+              const rawItemType = (it.type || "").toLowerCase();
+              return {
+                id: it.id,
+                name: it.name,
+                amount: it.amount,
+                category_id: it.category_id,
+                payment_method_id: it.payment_method_id,
+                type: (rawItemType === "income" || rawItemType === "pemasukan") ? "pemasukan" : "pengeluaran"
+              };
+            })
           };
         }
       }

@@ -197,7 +197,6 @@ export const TransactionForm = ({
       setIsSubmitting(false);
     }
   };
-
   const handleDelete = async (id: string) => {
       if (!confirm("Hapus transaksi ini?")) return;
       try {
@@ -388,7 +387,7 @@ export const TransactionForm = ({
                             onChange={(e) => updateItem(item.id, "category_id", e.target.value)}
                           >
                             <option value="">Pilih Kategori</option>
-                            {categories.filter(c => c.type === item.type).map(c => (
+                            {categories.filter(c => !c.type || c.type === item.type).map(c => (
                               <option key={c.id} value={c.id}>{c.name}</option>
                             ))}
                           </select>

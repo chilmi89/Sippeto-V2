@@ -163,11 +163,14 @@ export async function getPOSPageData(editId?: string | null) {
         id: pm.id,
         name: pm.name,
       })),
-      txCategories: txCategories.map((tc: any) => ({
-        id: tc.id,
-        name: tc.name,
-        type: tc.type === "INCOME" ? "pemasukan" : "pengeluaran",
-      })),
+      txCategories: txCategories.map((tc: any) => {
+        const rawType = (tc.type || "").toLowerCase();
+        return {
+          id: tc.id,
+          name: tc.name,
+          type: (rawType === "income" || rawType === "pemasukan") ? "pemasukan" : "pengeluaran",
+        };
+      }),
       initialProducts,
       initialBranchId: selectedBranchId,
       editTransaction,
