@@ -17,12 +17,16 @@ import {
   Edit2,
   Receipt,
   Search,
-  Layers
+  Layers,
+  Ticket,
+  MapPin,
+  CheckCircle
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import jsPDF from "jspdf";
 import { getPOSProductsAction, savePOSTransactionAction } from "./actions";
+import { validateDiscountCodeAction, getDiscountsAction } from "@/app/actions/discount";
 import { div } from "framer-motion/client";
 
 // Bluetooth thermal printer constants
@@ -81,6 +85,8 @@ interface Product {
 interface CartItem {
   product: Product;
   quantity: number;
+  effective_price: number;
+  product_discount?: any;
 }
 
 interface Category {
@@ -141,6 +147,19 @@ export default function POSForm({
   const [inputQty, setInputQty] = useState<number>(1);
 
   const [cashPaid, setCashPaid] = useState<string>("");
+
+  // Coupon Discount State
+  const [couponCode, setCouponCode] = useState("");
+  const [availableDiscounts, setAvailableDiscounts] = useState<any[]>([]);
+  const [selectedDiscountId, setSelectedDiscountId] = useState<string>("");
+  const [appliedDiscount, setAppliedDiscount] = useState<{
+    discount_id: string;
+    code: string;
+    name: string;
+    discount_amount: number;
+  } | null>(null);
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+  const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
 
   // Loadings
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -267,7 +286,8 @@ export default function POSForm({
             if (existing) {
               existing.quantity += item.quantity || 1;
             } else {
-              rebuiltCart.push({ product: found, quantity: item.quantity || 1 });
+              const itemPrice = item.unit_price ?? found.sell_price;
+              rebuiltCart.push({ product: found, quantity: item.quantity || 1, effective_price: itemPrice });
             }
           }
         }
@@ -288,6 +308,113 @@ export default function POSForm({
       }
     }
   }, [editTransaction, paymentMethods]);
+
+  // Fetch Available Discounts
+  useEffect(() => {
+    if (profile?.tenant_owner_id) {
+      getDiscountsAction({ profile_id: profile.tenant_owner_id, limit: 100 }).then((res) => {
+        if (res.success && res.data) {
+          setAvailableDiscounts(res.data.filter((d: any) => d.is_active));
+        }
+      });
+    }
+  }, [profile?.tenant_owner_id]);
+
+  const getEffectivePriceInfo = useCallback((product: Product) => {
+    const activeDisc = availableDiscounts.find(
+      (d) =>
+        d.is_active &&
+        d.product_ids &&
+        d.product_ids.length > 0 &&
+        d.product_ids.includes(product.id)
+    );
+    if (!activeDisc) {
+      return {
+        effectivePrice: product.sell_price,
+        originalPrice: product.sell_price,
+        discount: null,
+      };
+    }
+
+    let discAmount = 0;
+    if (activeDisc.type === "PERCENTAGE") {
+      discAmount = (product.sell_price * activeDisc.value) / 100;
+      if (activeDisc.max_discount && activeDisc.max_discount > 0 && discAmount > activeDisc.max_discount) {
+        discAmount = activeDisc.max_discount;
+      }
+    } else {
+      discAmount = activeDisc.value;
+    }
+
+    const finalPrice = Math.max(0, product.sell_price - discAmount);
+    return {
+      effectivePrice: finalPrice,
+      originalPrice: product.sell_price,
+      discount: activeDisc,
+    };
+  }, [availableDiscounts]);
+
+  const calculateCartDiscount = useCallback((disc: any, cartItems: CartItem[]) => {
+    const netSubtotal = cartItems.reduce(
+      (sum, item) => sum + (item.effective_price * item.quantity),
+      0
+    );
+
+    if (netSubtotal <= 0) {
+      return { amount: 0, error: "Keranjang belanja masih kosong" };
+    }
+
+    // 1. Syarat Minimal Belanja Transaksi
+    if (disc.min_purchase && disc.min_purchase > 0 && netSubtotal < disc.min_purchase) {
+      return {
+        amount: 0,
+        error: `Minimal belanja untuk promo "${disc.name}" adalah ${formatCurrency(disc.min_purchase)}`,
+      };
+    }
+
+    // 2. Nilai Diskon Global Voucher
+    let amount = 0;
+    if (disc.type === "PERCENTAGE") {
+      amount = (netSubtotal * disc.value) / 100;
+      if (disc.max_discount && disc.max_discount > 0 && amount > disc.max_discount) {
+        amount = disc.max_discount;
+      }
+    } else {
+      amount = disc.value;
+    }
+
+    if (amount > netSubtotal) {
+      amount = netSubtotal;
+    }
+
+    return { amount, error: null };
+  }, []);
+
+  const handleSelectDiscount = (discId: string) => {
+    setSelectedDiscountId(discId);
+    setCouponCode("");
+    if (!discId) {
+      setAppliedDiscount(null);
+      return;
+    }
+    const disc = availableDiscounts.find((d) => d.id === discId);
+    if (!disc) return;
+
+    const calc = calculateCartDiscount(disc, cart);
+    if (calc.error) {
+      toast.warning(calc.error);
+      setAppliedDiscount(null);
+      return;
+    }
+
+    setAppliedDiscount({
+      discount_id: disc.id,
+      code: disc.code || "",
+      name: disc.name,
+      discount_amount: calc.amount,
+    });
+    toast.success(`Voucher "${disc.name}" berhasil diterapkan! (-${formatCurrency(calc.amount)})`);
+  };
 
   // Fetch Products based on selected branch changes
   const fetchProductsForBranch = useCallback(async (bId: string) => {
@@ -313,6 +440,7 @@ export default function POSForm({
   // Cart operations
   const addToCart = (product: Product) => {
     const stockLimit = product.current_branch_stock ?? 0;
+    const priceInfo = getEffectivePriceInfo(product);
     const existing = cart.find(item => item.product.id === product.id);
 
     if (existing) {
@@ -322,7 +450,7 @@ export default function POSForm({
       }
       setCart(cart.map(item => 
         item.product.id === product.id 
-          ? { ...item, quantity: item.quantity + 1 } 
+          ? { ...item, quantity: item.quantity + 1, effective_price: priceInfo.effectivePrice, product_discount: priceInfo.discount } 
           : item
       ));
     } else {
@@ -330,7 +458,7 @@ export default function POSForm({
         toast.warning("Stok produk habis!");
         return;
       }
-      setCart([...cart, { product, quantity: 1 }]);
+      setCart([...cart, { product, quantity: 1, effective_price: priceInfo.effectivePrice, product_discount: priceInfo.discount }]);
     }
   };
 
@@ -382,6 +510,7 @@ export default function POSForm({
       return;
     }
 
+    const priceInfo = getEffectivePriceInfo(prod);
     const existing = cart.find(item => item.product.id === prod.id);
     const currentQty = existing ? existing.quantity : 0;
     const targetQty = currentQty + inputQty;
@@ -394,11 +523,11 @@ export default function POSForm({
     if (existing) {
       setCart(cart.map(item => 
         item.product.id === prod.id 
-          ? { ...item, quantity: targetQty } 
+          ? { ...item, quantity: targetQty, effective_price: priceInfo.effectivePrice, product_discount: priceInfo.discount } 
           : item
       ));
     } else {
-      setCart([...cart, { product: prod, quantity: inputQty }]);
+      setCart([...cart, { product: prod, quantity: inputQty, effective_price: priceInfo.effectivePrice, product_discount: priceInfo.discount }]);
     }
     
     setSelectedProductId("");
@@ -406,7 +535,61 @@ export default function POSForm({
     setInputQty(1);
   };
 
-  const cartSubtotal = cart.reduce((sum, item) => sum + (item.product.sell_price * item.quantity), 0);
+  const cartSubtotal = cart.reduce((sum, item) => sum + (item.effective_price * item.quantity), 0);
+  const cartOriginalSubtotal = cart.reduce((sum, item) => sum + (item.product.sell_price * item.quantity), 0);
+  const cartProductDiscountTotal = Math.max(0, cartOriginalSubtotal - cartSubtotal);
+  const cartDiscountAmount = appliedDiscount ? appliedDiscount.discount_amount : 0;
+  const cartFinalTotal = Math.max(0, cartSubtotal - cartDiscountAmount);
+
+  // Recalculate applied discount dynamically whenever cart or selectedDiscountId changes
+  useEffect(() => {
+    if (!selectedDiscountId) return;
+    const disc = availableDiscounts.find((d) => d.id === selectedDiscountId);
+    if (!disc) return;
+
+    const calc = calculateCartDiscount(disc, cart);
+    if (calc.error || calc.amount <= 0) {
+      setAppliedDiscount(null);
+      return;
+    }
+
+    setAppliedDiscount({
+      discount_id: disc.id,
+      code: disc.code || "",
+      name: disc.name,
+      discount_amount: calc.amount,
+    });
+  }, [cart, selectedDiscountId, availableDiscounts, calculateCartDiscount]);
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setAppliedDiscount(null);
+      return;
+    }
+    if (cartSubtotal <= 0) {
+      toast.warning("Pilih produk terlebih dahulu sebelum menerapkan kupon");
+      return;
+    }
+    setIsValidatingCoupon(true);
+    try {
+      const res = await validateDiscountCodeAction({
+        code: couponCode.trim(),
+        profile_id: profile.tenant_owner_id,
+        subtotal: cartSubtotal,
+      });
+      if (res.success && res.data) {
+        setAppliedDiscount(res.data);
+        toast.success(`Kupon "${res.data.name}" berhasil diterapkan! (-${formatCurrency(res.data.discount_amount)})`);
+      } else {
+        setAppliedDiscount(null);
+        toast.error(res.error || "Kode kupon diskon tidak valid.");
+      }
+    } catch {
+      toast.error("Gagal memvalidasi kode kupon.");
+    } finally {
+      setIsValidatingCoupon(false);
+    }
+  };
 
   const handleSubmitTransaction = async () => {
     if (cart.length === 0) return toast.warning("Keranjang belanja masih kosong");
@@ -449,7 +632,7 @@ export default function POSForm({
 
       if (res.status === "success") {
         const numericCashPaid = Number(cashPaid) || 0;
-        const changeAmount = numericCashPaid > cartSubtotal ? numericCashPaid - cartSubtotal : 0;
+        const changeAmount = numericCashPaid > cartFinalTotal ? numericCashPaid - cartFinalTotal : 0;
 
         setLastTransaction({
           ...res.data,
@@ -457,7 +640,8 @@ export default function POSForm({
           customer_name: customerName || "Pembeli Umum",
           payment_method: paymentMethods.find(pm => pm.id === paymentMethodId)?.name || "Tunai",
           cash_paid: numericCashPaid,
-          change: changeAmount
+          change: changeAmount,
+          applied_discount: appliedDiscount ? { ...appliedDiscount } : null
         });
 
         if (isEditMode) {
@@ -472,6 +656,9 @@ export default function POSForm({
         setCustomerAddress("");
         setDescription("");
         setCashPaid("");
+        setAppliedDiscount(null);
+        setSelectedDiscountId("");
+        setCouponCode("");
         
         fetchProductsForBranch(selectedBranchId);
 
@@ -547,10 +734,26 @@ export default function POSForm({
     });
 
     doc.text("---------------------------------", 40, yPos, { align: "center" });
+    
+    const subtotalAmount = lastTransaction.items.reduce((sum: number, item: any) => sum + (item.product.sell_price * item.quantity), 0);
+    const discountAmount = lastTransaction.applied_discount ? lastTransaction.applied_discount.discount_amount : 0;
+    const finalTotalAmount = Math.max(0, subtotalAmount - discountAmount);
+
+    doc.setFont("courier", "normal");
+    doc.text("Subtotal:", 5, yPos + 5);
+    doc.text(formatCurrency(subtotalAmount).replace("Rp", "").trim(), 75, yPos + 5, { align: "right" });
+    yPos += 4;
+
+    if (discountAmount > 0) {
+      const discName = (lastTransaction.applied_discount?.name || "DISKON").slice(0, 10);
+      doc.text(`Diskon (${discName}):`, 5, yPos + 5);
+      doc.text(`-${formatCurrency(discountAmount).replace("Rp", "").trim()}`, 75, yPos + 5, { align: "right" });
+      yPos += 4;
+    }
+
     doc.setFont("courier", "bold");
-    doc.text("TOTAL :", 5, yPos + 5);
-    const totalAmount = lastTransaction.items.reduce((sum: number, item: any) => sum + (item.product.sell_price * item.quantity), 0);
-    doc.text(formatCurrency(totalAmount).replace("Rp", "").trim(), 75, yPos + 5, { align: "right" });
+    doc.text("TOTAL BAYAR:", 5, yPos + 5);
+    doc.text(formatCurrency(finalTotalAmount).replace("Rp", "").trim(), 75, yPos + 5, { align: "right" });
 
     let nextY = yPos + 9;
     if (lastTransaction.cash_paid !== undefined && lastTransaction.cash_paid > 0) {
@@ -906,8 +1109,23 @@ export default function POSForm({
 
       data += "--------------------------------" + LF;
 
-      const totalText = "TOTAL :";
-      const totalVal = formatCurrency(lastTransaction.items.reduce((sum: number, i: CartItem) => sum + (i.product.sell_price * i.quantity), 0)).replace("Rp", "").trim();
+      const subtotalVal = lastTransaction.items.reduce((sum: number, i: CartItem) => sum + (i.product.sell_price * i.quantity), 0);
+      const discountVal = lastTransaction.applied_discount ? lastTransaction.applied_discount.discount_amount : 0;
+      const finalTotalVal = Math.max(0, subtotalVal - discountVal);
+
+      const subText = "Subtotal:";
+      const subStr = formatCurrency(subtotalVal).replace("Rp", "").trim();
+      data += subText + " ".repeat(Math.max(1, 32 - subText.length - subStr.length)) + subStr + LF;
+
+      if (discountVal > 0) {
+        const discName = (lastTransaction.applied_discount?.name || "Diskon").slice(0, 10);
+        const discText = `Diskon (${discName}):`;
+        const discStr = "-" + formatCurrency(discountVal).replace("Rp", "").trim();
+        data += discText + " ".repeat(Math.max(1, 32 - discText.length - discStr.length)) + discStr + LF;
+      }
+
+      const totalText = "TOTAL BAYAR:";
+      const totalVal = formatCurrency(finalTotalVal).replace("Rp", "").trim();
       const totalSpaces = 32 - totalText.length - totalVal.length;
       data += totalText + " ".repeat(Math.max(1, totalSpaces)) + totalVal + LF;
 
@@ -1006,10 +1224,25 @@ export default function POSForm({
 
       data += "--------------------------------" + LF;
 
-      const totalText = "TOTAL :";
-      const totalVal = formatCurrency(lastTransaction.items.reduce((sum: number, i: CartItem) => sum + (i.product.sell_price * i.quantity), 0)).replace("Rp", "").trim();
-      const totalSpaces = 32 - totalText.length - totalVal.length;
-      data += totalText + " ".repeat(Math.max(1, totalSpaces)) + totalVal + LF;
+      const subtotalValBt = lastTransaction.items.reduce((sum: number, i: CartItem) => sum + (i.product.sell_price * i.quantity), 0);
+      const discountValBt = lastTransaction.applied_discount ? lastTransaction.applied_discount.discount_amount : 0;
+      const finalTotalValBt = Math.max(0, subtotalValBt - discountValBt);
+
+      const subTextBt = "Subtotal:";
+      const subStrBt = formatCurrency(subtotalValBt).replace("Rp", "").trim();
+      data += subTextBt + " ".repeat(Math.max(1, 32 - subTextBt.length - subStrBt.length)) + subStrBt + LF;
+
+      if (discountValBt > 0) {
+        const discNameBt = (lastTransaction.applied_discount?.name || "Diskon").slice(0, 10);
+        const discTextBt = `Diskon (${discNameBt}):`;
+        const discStrBt = "-" + formatCurrency(discountValBt).replace("Rp", "").trim();
+        data += discTextBt + " ".repeat(Math.max(1, 32 - discTextBt.length - discStrBt.length)) + discStrBt + LF;
+      }
+
+      const totalTextBt = "TOTAL BAYAR:";
+      const totalValBt = formatCurrency(finalTotalValBt).replace("Rp", "").trim();
+      const totalSpacesBt = 32 - totalTextBt.length - totalValBt.length;
+      data += totalTextBt + " ".repeat(Math.max(1, totalSpacesBt)) + totalValBt + LF;
 
       if (lastTransaction.cash_paid !== undefined && lastTransaction.cash_paid > 0) {
         const bayarText = "BAYAR :";
@@ -1065,60 +1298,72 @@ export default function POSForm({
   const selectedPaymentMethod = paymentMethods.find(pm => pm.id === paymentMethodId);
   const isCashPayment = selectedPaymentMethod?.name.toLowerCase().includes("tunai") || selectedPaymentMethod?.name.toLowerCase().includes("cash");
   const numericCashPaid = Number(cashPaid) || 0;
-  const changeAmount = numericCashPaid > cartSubtotal ? numericCashPaid - cartSubtotal : 0;
-  const isPaymentEnough = !isCashPayment || numericCashPaid >= cartSubtotal;
+  const changeAmount = numericCashPaid > cartFinalTotal ? numericCashPaid - cartFinalTotal : 0;
+  const isPaymentEnough = !isCashPayment || numericCashPaid >= cartFinalTotal;
 
   return (
-    <div className="min-h-screen bg-[#f8f9fa] flex flex-col pb-10" style={{ fontFamily: "var(--font-jakarta), sans-serif" }}>
-      <div className="max-w-[1600px] mx-auto w-full px-3 lg:px-4 py-3 space-y-3">
+    <div className="min-h-screen bg-[#f8f9fa] flex flex-col pb-4" style={{ fontFamily: "var(--font-jakarta), sans-serif" }}>
+      <div className="max-w-[1600px] mx-auto w-full px-2 lg:px-3 pt-1 pb-1.5 space-y-2">
         
-        {/* Header POS */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-200/50 pb-2">
-           <div>
-              <div className="flex items-center gap-1.5">
-                 <div className={`w-3 h-1 rounded-full ${editId ? 'bg-amber-500' : 'bg-emerald-500'}`}></div>
-                 <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest leading-none">
-                    {editId ? 'Mode Edit' : 'Point of Sale'}
-                 </span>
+        {/* Header POS - Ultra Compact Aesthetic */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 bg-white border border-zinc-200 p-2 px-3 rounded-xl shadow-sm">
+           <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#3c39d6] to-[#1e1b8b] flex items-center justify-center text-white shadow-sm shrink-0">
+                 <Store className="w-4 h-4" />
               </div>
-              <h1 className="text-lg font-black text-[#030037] tracking-tight mt-0.5">
-                 {editId ? 'Edit' : 'Kasir'} & <span className="text-[#3c39d6]">{editId ? 'Koreksi Transaksi' : 'Penjualan'}</span>
-              </h1>
-              {profile && (
-                 <div className="mt-1 flex flex-col gap-0.5 text-black">
-                    <span className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
-                       <Store className="w-3.5 h-3.5 text-[#3c39d6]" />
-                       {profile.business_name || "TOKO UMKM"}
+              <div>
+                 <div className="flex items-center gap-2">
+                    <h1 className="text-base font-black text-[#030037] tracking-tight flex items-center gap-1.5 leading-none">
+                       {editId ? 'Edit' : 'Kasir'} & <span className="text-[#3c39d6]">{editId ? 'Koreksi Transaksi' : 'Penjualan'}</span>
+                    </h1>
+                    <span className={`inline-flex items-center gap-1 text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border ${
+                       editId 
+                          ? 'bg-amber-50 text-amber-700 border-amber-200' 
+                          : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    }`}>
+                       <span className={`w-1 h-1 rounded-full ${editId ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500 animate-pulse'}`}></span>
+                       {editId ? 'Edit' : 'POS'}
                     </span>
-                    {profile.address && (
-                       <span className="text-[10px] text-zinc-500 font-bold ml-5">
-                          {profile.address}
-                       </span>
-                    )}
                  </div>
-              )}
+                 {profile && (
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-zinc-600 font-semibold">
+                       <span className="font-black text-black uppercase tracking-wide flex items-center gap-1">
+                          {profile.business_name || "TOKO UMKM"}
+                       </span>
+                       {profile.address && (
+                          <span className="text-zinc-500 text-[11px] flex items-center gap-1">
+                             <span className="text-zinc-300">•</span>
+                             <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
+                             {profile.address}
+                          </span>
+                       )}
+                    </div>
+                 )}
+              </div>
            </div>
 
            {/* Header Right: Branch Selector + Riwayat */}
-           <div className="flex items-center gap-2 shrink-0">
+           <div className="flex items-center gap-2.5 shrink-0 self-end md:self-center">
               {!editId && (
                 <button
                   onClick={() => router.push('/backend/tenant/sales/history')}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-white border border-zinc-200 text-zinc-600 hover:text-[#3c39d6] hover:border-indigo-200 rounded-xl shadow-sm text-[9px] font-black uppercase tracking-widest transition-all"
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 bg-zinc-50 hover:bg-white border border-zinc-200 text-zinc-700 hover:text-[#3c39d6] hover:border-indigo-200 rounded-xl shadow-sm text-xs font-bold uppercase tracking-wider transition-all"
                 >
-                  <Receipt className="w-3 h-3" />
+                  <Receipt className="w-3.5 h-3.5 text-[#3c39d6]" />
                   Riwayat
                 </button>
               )}
 
-              {/* Branch Lock/Selector */}
-               <div className="flex items-center gap-3 bg-white border border-zinc-200 p-2.5 rounded-xl shadow-sm max-w-[260px]">
-                  <Store className="w-4 h-4 text-[#3c39d6]" />
+              {/* Branch Selector */}
+               <div className="flex items-center gap-2.5 bg-zinc-50 border border-zinc-200 px-3 py-2 rounded-xl shadow-sm min-w-[180px]">
+                  <div className="w-7 h-7 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-[#3c39d6] shrink-0">
+                     <Store className="w-3.5 h-3.5" />
+                  </div>
                   <div className="flex-1 min-w-0">
-                     <span className="block text-[9px] font-black text-zinc-500 uppercase tracking-wider leading-none mb-1">Cabang Aktif</span>
+                     <span className="block text-[8px] font-black text-zinc-400 uppercase tracking-widest leading-none mb-0.5">Cabang Aktif</span>
                      <select
                        disabled={!!profile.userBranchId}
-                       className="w-full bg-transparent border-0 p-0 text-xs font-bold text-black focus:ring-0 outline-none cursor-pointer appearance-none disabled:bg-transparent"
+                       className="w-full bg-transparent border-0 p-0 text-xs font-bold text-black focus:ring-0 outline-none cursor-pointer appearance-none disabled:bg-transparent truncate"
                       value={selectedBranchId}
                       onChange={(e) => setSelectedBranchId(e.target.value)}
                     >
@@ -1129,7 +1374,7 @@ export default function POSForm({
                       ))}
                     </select>
                  </div>
-                 {!profile.userBranchId && <ChevronDown className="w-2.5 h-2.5 text-zinc-400" />}
+                 {!profile.userBranchId && <ChevronDown className="w-3 h-3 text-zinc-400 shrink-0" />}
               </div>
            </div>
         </div>
@@ -1240,19 +1485,19 @@ export default function POSForm({
                           {paymentMethods.map(pm => {
                             const isActive = paymentMethodId === pm.id;
                             return (
-                              <button
-                                key={pm.id}
-                                type="button"
-                                onClick={() => setPaymentMethodId(pm.id)}
-                                className={`px-3 py-3 rounded-xl text-sm font-bold border transition-all duration-200 flex flex-col items-center justify-center gap-1.5 select-none ${
-                                  isActive 
-                                    ? "bg-[#10b981] border-[#10b981] text-white shadow-md shadow-emerald-500/20" 
-                                    : "bg-white border-zinc-300 text-zinc-900 hover:bg-zinc-50 hover:text-zinc-800 shadow-sm"
-                                }`}
-                              >
-                                <CreditCard className={`w-4 h-4 ${isActive ? "text-white" : "text-zinc-400"}`} />
-                                <span className="text-[10px] truncate max-w-full text-center leading-tight font-black">{pm.name}</span>
-                              </button>
+                               <button
+                                 key={pm.id}
+                                 type="button"
+                                 onClick={() => setPaymentMethodId(pm.id)}
+                                 className={`px-1.5 py-2.5 min-h-[56px] rounded-xl text-sm font-bold border transition-all duration-200 flex flex-col items-center justify-center gap-1 select-none ${
+                                   isActive 
+                                     ? "bg-[#10b981] border-[#10b981] text-white shadow-md shadow-emerald-500/20" 
+                                     : "bg-white border-zinc-300 text-zinc-900 hover:bg-zinc-50 hover:text-zinc-800 shadow-sm"
+                                 }`}
+                               >
+                                 <CreditCard className={`w-3.5 h-3.5 ${isActive ? "text-white" : "text-zinc-400"}`} />
+                                 <span className="text-[10px] text-center leading-tight font-black line-clamp-2 max-w-full">{pm.name}</span>
+                               </button>
                             );
                           })}
                         </div>
@@ -1277,12 +1522,12 @@ export default function POSForm({
                            <div className="flex flex-wrap gap-1.5">
                               <button 
                                  type="button" 
-                                 onClick={() => setCashPaid(cartSubtotal.toString())} 
+                                 onClick={() => setCashPaid(cartFinalTotal.toString())} 
                                  className="px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 border border-zinc-300 rounded text-xs font-black text-zinc-900 transition-colors uppercase tracking-wider"
                               >
                                  Uang Pas
                               </button>
-                              {getQuickCashPresets(cartSubtotal).map((preset) => (
+                              {getQuickCashPresets(cartFinalTotal).map((preset) => (
                                  <button 
                                     key={preset}
                                     type="button" 
@@ -1304,17 +1549,57 @@ export default function POSForm({
                         </div>
                      )}
 
-                    {/* Total Summary */}
+                                         {/* Tombol Pemicu Modal Diskon & Promo Toko */}
+                      <div className="pt-0.5">
+                         <button
+                            type="button"
+                            onClick={() => setIsDiscountModalOpen(true)}
+                            className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-xs font-black transition-all shadow-sm cursor-pointer ${
+                               appliedDiscount
+                                  ? "bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border-emerald-300 text-emerald-950 hover:border-emerald-400"
+                                  : "bg-gradient-to-r from-indigo-50/90 via-purple-50/90 to-indigo-50/90 border-indigo-200/90 text-indigo-950 hover:border-indigo-400 hover:shadow-md"
+                            }`}
+                         >
+                            <div className="flex items-center gap-2 truncate">
+                               <Ticket className={`w-4 h-4 shrink-0 ${appliedDiscount ? "text-emerald-600" : "text-indigo-600 animate-pulse"}`} />
+                               <span className="truncate font-black tracking-tight">
+                                  {appliedDiscount
+                                     ? `Promo "${appliedDiscount.name}"`
+                                     : "Pilih Diskon / Kupon Promo"}
+                               </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                               {appliedDiscount ? (
+                                  <span className="font-mono font-black text-white bg-emerald-600 px-2 py-0.5 rounded-lg text-[11px] shadow-2xs">
+                                     -{formatCurrency(appliedDiscount.discount_amount)}
+                                  </span>
+                               ) : (
+                                  <span className="text-[10px] font-black text-white bg-indigo-600 px-2.5 py-0.5 rounded-lg shadow-2xs">
+                                     + Diskon
+                                  </span>
+                               )}
+                            </div>
+                         </button>
+                      </div>
+
+                     {/* Total Summary */}
                      <div className="bg-gradient-to-br from-[#030037] to-[#120f4c] text-white p-4.5 rounded-2xl flex justify-between items-center shadow-sm border border-white/5">
                         <div>
-                           <span className="text-[10px] font-black text-white/60 uppercase tracking-widest block leading-none mb-1">Total Belanja</span>
+                           <span className="text-[10px] font-black text-white/60 uppercase tracking-widest block leading-none mb-1">Total Bayar</span>
                            <span className="text-xs font-bold text-white/50">
                               {cart.reduce((sum, item) => sum + item.quantity, 0)} produk
                            </span>
                         </div>
-                        <span className="text-2xl font-black font-mono text-emerald-400">
-                           {formatCurrency(cartSubtotal)}
-                        </span>
+                        <div className="text-right">
+                           {appliedDiscount && (
+                              <span className="text-xs text-zinc-400 line-through block font-mono">
+                                 {formatCurrency(cartSubtotal)}
+                              </span>
+                           )}
+                           <span className="text-2xl font-black font-mono text-emerald-400">
+                              {formatCurrency(cartFinalTotal)}
+                           </span>
+                        </div>
                      </div>
 
                     {/* Actions */}
@@ -1475,7 +1760,7 @@ export default function POSForm({
                    </div>
 
                    {/* Kategori Slider */}
-                   <div className="flex gap-2 overflow-x-auto pb-2 shrink-0 scrollbar-thin select-none">
+                   <div className="flex gap-2 overflow-x-auto pb-1.5 shrink-0 select-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                       <button
                          type="button"
                          onClick={() => { setSelectedCategoryId("all"); setCurrentPage(1); }}
@@ -1514,6 +1799,8 @@ export default function POSForm({
                          {paginatedProducts.map((p) => {
                             const stock = p.current_branch_stock ?? 0;
                             const isOutOfStock = stock <= 0;
+                            const priceInfo = getEffectivePriceInfo(p);
+                            const hasDisc = priceInfo.discount !== null;
                             return (
                                <div
                                   key={p.id}
@@ -1526,6 +1813,11 @@ export default function POSForm({
                                >
                                   {/* Gambar */}
                                   <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-zinc-50/80 border border-zinc-100 flex items-center justify-center mb-2 shrink-0">
+                                     {hasDisc && !isOutOfStock && (
+                                         <span className="absolute top-1.5 left-1.5 text-[8px] font-black uppercase bg-[#3c39d6] text-white px-1.5 py-0.5 rounded-md shadow-sm z-10">
+                                            🏷️ Promo {priceInfo.discount.type === "PERCENTAGE" ? `${priceInfo.discount.value}%` : ""}
+                                         </span>
+                                     )}
                                      {p.image_url ? (
                                         <img 
                                            src={p.image_url} 
@@ -1557,9 +1849,20 @@ export default function POSForm({
                                         {p.name}
                                      </h4>
                                      <div className="flex items-center justify-between pt-1.5 border-t border-zinc-100">
-                                        <span className="text-[11px] font-black text-emerald-600 font-mono">
-                                           {formatCurrency(p.sell_price).replace("Rp", "").trim()}
-                                        </span>
+                                        {hasDisc ? (
+                                           <div className="flex flex-col">
+                                              <span className="text-[11px] font-black text-emerald-600 font-mono">
+                                                 {formatCurrency(priceInfo.effectivePrice).replace("Rp", "").trim()}
+                                              </span>
+                                              <span className="text-[9px] font-bold text-zinc-400 line-through font-mono">
+                                                 {formatCurrency(priceInfo.originalPrice).replace("Rp", "").trim()}
+                                              </span>
+                                           </div>
+                                        ) : (
+                                           <span className="text-[11px] font-black text-emerald-600 font-mono">
+                                              {formatCurrency(p.sell_price).replace("Rp", "").trim()}
+                                           </span>
+                                        )}
                                         {!isOutOfStock && stock >= 10 && (
                                            <span className="text-[9px] font-bold text-zinc-400">
                                               Stok: {stock}
@@ -1601,10 +1904,7 @@ export default function POSForm({
                    )}
                 </div>
              </div>
-          </div>
-
       {/* Success Modal Receipt */}
-      
       {showReceiptModal && lastTransaction && (
         <div 
           onClick={() => {
@@ -1613,75 +1913,154 @@ export default function POSForm({
                 router.push('/backend/tenant/sales');
              }
           }}
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 cursor-pointer"
+          className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-200 cursor-pointer"
         >
            <div 
              onClick={(e) => e.stopPropagation()}
-             className="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-zinc-150 cursor-default"
+             className="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-zinc-200 cursor-default my-auto relative"
            >
-              <div className="p-6 text-center space-y-4">
-                 <div className="w-12 h-12 bg-emerald-50 border border-emerald-100 rounded-full flex items-center justify-center text-emerald-600 mx-auto">
-                    <Check className="w-6 h-6" />
+              {/* Tombol Close [X] Atas Kanan */}
+              <button
+                type="button"
+                onClick={() => {
+                   setShowReceiptModal(false);
+                   if (editId) {
+                      router.push('/backend/tenant/sales');
+                   }
+                }}
+                className="absolute top-2 right-2 z-10 w-6 h-6 rounded-full bg-zinc-100 hover:bg-rose-100 text-zinc-500 hover:text-rose-600 flex items-center justify-center transition-colors cursor-pointer"
+                title="Tutup Nota"
+              >
+                 <X className="w-3.5 h-3.5" />
+              </button>
+
+              <div className="p-2.5 sm:p-3 text-center space-y-1.5 overflow-hidden">
+                 {/* Glowing Success Badge */}
+                 <div className="w-7 h-7 bg-emerald-500 text-white rounded-full flex items-center justify-center mx-auto shadow-md shadow-emerald-500/20 ring-4 ring-emerald-100">
+                    <Check className="w-4 h-4 stroke-[3]" />
                  </div>
                  <div>
-                    <h4 className="text-base font-black text-[#030037]">Transaksi Berhasil!</h4>
-                    <p className="text-[10px] text-zinc-400 mt-1">Nota pembayaran berhasil dicatat ke database keuangan.</p>
+                    <h4 className="text-xs font-black text-[#030037] tracking-tight leading-none">Transaksi Berhasil!</h4>
+                    <p className="text-[8px] text-zinc-500 font-bold mt-0.5">Nota siap dicetak atau disimpan ke riwayat</p>
                  </div>
 
-                 <div className="bg-[#f8f9fa] border border-zinc-200/80 p-4 rounded-2xl text-left text-xs font-bold text-zinc-700 space-y-2">
-                    <div className="flex justify-between">
-                       <span className="text-zinc-400">Nomor Nota:</span>
-                       <span className="text-[#030037]">#{lastTransaction.reference_number}</span>
+                 {/* REALISTIC DIGITAL THERMAL RECEIPT CARD */}
+                 <div className="bg-zinc-50 border border-zinc-200/90 rounded-xl p-2 text-left font-mono text-[10px] text-black shadow-inner space-y-1 relative">
+                    {/* Header Toko */}
+                    <div className="text-center pb-1 border-b border-dashed border-zinc-300">
+                       <h5 className="font-black text-[11px] uppercase tracking-wider text-black leading-none">{profile.business_name || "SIPPETO POS"}</h5>
+                       <p className="text-[8px] text-zinc-600 font-sans font-bold leading-tight mt-0.5">
+                          {branches.find(b => b.id === selectedBranchId)?.name || "Cabang Utama"}
+                       </p>
+                       {profile.address && (
+                          <p className="text-[7.5px] text-zinc-500 font-sans leading-tight mt-0.5 line-clamp-1">{profile.address}</p>
+                       )}
                     </div>
-                    <div className="flex justify-between">
-                       <span className="text-zinc-400">Nama Pembeli:</span>
-                       <span>{lastTransaction.customer_name}</span>
+
+                    {/* Metadata Nota */}
+                    <div className="space-y-0.5 text-[9.5px] font-bold text-zinc-800">
+                       <div className="flex justify-between">
+                          <span className="text-zinc-500">Nomor Nota:</span>
+                          <span className="text-black font-black">#{lastTransaction.reference_number}</span>
+                       </div>
+                       <div className="flex justify-between">
+                          <span className="text-zinc-500">Tanggal:</span>
+                          <span>{new Date(lastTransaction.transaction_date || "").toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}</span>
+                       </div>
+                       <div className="flex justify-between">
+                          <span className="text-zinc-500">Pelanggan:</span>
+                          <span className="truncate max-w-[130px]">{lastTransaction.customer_name}</span>
+                       </div>
+                       <div className="flex justify-between">
+                          <span className="text-zinc-500">Pembayaran:</span>
+                          <span className="text-indigo-700">{lastTransaction.payment_method}</span>
+                       </div>
                     </div>
-                    <div className="flex justify-between border-t border-zinc-200/50 pt-2 mt-2 font-black text-sm">
-                       <span className="text-zinc-900">Total:</span>
-                       <span className="text-emerald-600">
-                          {formatCurrency(lastTransaction.items ? lastTransaction.items.reduce((sum: number, item: any) => sum + (item.product.sell_price * item.quantity), 0) : 0)}
-                       </span>
-                    </div>
+
+                    {/* Rincian Produk / Itemized Items */}
+                    {lastTransaction.items && lastTransaction.items.length > 0 && (
+                       <div className="pt-1 border-t border-dashed border-zinc-300 space-y-0.5 max-h-16 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden pr-0.5">
+                          {lastTransaction.items.map((item: any, idx: number) => (
+                             <div key={idx} className="text-[9.5px]">
+                                <div className="font-bold text-black truncate">{item.product?.name || "Produk"}</div>
+                                <div className="flex justify-between text-zinc-600 text-[8.5px]">
+                                   <span>{item.quantity} x {formatCurrency(item.product?.sell_price || 0).replace("Rp", "").trim()}</span>
+                                   <span className="font-bold text-black">{formatCurrency((item.product?.sell_price || 0) * item.quantity).replace("Rp", "").trim()}</span>
+                                </div>
+                             </div>
+                          ))}
+                       </div>
+                    )}
+
+                    {/* Subtotal, Diskon & Total Bayar */}
+                    {(() => {
+                      const subtotalAmt = lastTransaction.items ? lastTransaction.items.reduce((sum: number, item: any) => sum + (item.product.sell_price * item.quantity), 0) : 0;
+                      const discAmt = lastTransaction.applied_discount ? lastTransaction.applied_discount.discount_amount : 0;
+                      const finalAmt = Math.max(0, subtotalAmt - discAmt);
+                      return (
+                        <div className="pt-1 border-t border-dashed border-zinc-300 space-y-0.5 text-[9.5px]">
+                          <div className="flex justify-between text-zinc-600">
+                            <span>Subtotal:</span>
+                            <span>{formatCurrency(subtotalAmt)}</span>
+                          </div>
+                          {discAmt > 0 && (
+                            <div className="flex justify-between font-bold text-emerald-700">
+                              <span>Diskon ({lastTransaction.applied_discount?.name}):</span>
+                              <span>-{formatCurrency(discAmt)}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between items-center font-black text-[11px] text-black pt-0.5 border-t border-zinc-300">
+                            <span className="uppercase tracking-wider">TOTAL BAYAR:</span>
+                            <span className="text-[#3c39d6] text-xs font-black font-mono">{formatCurrency(finalAmt)}</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Uang Dibayar & Kembalian - HIGHTLIGHTED PROMINENT KEMBALIAN */}
                     {lastTransaction.cash_paid !== undefined && lastTransaction.cash_paid > 0 && (
-                       <>
-                          <div className="flex justify-between border-t border-zinc-200/30 pt-2 text-xs font-bold text-zinc-700">
-                             <span className="text-zinc-400">Bayar (Tunai):</span>
-                             <span className="font-mono text-zinc-900">{formatCurrency(lastTransaction.cash_paid)}</span>
+                       <div className="pt-1 border-t border-zinc-300 space-y-0.5 text-[9.5px]">
+                          <div className="flex justify-between text-zinc-600 font-bold">
+                             <span>Uang Dibayar:</span>
+                             <span className="font-mono text-black">{formatCurrency(lastTransaction.cash_paid)}</span>
                           </div>
-                          <div className="flex justify-between text-xs font-bold text-zinc-700">
-                             <span className="text-zinc-400">Kembalian:</span>
-                             <span className="font-mono text-emerald-600">{formatCurrency(lastTransaction.change || 0)}</span>
+                          <div className="flex justify-between items-center font-black text-[11px] text-emerald-800 bg-emerald-100/90 border border-emerald-200 px-1.5 py-0.5 rounded-md">
+                             <span className="uppercase tracking-wider text-[10px]">Kembalian:</span>
+                             <span className="font-mono text-xs font-black text-emerald-600">{formatCurrency(lastTransaction.change || 0)}</span>
                           </div>
-                       </>
+                       </div>
                     )}
                  </div>
 
-                 <div className="flex flex-col gap-2">
-                    <div className="flex gap-2">
+                 {/* ACTION BUTTONS & CONNECTION SWITCHER */}
+                 <div className="space-y-1 pt-0.5">
+                    {/* Top PDF & History Buttons */}
+                    <div className="grid grid-cols-2 gap-1">
                        <button 
+                          type="button"
                           onClick={() => { setShowReceiptModal(false); router.push('/backend/tenant/sales/history'); }}
-                          className="flex-1 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-600 rounded-xl text-[9px] font-black uppercase tracking-widest transition-colors"
+                          className="py-1 px-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 rounded-lg text-[9.5px] font-black transition-colors flex items-center justify-center gap-1 cursor-pointer"
                        >
-                          Lihat Riwayat
+                          <Receipt className="w-3 h-3 text-zinc-600" /> Lihat Riwayat
                        </button>
                        <button 
+                          type="button"
                           onClick={handlePrintReceipt}
-                          className="flex-1 flex items-center justify-center gap-1 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-600 border border-zinc-200 rounded-xl text-[9px] font-black uppercase tracking-widest transition-colors"
+                          className="py-1 px-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded-lg text-[9.5px] font-black transition-colors flex items-center justify-center gap-1 cursor-pointer"
                        >
-                          <Printer className="w-3 h-3" /> Cetak PDF
+                          <Printer className="w-3 h-3 text-[#3c39d6]" /> Cetak PDF
                        </button>
                     </div>
                     
-                    {/* Segmented Tab Selector */}
-                    <div className="p-1 bg-zinc-100 rounded-xl flex gap-1">
+                    {/* Segmented Tab Selector for Direct Thermal Printers */}
+                    <div className="p-0.5 bg-zinc-100 rounded-lg flex gap-1 border border-zinc-200/80">
                       <button
                         type="button"
                         onClick={() => setPrintMethod("usb")}
-                        className={`flex-1 py-1.5 text-center text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${
+                        className={`flex-1 py-0.5 text-center text-[8.5px] font-black uppercase tracking-wider rounded-md transition-all cursor-pointer ${
                           printMethod === "usb"
-                            ? "bg-white text-zinc-900 shadow-sm"
-                            : "text-zinc-500 hover:text-zinc-855"
+                            ? "bg-[#3c39d6] text-white shadow-xs"
+                            : "text-zinc-600 hover:text-black"
                         }`}
                       >
                         🔌 Kabel USB
@@ -1689,42 +2068,42 @@ export default function POSForm({
                       <button
                         type="button"
                         onClick={() => setPrintMethod("bluetooth")}
-                        className={`flex-1 py-1.5 text-center text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${
+                        className={`flex-1 py-0.5 text-center text-[8.5px] font-black uppercase tracking-wider rounded-md transition-all cursor-pointer ${
                           printMethod === "bluetooth"
-                            ? "bg-white text-zinc-900 shadow-sm"
-                            : "text-zinc-500 hover:text-zinc-855"
+                            ? "bg-[#3c39d6] text-white shadow-xs"
+                            : "text-zinc-600 hover:text-black"
                         }`}
                       >
                         📶 Bluetooth
                       </button>
                     </div>
 
-                    {/* Print Method Content */}
+                    {/* Direct Thermal Print Section */}
                     {printMethod === "usb" ? (
-                      <div className="space-y-2">
+                      <div className="space-y-0.5 bg-zinc-50 p-1 rounded-lg border border-zinc-200/80">
                         {isUsbSupported ? (
                           <>
                             <button 
                                type="button"
                                onClick={handlePrintUsbDirect}
                                disabled={isPrintingUsb}
-                               className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-[#3c39d6] hover:bg-black disabled:bg-zinc-400 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors"
+                               className="w-full flex items-center justify-center gap-1 py-1 bg-[#030037] hover:bg-[#3c39d6] disabled:bg-zinc-400 text-white rounded-md text-[9.5px] font-black transition-all cursor-pointer shadow-2xs"
                             >
-                               <Printer className={`w-3.5 h-3.5 ${isPrintingUsb ? "animate-pulse" : ""}`} />
-                               {isPrintingUsb ? "Memproses..." : "Cetak via Kabel (Direct)"}
+                               <Printer className={`w-3 h-3 ${isPrintingUsb ? "animate-pulse" : ""}`} />
+                               {isPrintingUsb ? "Mencetak..." : "Cetak Thermal via USB"}
                             </button>
-                            <div className="flex items-center justify-between px-1 text-[9px] font-black uppercase tracking-wider">
-                              <div className="flex items-center gap-1.5">
-                                <span className={`w-2.5 h-2.5 rounded-full ${isUsbConnected ? "bg-emerald-500 animate-pulse" : "bg-zinc-400"}`}></span>
-                                <span className="text-zinc-900">
-                                  Status: {isUsbConnected ? `Terhubung (${usbDeviceName})` : "Terputus"}
+                            <div className="flex items-center justify-between px-1 text-[7.5px] font-bold">
+                              <div className="flex items-center gap-1">
+                                <span className={`w-1.5 h-1.5 rounded-full ${isUsbConnected ? "bg-emerald-500 animate-ping" : "bg-zinc-400"}`}></span>
+                                <span className="text-zinc-700 truncate max-w-[160px]">
+                                  {isUsbConnected ? `Terhubung (${usbDeviceName})` : "Printer USB Terputus"}
                                 </span>
                               </div>
-                              <div className="flex gap-2">
+                              <div className="flex gap-1">
                                 <button
                                   type="button"
                                   onClick={handleConnectUsbManual}
-                                  className="text-[#3c39d6] hover:text-black font-black hover:underline"
+                                  className="text-[#3c39d6] hover:underline font-black cursor-pointer"
                                 >
                                   {isUsbConnected ? "Ganti" : "Hubungkan"}
                                 </button>
@@ -1732,7 +2111,7 @@ export default function POSForm({
                                   <button
                                     type="button"
                                     onClick={handleDisconnectUsbManual}
-                                    className="text-red-600 hover:text-red-800 font-black hover:underline"
+                                    className="text-rose-600 hover:underline font-black cursor-pointer"
                                   >
                                     Putus
                                   </button>
@@ -1741,41 +2120,36 @@ export default function POSForm({
                             </div>
                           </>
                         ) : (
-                          <div className="w-full p-3 bg-amber-50 border border-amber-200 text-amber-800 text-[9px] font-bold text-center rounded-xl">
-                            <p className="text-[10px] leading-tight">
-                              Kabel USB: <span className="text-red-600">Tidak didukung browser</span>
-                            </p>
-                            <p className="text-[8px] font-normal opacity-75 mt-1">
-                              Gunakan Google Chrome atau Microsoft Edge untuk dukungan WebUSB.
-                            </p>
+                          <div className="w-full p-1 bg-amber-50 border border-amber-200 text-amber-800 text-[7.5px] font-bold text-center rounded-md">
+                            Kabel USB tidak didukung browser ini.
                           </div>
                         )}
                       </div>
                     ) : (
-                      <div className="space-y-2">
+                      <div className="space-y-0.5 bg-zinc-50 p-1 rounded-lg border border-zinc-200/80">
                         {isBluetoothSupported ? (
                           <>
                             <button 
                                type="button"
                                onClick={handlePrintBluetoothDirect}
                                disabled={isPrintingBt}
-                               className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-[#3c39d6] hover:bg-black disabled:bg-zinc-400 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors"
+                               className="w-full flex items-center justify-center gap-1 py-1 bg-[#030037] hover:bg-[#3c39d6] disabled:bg-zinc-400 text-white rounded-md text-[9.5px] font-black transition-all cursor-pointer shadow-2xs"
                             >
-                               <Printer className={`w-3.5 h-3.5 ${isPrintingBt ? "animate-pulse" : ""}`} />
-                               {isPrintingBt ? "Memproses..." : "Cetak via Bluetooth (Direct)"}
+                               <Printer className={`w-3 h-3 ${isPrintingBt ? "animate-pulse" : ""}`} />
+                               {isPrintingBt ? "Mencetak..." : "Cetak Thermal via Bluetooth"}
                             </button>
-                            <div className="flex items-center justify-between px-1 text-[9px] font-black uppercase tracking-wider">
-                              <div className="flex items-center gap-1.5">
-                                <span className={`w-2.5 h-2.5 rounded-full ${isBtConnected ? "bg-emerald-500 animate-pulse" : "bg-zinc-400"}`}></span>
-                                <span className="text-zinc-900">
-                                  Status: {isBtConnected ? `Terhubung (${bluetoothDeviceName})` : "Terputus"}
+                            <div className="flex items-center justify-between px-1 text-[7.5px] font-bold">
+                              <div className="flex items-center gap-1">
+                                <span className={`w-1.5 h-1.5 rounded-full ${isBtConnected ? "bg-emerald-500 animate-ping" : "bg-zinc-400"}`}></span>
+                                <span className="text-zinc-700 truncate max-w-[160px]">
+                                  {isBtConnected ? `Terhubung (${bluetoothDeviceName})` : "Printer BT Terputus"}
                                 </span>
                               </div>
-                              <div className="flex gap-2">
+                              <div className="flex gap-1">
                                 <button
                                   type="button"
                                   onClick={handleConnectPrinterManual}
-                                  className="text-[#3c39d6] hover:text-black font-black hover:underline"
+                                  className="text-[#3c39d6] hover:underline font-black cursor-pointer"
                                 >
                                   {isBtConnected ? "Ganti" : "Hubungkan"}
                                 </button>
@@ -1783,7 +2157,7 @@ export default function POSForm({
                                   <button
                                     type="button"
                                     onClick={handleDisconnectPrinterManual}
-                                    className="text-red-600 hover:text-red-800 font-black hover:underline"
+                                    className="text-rose-600 hover:underline font-black cursor-pointer"
                                   >
                                     Putus
                                   </button>
@@ -1792,22 +2166,12 @@ export default function POSForm({
                             </div>
                           </>
                         ) : (
-                          <div className="w-full p-3 bg-amber-50 border border-amber-200 text-amber-800 text-[9px] font-bold text-center rounded-xl space-y-1.5">
-                            <p className="text-[10px] leading-tight">
-                              Printer Bluetooth: <span className="text-red-600">Tidak tersedia</span>
-                            </p>
-                            <p className="text-[8px] font-normal opacity-75">
-                              Browser: Chrome | HTTPS
-                            </p>
-                            {navigator.userAgent.includes("Linux") && (
-                              <p className="text-[8px] font-normal leading-tight">
-                                Di Linux, pastikan user ada di grup <code className="bg-amber-100 px-1 rounded">bluetooth</code>.
-                              </p>
-                            )}
+                          <div className="w-full p-1 bg-amber-50 border border-amber-200 text-amber-800 text-[7.5px] font-bold text-center rounded-md space-y-0.5">
+                            <p>Printer Bluetooth tidak tersedia.</p>
                             <button
                               type="button"
                               onClick={checkBluetoothSupport}
-                              className="w-full bg-amber-100 hover:bg-amber-200 text-amber-700 py-1.5 rounded-lg transition-colors text-[9px]"
+                              className="text-amber-900 underline font-black text-[7.5px]"
                             >
                               Cek Ulang Bluetooth
                             </button>
@@ -1816,23 +2180,160 @@ export default function POSForm({
                       </div>
                     )}
 
-                     <button
-                        onClick={() => {
-                           setShowReceiptModal(false);
-                           if (editId) {
-                              router.push('/backend/tenant/sales');
-                           }
-                        }}
-                        className="w-full py-2 text-zinc-400 hover:text-zinc-600 text-[10px] font-bold tracking-widest transition-colors"
-                     >
-                        + Transaksi Baru
-                     </button>
+                    {/* Transaksi Baru Button */}
+                    <button
+                       type="button"
+                       onClick={() => {
+                          setShowReceiptModal(false);
+                          if (editId) {
+                             router.push('/backend/tenant/sales');
+                          }
+                       }}
+                       className="w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-black tracking-wider transition-all shadow-md cursor-pointer"
+                    >
+                       + Transaksi Kasir Baru
+                    </button>
                  </div>
               </div>
            </div>
         </div>
       )}
-      </div>  
+      {/* MODAL DISKON & KUPON PROMO */}
+      {isDiscountModalOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/40">
+          <div className="bg-white rounded-3xl shadow-2xl border border-zinc-100 w-full max-w-md p-5 space-y-4">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-purple-50 flex items-center justify-center text-[#3c39d6]">
+                  <Ticket className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-[#030037]">Diskon & Kupon Promo Toko</h3>
+                  <p className="text-[10px] text-zinc-500 font-medium">Pilih promo toko atau ketik kode kupon</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsDiscountModalOpen(false)}
+                className="w-7 h-7 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-500 hover:bg-zinc-200 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="space-y-4">
+              {/* 1. Select Available Store Discounts */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest block">
+                  Pilih Promo Aktif
+                </label>
+                {availableDiscounts.length > 0 ? (
+                  <div className="flex gap-2">
+                    <select
+                      value={selectedDiscountId}
+                      onChange={(e) => setSelectedDiscountId(e.target.value)}
+                      className="flex-1 min-w-0 px-3 py-2.5 bg-white border border-zinc-300 rounded-xl text-xs font-bold text-black outline-none focus:border-[#3c39d6] cursor-pointer truncate"
+                    >
+                      <option value="">-- Pilih Promo Diskon --</option>
+                      {availableDiscounts.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.name} {d.code ? `(${d.code})` : ""} - {d.type === "PERCENTAGE" ? `${d.value}%` : formatCurrency(d.value)}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectDiscount(selectedDiscountId)}
+                      disabled={!selectedDiscountId}
+                      className="px-4 py-2.5 bg-[#3c39d6] text-white rounded-xl text-xs font-bold disabled:opacity-50 hover:bg-[#3c39d6]/90 transition-all shrink-0 cursor-pointer shadow-2xs"
+                    >
+                      Terapkan
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-zinc-400 italic">Belum ada promo diskon aktif.</p>
+                )}
+              </div>
+
+              {/* Divider */}
+              <div className="relative flex items-center justify-center">
+                <div className="border-t border-zinc-200 w-full"></div>
+                <span className="bg-white px-2 text-[10px] font-bold text-zinc-400 uppercase tracking-wider absolute">ATAU</span>
+              </div>
+
+              {/* 2. Manual Coupon Code Input */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest block">
+                  Ketik Kode Kupon Promo
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Contoh: KUPON50K"
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                    className="flex-1 min-w-0 px-3 py-2.5 bg-white border border-zinc-300 rounded-xl text-xs font-mono font-bold text-black outline-none focus:border-[#3c39d6]"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyCoupon}
+                    disabled={isValidatingCoupon || !couponCode.trim()}
+                    className="px-4 py-2.5 bg-[#3c39d6] text-white rounded-xl text-xs font-bold disabled:opacity-50 hover:bg-[#3c39d6]/90 transition-all shrink-0 cursor-pointer shadow-2xs"
+                  >
+                    {isValidatingCoupon ? "Memeriksa..." : "Terapkan"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Active Discount Badge */}
+              {appliedDiscount && (
+                <div className="flex items-center justify-between text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-300 px-3.5 py-3 rounded-xl shadow-2xs">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <div>
+                      <span className="font-bold block">Promo &quot;{appliedDiscount.name}&quot; Aktif!</span>
+                      <span className="text-[10px] text-emerald-600 font-normal">Potongan berhasil diterapkan ke total belanja.</span>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className="font-mono font-black text-emerald-700 block text-sm">-{formatCurrency(appliedDiscount.discount_amount)}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAppliedDiscount(null);
+                        setSelectedDiscountId("");
+                        setCouponCode("");
+                        toast.info("Promo diskon dibatalkan");
+                      }}
+                      className="text-[10px] font-bold text-rose-600 hover:underline cursor-pointer"
+                    >
+                      Hapus Promo
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer / Close */}
+            <div className="pt-3 border-t border-zinc-100 flex items-center justify-between">
+              <span className="text-[10px] text-zinc-500 font-bold">
+                {appliedDiscount ? `Hemat ${formatCurrency(appliedDiscount.discount_amount)}!` : "Pilih atau ketik kode promo..."}
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsDiscountModalOpen(false)}
+                className="px-5 py-2 bg-[#030037] text-white rounded-xl text-xs font-bold hover:bg-[#030037]/90 transition-colors shadow-2xs cursor-pointer"
+              >
+                Selesai
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-  );
+  </div>
+</div>
+);
 }

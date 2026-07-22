@@ -384,26 +384,26 @@ export default function ProductsTable({
     return (
         <div className="space-y-6">
             {/* Header Section */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
+            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+                <div className="space-y-1">
                     <h1 className="text-2xl font-bold tracking-tight text-[#030037] font-heading">
                         Manajemen Produk & Stok
                     </h1>
-                    <p className="text-sm text-zinc-550">
+                    <p className="text-sm font-medium text-zinc-500">
                         Kelola katalog produk, pantau persediaan stok cabang, dan lakukan penyesuaian stok secara real-time.
                     </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2.5 shrink-0">
                     <button 
                         onClick={() => router.push("/backend/tenant/products/kategori")}
-                        className="inline-flex items-center gap-2 px-4 py-3 bg-zinc-100 text-zinc-700 hover:bg-zinc-200 transition-all font-bold text-xs rounded-2xl shrink-0 border border-zinc-200"
+                        className="inline-flex items-center gap-2 px-4 py-2.5 bg-zinc-100 text-zinc-800 hover:bg-zinc-200 transition-all font-bold text-xs rounded-xl shrink-0 border border-zinc-200 shadow-sm"
                     >
                         <Tag className="w-4 h-4 text-[#3c39d6]" />
                         Kelola Kategori Produk
                     </button>
                     <button 
                         onClick={openCreateModal}
-                        className="inline-flex items-center gap-2 px-5 py-3 bg-[#3c39d6] text-white hover:bg-[#3c39d6]/90 transition-all font-bold text-sm rounded-2xl shadow-lg shadow-[#3c39d6]/20 shrink-0"
+                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#3c39d6] text-white hover:bg-[#3c39d6]/90 transition-all font-bold text-xs sm:text-sm rounded-xl shadow-lg shadow-[#3c39d6]/20 shrink-0"
                     >
                         <Plus className="w-4 h-4" />
                         {isOwner ? "Tambah Produk Pusat" : "Tambah Produk Lokal"}

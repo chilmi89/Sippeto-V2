@@ -25,7 +25,8 @@ import {
   Copy,
   Check,
   ExternalLink,
-  Download
+  Download,
+  Ticket
 } from "lucide-react";
 
 type NavItem = {
@@ -56,6 +57,7 @@ const tenantNavItems: NavItem[] = [
       { label: "Kelola Stok", href: "/backend/tenant/stocks", permission: "kelola_stok" },
     ]
   },
+  { icon: Ticket, label: "Promosi & Diskon", href: "/backend/tenant/discounts" },
   { icon: Store, label: "Kelola Cabang", href: "/backend/tenant/branches", permission: "kelola_cabang" },
   {
     icon: Receipt,

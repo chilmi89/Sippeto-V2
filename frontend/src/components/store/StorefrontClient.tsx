@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, ComponentType } from "react";
+import React, { useState, useMemo, useEffect, useCallback, ComponentType } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import {
@@ -16,6 +16,7 @@ import type { Profile, Product, Branch, VirtualProduct, CartItem } from "./types
 import { formatCurrency } from "./types";
 import type { CartDrawerProps } from "./CartDrawer";
 import type { ProductModalProps } from "./ProductModal";
+import { getDiscountsAction } from "@/app/actions/discount";
 
 // ─── Lazy-loaded heavy panels via next/dynamic (lebih kompatibel dengan TS) ──
 const CartDrawer: ComponentType<CartDrawerProps> = dynamic(() => import("./CartDrawer"), { ssr: false });
@@ -45,6 +46,15 @@ export default function StorefrontClient({
   const [isSuccess, setIsSuccess] = useState(false);
   const [selectedVP, setSelectedVP] = useState<VirtualProduct | null>(null);
   const [scrolled, setScrolled] = useState(false);
+  const [discounts, setDiscounts] = useState<any[]>([]);
+
+  useEffect(() => {
+    getDiscountsAction({ profile_id: profile.id }).then((res) => {
+      if (res.success && res.data) {
+        setDiscounts(res.data.filter((d: any) => d.is_active));
+      }
+    });
+  }, [profile.id]);
 
   // Scroll listener — mengontrol navbar sticky background
   useEffect(() => {
@@ -236,6 +246,29 @@ export default function StorefrontClient({
     }
   };
 
+  const getProductEffectivePrice = useCallback((product: Product, discountsList: any[]) => {
+    const origPrice = Number(product.sell_price);
+    const matchingDisc = discountsList.find(
+      (d) =>
+        d.is_active &&
+        d.product_ids &&
+        d.product_ids.length > 0 &&
+        d.product_ids.includes(product.id)
+    );
+    if (!matchingDisc) return origPrice;
+
+    let discAmt = 0;
+    if (matchingDisc.type === "PERCENTAGE") {
+      discAmt = (origPrice * matchingDisc.value) / 100;
+      if (matchingDisc.max_discount && discAmt > matchingDisc.max_discount) {
+        discAmt = matchingDisc.max_discount;
+      }
+    } else {
+      discAmt = matchingDisc.value;
+    }
+    return Math.max(0, origPrice - discAmt);
+  }, []);
+
   const cartTotalItems = useMemo(
     () => cart.reduce((sum, item) => sum + item.quantity, 0),
     [cart]
@@ -243,10 +276,16 @@ export default function StorefrontClient({
   const cartTotalPrice = useMemo(
     () =>
       cart.reduce(
-        (sum, item) => sum + item.quantity * Number(item.virtualProduct.originalProduct.sell_price),
+        (sum, item) =>
+          sum +
+          item.quantity *
+            getProductEffectivePrice(
+              item.virtualProduct.originalProduct,
+              discounts
+            ),
         0
       ),
-    [cart]
+    [cart, discounts, getProductEffectivePrice]
   );
 
   const activeQrCodeUrl = useMemo(() => {
@@ -398,6 +437,27 @@ export default function StorefrontClient({
                 vp.branchName.toLowerCase().includes("utama") ||
                 vp.branchName.toLowerCase().includes("pusat");
 
+              const matchingDisc = discounts.find(
+                (d) =>
+                  d.is_active &&
+                  d.product_ids &&
+                  d.product_ids.length > 0 &&
+                  d.product_ids.includes(product.id)
+              );
+              const origPrice = Number(product.sell_price);
+              let discAmt = 0;
+              if (matchingDisc) {
+                if (matchingDisc.type === "PERCENTAGE") {
+                  discAmt = (origPrice * matchingDisc.value) / 100;
+                  if (matchingDisc.max_discount && discAmt > matchingDisc.max_discount) {
+                    discAmt = matchingDisc.max_discount;
+                  }
+                } else {
+                  discAmt = matchingDisc.value;
+                }
+              }
+              const finalPrice = Math.max(0, origPrice - discAmt);
+
               return (
                 <div
                   key={vp.virtualId}
@@ -429,6 +489,12 @@ export default function StorefrontClient({
 
                   {/* Top tags */}
                   <div className="absolute top-2.5 left-2.5 right-2.5 flex flex-col items-start gap-1.5 z-10 pointer-events-none">
+                    {matchingDisc && !isOutOfStock && (
+                      <span className="bg-gradient-to-r from-amber-500 to-rose-500 text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md shadow-md">
+                        🏷️ {matchingDisc.type === "PERCENTAGE" ? `${matchingDisc.value}% OFF` : `DISKON ${formatCurrency(matchingDisc.value)}`}
+                      </span>
+                    )}
+
                     {isOutOfStock ? (
                       <span className="bg-rose-500/90 text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md">
                         Habis
@@ -457,9 +523,20 @@ export default function StorefrontClient({
                     <h4 className="text-sm font-bold text-white mb-1 line-clamp-2 drop-shadow-md">
                       {product.name}
                     </h4>
-                    <p className="text-sm font-black text-blue-400 drop-shadow-md mb-0 group-hover:mb-3 transition-all duration-300">
-                      {formatCurrency(Number(product.sell_price))}
-                    </p>
+                    {discAmt > 0 ? (
+                      <div className="flex items-center gap-1.5 mb-0 group-hover:mb-3 transition-all duration-300">
+                        <p className="text-sm font-black text-emerald-400 drop-shadow-md">
+                          {formatCurrency(finalPrice)}
+                        </p>
+                        <p className="text-xs font-bold text-slate-400 line-through drop-shadow-md">
+                          {formatCurrency(origPrice)}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-sm font-black text-blue-400 drop-shadow-md mb-0 group-hover:mb-3 transition-all duration-300">
+                        {formatCurrency(origPrice)}
+                      </p>
+                    )}
 
                     {/* Action button — visible on hover */}
                     <div
@@ -553,6 +630,7 @@ export default function StorefrontClient({
           selectedBranchId={selectedBranchId}
           cartTotalItems={cartTotalItems}
           cartTotalPrice={cartTotalPrice}
+          discounts={discounts}
           activeQrCodeUrl={activeQrCodeUrl}
           onClose={() => setIsCartOpen(false)}
           onUpdateQuantity={updateQuantity}

@@ -9,6 +9,7 @@ import {
   Minus,
   Package,
   MessageSquareShare,
+  Ticket,
 } from "lucide-react";
 import {
   CartItem,
@@ -16,6 +17,7 @@ import {
   Branch,
   formatCurrency,
 } from "./types";
+import { validateDiscountCodeAction } from "@/app/actions/discount";
 
 export interface CartDrawerProps {
   cart: CartItem[];
@@ -24,6 +26,7 @@ export interface CartDrawerProps {
   selectedBranchId: string;
   cartTotalItems: number;
   cartTotalPrice: number;
+  discounts?: any[];
   activeQrCodeUrl: { url: string; source: string } | null;
   onClose: () => void;
   onUpdateQuantity: (virtualId: string, delta: number) => void;
@@ -37,6 +40,7 @@ export default function CartDrawer({
   selectedBranchId,
   cartTotalItems,
   cartTotalPrice,
+  discounts = [],
   activeQrCodeUrl,
   onClose,
   onUpdateQuantity,
@@ -46,6 +50,30 @@ export default function CartDrawer({
   const [checkoutPhone, setCheckoutPhone] = useState("");
   const [checkoutAddress, setCheckoutAddress] = useState("");
   const [checkoutPayment, setCheckoutPayment] = useState("COD");
+
+  const getProductEffectivePrice = (product: any) => {
+    const origPrice = Number(product.sell_price);
+    if (!discounts || discounts.length === 0) return origPrice;
+    const matchingDisc = discounts.find(
+      (d) =>
+        d.is_active &&
+        d.product_ids &&
+        d.product_ids.length > 0 &&
+        d.product_ids.includes(product.id)
+    );
+    if (!matchingDisc) return origPrice;
+
+    let discAmt = 0;
+    if (matchingDisc.type === "PERCENTAGE") {
+      discAmt = (origPrice * matchingDisc.value) / 100;
+      if (matchingDisc.max_discount && discAmt > matchingDisc.max_discount) {
+        discAmt = matchingDisc.max_discount;
+      }
+    } else {
+      discAmt = matchingDisc.value;
+    }
+    return Math.max(0, origPrice - discAmt);
+  };
 
   const isAddressRequired = !(profile.metadata?.hide_checkout_address);
 
@@ -91,7 +119,7 @@ export default function CartDrawer({
       const checkoutItems = cart.map((item) => ({
         product_id: item.virtualProduct.originalProduct.id,
         quantity: item.quantity,
-        price: Number(item.virtualProduct.originalProduct.sell_price),
+        price: getProductEffectivePrice(item.virtualProduct.originalProduct),
       }));
 
       const response = await fetch("/api/store/checkout", {
@@ -126,9 +154,11 @@ export default function CartDrawer({
     message += `───────────────────────\n`;
     cart.forEach((item) => {
       const vp = item.virtualProduct;
-      const subtotal = item.quantity * Number(vp.originalProduct.sell_price);
+      const product = vp.originalProduct;
+      const effectivePrice = getProductEffectivePrice(product);
+      const subtotal = item.quantity * effectivePrice;
       message += `🛍️ *${vp.displayName}*\n`;
-      message += `   ${item.quantity} x ${formatCurrency(Number(vp.originalProduct.sell_price))} = *${formatCurrency(subtotal)}*\n\n`;
+      message += `   ${item.quantity} x ${formatCurrency(effectivePrice)} = *${formatCurrency(subtotal)}*\n\n`;
     });
     message += `───────────────────────\n`;
     message += `💵 *Total Belanja:* ${formatCurrency(cartTotalPrice)}\n\n`;
@@ -138,7 +168,7 @@ export default function CartDrawer({
     if (isAddressRequired) message += `📍 *Alamat Lengkap:* ${checkoutAddress}\n`;
     if (branchName) message += `📍 *Cabang Pengiriman:* ${branchName}\n`;
     message += `💳 *Metode Pembayaran:* ${checkoutPayment}\n\n`;
-    message += `_Pesanan dibuat via E-Catalog SiPetto_`;
+    message += `_Pesanan dibuat via E-Catalog Sippeto_`;
 
     window.open(
       `https://api.whatsapp.com/send?phone=${targetPhone}&text=${encodeURIComponent(message)}`,
@@ -183,7 +213,10 @@ export default function CartDrawer({
           <div className="flex flex-col gap-3 mb-8">
             {cart.map((item) => {
               const product = item.virtualProduct.originalProduct;
-              const subtotal = item.quantity * Number(product.sell_price);
+              const origPrice = Number(product.sell_price);
+              const effectivePrice = getProductEffectivePrice(product);
+              const hasDiscount = effectivePrice < origPrice;
+              const subtotal = item.quantity * effectivePrice;
               const virtualId = item.virtualProduct.virtualId;
               return (
                 <div
@@ -208,9 +241,20 @@ export default function CartDrawer({
 
                   <div className="flex-1 flex flex-col justify-between py-0.5">
                     <h4 className="text-sm font-bold text-white line-clamp-1">{product.name}</h4>
-                    <p className="text-xs font-bold text-blue-400">
-                      {formatCurrency(Number(product.sell_price))}
-                    </p>
+                    {hasDiscount ? (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-emerald-400">
+                          {formatCurrency(effectivePrice)}
+                        </span>
+                        <span className="text-[10px] font-bold text-slate-400 line-through">
+                          {formatCurrency(origPrice)}
+                        </span>
+                      </div>
+                    ) : (
+                      <p className="text-xs font-bold text-blue-400">
+                        {formatCurrency(origPrice)}
+                      </p>
+                    )}
                     <div className="flex items-center justify-between mt-1.5">
                       <div className="flex items-center bg-white/5 border border-white/10 rounded-lg p-0.5 h-7">
                         <button
@@ -354,10 +398,12 @@ export default function CartDrawer({
         {/* Footer Summary */}
         <div className="p-5 bg-slate-900/80 border-t border-white/10 shrink-0">
           <div className="flex justify-between items-end mb-4">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-              Total Pembayaran
-            </span>
-            <span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">
+            <div>
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+                Total Pembayaran
+              </span>
+            </div>
+            <span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400 font-mono">
               {formatCurrency(cartTotalPrice)}
             </span>
           </div>
