@@ -233,6 +233,34 @@ func RunMigration(db *bun.DB) error {
 				PRIMARY KEY (role_id, permission_id)
 			)`,
 		},
+		{
+			name: "discounts",
+			sql: `CREATE TABLE IF NOT EXISTS discounts (
+				id uuid NOT NULL DEFAULT gen_random_uuid(),
+				profile_id uuid NOT NULL,
+				code varchar(50),
+				name varchar(100) NOT NULL,
+				type varchar(20) NOT NULL,
+				value numeric(15,2) NOT NULL DEFAULT 0,
+				min_purchase numeric(15,2) DEFAULT 0,
+				max_discount numeric(15,2),
+				start_date timestamptz,
+				end_date timestamptz,
+				is_active boolean DEFAULT true,
+				created_at timestamptz DEFAULT NOW(),
+				PRIMARY KEY (id)
+			)`,
+		},
+		{
+			name: "discount_products",
+			sql: `CREATE TABLE IF NOT EXISTS discount_products (
+				id uuid NOT NULL DEFAULT gen_random_uuid(),
+				discount_id uuid NOT NULL,
+				product_id uuid NOT NULL,
+				created_at timestamptz DEFAULT NOW(),
+				PRIMARY KEY (id)
+			)`,
+		},
 	}
 
 	for _, t := range tables {
@@ -254,6 +282,7 @@ func RunMigration(db *bun.DB) error {
 		`CREATE UNIQUE INDEX IF NOT EXISTS product_stocks_product_id_branch_id_key ON product_stocks (product_id, branch_id)`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS orders_reference_number_key ON orders (reference_number)`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS transaction_groups_reference_number_key ON transaction_groups (reference_number)`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS discount_products_discount_id_product_id_key ON discount_products (discount_id, product_id)`,
 	}
 	for _, idx := range indexes {
 		if _, err := db.ExecContext(ctx, idx); err != nil {
@@ -290,6 +319,11 @@ func RunMigration(db *bun.DB) error {
 		`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'transaction_attachments_group_id_fkey') THEN ALTER TABLE transaction_attachments ADD CONSTRAINT transaction_attachments_group_id_fkey FOREIGN KEY (group_id) REFERENCES transaction_groups(id) ON DELETE CASCADE; END IF; END $$`,
 		`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'role_permissions_role_id_fkey') THEN ALTER TABLE role_permissions ADD CONSTRAINT role_permissions_role_id_fkey FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE; END IF; END $$`,
 		`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'role_permissions_permission_id_fkey') THEN ALTER TABLE role_permissions ADD CONSTRAINT role_permissions_permission_id_fkey FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE; END IF; END $$`,
+		`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'discounts_profile_id_fkey') THEN ALTER TABLE discounts ADD CONSTRAINT discounts_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE; END IF; END $$`,
+		`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'discount_products_discount_id_fkey') THEN ALTER TABLE discount_products ADD CONSTRAINT discount_products_discount_id_fkey FOREIGN KEY (discount_id) REFERENCES discounts(id) ON DELETE CASCADE; END IF; END $$`,
+		`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'discount_products_product_id_fkey') THEN ALTER TABLE discount_products ADD CONSTRAINT discount_products_product_id_fkey FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE; END IF; END $$`,
+		`ALTER TABLE transaction_groups ADD COLUMN IF NOT EXISTS discount_id uuid, ADD COLUMN IF NOT EXISTS discount_amount numeric(15,2) DEFAULT 0`,
+		`ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount_id uuid, ADD COLUMN IF NOT EXISTS discount_amount numeric(15,2) DEFAULT 0`,
 	}
 	for _, fk := range foreignKeys {
 		if _, err := db.ExecContext(ctx, fk); err != nil {

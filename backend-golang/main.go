@@ -29,6 +29,7 @@ import (
 	"backend-golang/internal/modular/notification/router_notification"
 	"backend-golang/internal/modular/report/router_report"
 	"backend-golang/internal/modular/storage/router_storage"
+	"backend-golang/internal/modular/discount/router_discount"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -82,6 +83,7 @@ func main() {
 		router_notification.SetupRouter(r, database)
 		router_report.SetupRouter(r, database)
 		router_storage.SetupRouter(r, database)
+		router_discount.SetupRouter(r, database)
 	}
 
 	port := os.Getenv("PORT")
