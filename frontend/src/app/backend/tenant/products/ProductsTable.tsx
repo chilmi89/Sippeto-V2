@@ -14,7 +14,8 @@ import {
     AlertTriangle,
     X,
     Lock,
-    Globe
+    Globe,
+    Tag
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
@@ -391,13 +392,22 @@ export default function ProductsTable({
                         Kelola katalog produk, pantau persediaan stok cabang, dan lakukan penyesuaian stok secara real-time.
                     </p>
                 </div>
-                <button 
-                    onClick={openCreateModal}
-                    className="inline-flex items-center gap-2 px-5 py-3 bg-[#3c39d6] text-white hover:bg-[#3c39d6]/90 transition-all font-bold text-sm rounded-2xl shadow-lg shadow-[#3c39d6]/20 shrink-0"
-                >
-                    <Plus className="w-4 h-4" />
-                    {isOwner ? "Tambah Produk Pusat" : "Tambah Produk Lokal"}
-                </button>
+                <div className="flex items-center gap-2">
+                    <button 
+                        onClick={() => router.push("/backend/tenant/products/kategori")}
+                        className="inline-flex items-center gap-2 px-4 py-3 bg-zinc-100 text-zinc-700 hover:bg-zinc-200 transition-all font-bold text-xs rounded-2xl shrink-0 border border-zinc-200"
+                    >
+                        <Tag className="w-4 h-4 text-[#3c39d6]" />
+                        Kelola Kategori Produk
+                    </button>
+                    <button 
+                        onClick={openCreateModal}
+                        className="inline-flex items-center gap-2 px-5 py-3 bg-[#3c39d6] text-white hover:bg-[#3c39d6]/90 transition-all font-bold text-sm rounded-2xl shadow-lg shadow-[#3c39d6]/20 shrink-0"
+                    >
+                        <Plus className="w-4 h-4" />
+                        {isOwner ? "Tambah Produk Pusat" : "Tambah Produk Lokal"}
+                    </button>
+                </div>
             </div>
 
             {/* Filter & Search Bar */}
