@@ -328,14 +328,14 @@ export default function StorefrontClient({
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 2xl:px-12">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-                <Store className="w-4 h-4 text-white" />
+            <a href="/" className="flex items-center gap-2.5 group cursor-pointer" title="Kembali ke Sippeto Platform">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-600 flex items-center justify-center font-black text-white text-base shadow-lg shadow-blue-500/30 ring-2 ring-white/10 group-hover:scale-105 transition-all">
+                S
               </div>
-              <span className="font-black text-sm text-white tracking-tight hidden sm:block">
-                {storeName}
+              <span className="font-black text-base text-white tracking-tight">
+                Sippeto
               </span>
-            </div>
+            </a>
             <button
               onClick={() => setIsCartOpen(true)}
               className="relative w-10 h-10 rounded-xl bg-white/5 backdrop-blur-md border border-white/10 flex items-center justify-center text-slate-300 hover:bg-white/10 hover:text-white transition-all duration-200"
@@ -594,10 +594,10 @@ export default function StorefrontClient({
             <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
               <Store className="w-3 h-3 text-white" />
             </div>
-            <span className="font-black text-sm text-white">SiPetto</span>
+            <span className="font-black text-sm text-white">Sippeto</span>
           </div>
           <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-1">
-            © 2026 SiPetto
+            © 2026 Sippeto
           </p>
           <p className="text-slate-600 text-[10px] font-bold uppercase tracking-wider">
             Ekosistem UMKM Digital Indonesia

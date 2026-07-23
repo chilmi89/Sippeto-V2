@@ -34,6 +34,8 @@ import { useRouter, usePathname } from "next/navigation";
 import { toast } from "react-toastify";
 import jsPDF from "jspdf";
 import { deleteSalesTransactionAction, getSalesHistoryPageData } from "../actions";
+import ReceiptModal from "../ReceiptModal";
+import { printReceiptPdf, buildReceiptDataFromSaleTransaction } from "../receiptUtils";
 
 interface TransactionItem {
   id: string;
@@ -68,6 +70,8 @@ interface SalesHistoryTableProps {
     totalItems: number;
   };
   businessName: string;
+  avatarUrl?: string | null;
+  address?: string | null;
   searchParams: {
     search?: string;
     dateStart?: string;
@@ -101,12 +105,40 @@ interface Order {
   order_items: OrderItem[];
 }
 
+const wrapText = (text: string, maxWidth: number = 32): string[] => {
+  const words = text.split(" ");
+  const lines: string[] = [];
+  let currentLine = "";
+
+  for (const word of words) {
+    if ((currentLine + (currentLine ? " " : "") + word).length <= maxWidth) {
+      currentLine += (currentLine ? " " : "") + word;
+    } else {
+      if (currentLine) lines.push(currentLine);
+      if (word.length > maxWidth) {
+        let remaining = word;
+        while (remaining.length > maxWidth) {
+          lines.push(remaining.slice(0, maxWidth));
+          remaining = remaining.slice(maxWidth);
+        }
+        currentLine = remaining;
+      } else {
+        currentLine = word;
+      }
+    }
+  }
+  if (currentLine) lines.push(currentLine);
+  return lines.length > 0 ? lines : [text];
+};
+
 export default function SalesHistoryTable({
   initialData,
   total,
   totalPages,
   stats,
   businessName,
+  avatarUrl,
+  address,
   searchParams
 }: SalesHistoryTableProps) {
   const router = useRouter();
@@ -119,6 +151,29 @@ export default function SalesHistoryTable({
   const [currentStats, setCurrentStats] = useState(stats);
   const [currentPage, setCurrentPage] = useState(searchParams.page ? Number(searchParams.page) : 1);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Direct Thermal Printing States (WebUSB & WebBluetooth)
+  const [printMethod, setPrintMethod] = useState<"usb" | "bluetooth">("usb");
+  const [isUsbSupported, setIsUsbSupported] = useState(false);
+  const [isUsbConnected, setIsUsbConnected] = useState(false);
+  const [usbDeviceName, setUsbDeviceName] = useState("");
+  const [isPrintingUsb, setIsPrintingUsb] = useState(false);
+
+  const [selectedBtDevice, setSelectedBtDevice] = useState<any>(null);
+  const [isBtConnecting, setIsBtConnecting] = useState(false);
+  const [isPrintingBt, setIsPrintingBt] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && (navigator as any).usb) {
+      setIsUsbSupported(true);
+      (navigator as any).usb.getDevices().then((devices: any[]) => {
+        if (devices.length > 0) {
+          setIsUsbConnected(true);
+          setUsbDeviceName(devices[0].productName || "Thermal Printer");
+        }
+      });
+    }
+  }, []);
 
   const cacheRef = useRef<Record<string, { data: SaleTransaction[]; total: number; totalPages: number; stats: any }>>({});
 
@@ -384,50 +439,271 @@ export default function SalesHistoryTable({
     }
   };
 
-  const handlePrintNota = (tx: SaleTransaction) => {
-    const doc = new jsPDF({ unit: "mm", format: [80, 160] });
+  const handlePrintNota = async (tx: SaleTransaction) => {
+    await printReceiptPdf(
+      {
+        business_name: businessName,
+        branch_name: "Cabang Utama",
+        address: address,
+        avatar_url: avatarUrl,
+      },
+      buildReceiptDataFromSaleTransaction(tx)
+    );
+  };
 
-    doc.setFont("courier", "bold");
-    doc.setFontSize(10);
-    doc.text(businessName.toUpperCase(), 40, 10, { align: "center" });
+  const handleConnectUsbManual = async () => {
+    if (!(navigator as any).usb) return toast.error("Browser Anda tidak mendukung WebUSB.");
+    try {
+      const device = await (navigator as any).usb.requestDevice({ filters: [] });
+      if (device) {
+        setIsUsbConnected(true);
+        setUsbDeviceName(device.productName || "Thermal Printer");
+        toast.success(`Terhubung ke printer USB: ${device.productName || "Thermal Printer"}`);
+      }
+    } catch (e: any) {
+      if (e.name !== "NotFoundError") toast.error("Gagal menghubungkan printer USB.");
+    }
+  };
 
-    doc.setFont("courier", "normal");
-    doc.setFontSize(8);
-    doc.text("---------------------------------", 40, 15, { align: "center" });
-    doc.text(`Nota  : #${tx.reference_number || "-"}`, 5, 20);
-    doc.text(`Tgl   : ${new Date(tx.transaction_date).toLocaleDateString("id-ID")}`, 5, 25);
-    doc.text(`Cust  : ${tx.customer_name || "Pembeli Umum"}`, 5, 30);
-    const payMethod = tx.transaction_items[0]?.payment_methods?.name || "Tunai";
-    doc.text(`Bayar : ${payMethod}`, 5, 35);
-    doc.text("---------------------------------", 40, 40, { align: "center" });
+  const handleDisconnectUsbManual = () => {
+    setIsUsbConnected(false);
+    setUsbDeviceName("");
+    toast.info("Printer USB terputus.");
+  };
 
-    let y = 46;
-    tx.transaction_items.forEach((item) => {
-      const nameTrunc = item.name.slice(0, 22);
-      const qty = item.quantity || 1;
-      const unitPrice = Math.round(item.amount / qty);
-      const subtotal = new Intl.NumberFormat("id-ID").format(item.amount);
-      const unitPriceFmt = new Intl.NumberFormat("id-ID").format(unitPrice);
+  const handlePrintUsbDirect = async (tx: SaleTransaction) => {
+    if (!(navigator as any).usb) {
+      toast.error("Browser Anda tidak mendukung WebUSB.");
+      return;
+    }
+    try {
+      setIsPrintingUsb(true);
+      const paired = await (navigator as any).usb.getDevices();
+      let device = paired.length > 0 ? paired[0] : await (navigator as any).usb.requestDevice({ filters: [] });
+      if (!device.opened) await device.open();
+      if (device.configuration === null) await device.selectConfiguration(1);
 
-      doc.setFont("courier", "bold");
-      doc.text(nameTrunc, 5, y);
-      doc.setFont("courier", "normal");
-      doc.text(`${qty} x ${unitPriceFmt}`, 5, y + 4);
-      doc.text(subtotal, 75, y + 4, { align: "right" });
-      y += 10;
-    });
+      let interfaceNumber: number | null = null;
+      let endpointNumber: number | null = null;
+      for (const config of device.configurations) {
+        for (const iface of config.interfaces) {
+          for (const alternate of iface.alternates) {
+            const outEndpoint = alternate.endpoints.find((ep: any) => ep.direction === "out" && ep.type === "bulk");
+            if (outEndpoint) {
+              interfaceNumber = iface.interfaceNumber;
+              endpointNumber = outEndpoint.endpointNumber;
+              break;
+            }
+          }
+          if (interfaceNumber !== null) break;
+        }
+        if (interfaceNumber !== null) break;
+      }
+      if (interfaceNumber === null || endpointNumber === null) throw new Error("Endpoint USB tidak ditemukan.");
+      try { await device.claimInterface(interfaceNumber); } catch (_) {}
 
-    const totalFmt = new Intl.NumberFormat("id-ID").format(Number(tx.total_income));
-    doc.text("---------------------------------", 40, y, { align: "center" });
-    doc.setFont("courier", "bold");
-    doc.text("TOTAL  :", 5, y + 5);
-    doc.text(totalFmt, 75, y + 5, { align: "right" });
-    doc.setFont("courier", "normal");
-    doc.setFontSize(7);
-    doc.text("Terima kasih telah berbelanja!", 40, y + 13, { align: "center" });
-    doc.text("Powered by SiPetto", 40, y + 17, { align: "center" });
+      const encoder = new TextEncoder();
+      const ESC = "\x1b";
+      const GS = "\x1d";
+      const LF = "\n";
 
-    window.open(doc.output("bloburl"));
+      let data = "";
+      data += ESC + "@";
+      data += ESC + "a" + "\x01";
+      data += ESC + "!" + "\x10";
+      data += (businessName || "SIPPETO POS").toUpperCase() + LF;
+      data += ESC + "!" + "\x00";
+
+      if (address) data += address + LF;
+      data += "--------------------------------" + LF;
+
+      data += ESC + "a" + "\x00";
+      data += `Nota : #${tx.reference_number}` + LF;
+      data += `Tgl  : ${new Date(tx.transaction_date).toLocaleDateString("id-ID")}` + LF;
+      data += `Cust : ${tx.customer_name || "Pembeli Umum"}` + LF;
+      const payMethod = tx.transaction_items[0]?.payment_methods?.name || "Tunai";
+      data += `Bayar: ${payMethod}` + LF;
+      data += "--------------------------------" + LF;
+
+      tx.transaction_items.forEach((item) => {
+        const cleanName = item.name.replace(/\s*\(x\d+\)/, "");
+        const qty = item.quantity || 1;
+        const unitPrice = Math.round(item.amount / qty);
+        const nameLines = wrapText(cleanName, 32);
+        nameLines.forEach((l: string) => { data += l + LF; });
+
+        const qtyText = `${qty} x ${new Intl.NumberFormat("id-ID").format(unitPrice)}`;
+        const subtotalText = new Intl.NumberFormat("id-ID").format(item.amount);
+        const spacesCount = 32 - qtyText.length - subtotalText.length;
+        if (spacesCount >= 1) {
+          data += qtyText + " ".repeat(spacesCount) + subtotalText + LF;
+        } else {
+          data += qtyText + LF;
+          data += " ".repeat(Math.max(0, 32 - subtotalText.length)) + subtotalText + LF;
+        }
+      });
+
+      data += "--------------------------------" + LF;
+      const totalText = "TOTAL BAYAR:";
+      const totalVal = new Intl.NumberFormat("id-ID").format(Number(tx.total_income));
+      const totalSpaces = 32 - totalText.length - totalVal.length;
+      data += totalText + " ".repeat(Math.max(1, totalSpaces)) + totalVal + LF + LF;
+
+      data += ESC + "a" + "\x01";
+      data += "terima kasih atas pesanan anda ." + LF;
+      data += "dicetak dari Sippeto POS system" + LF;
+      data += LF + LF + LF;
+      data += GS + "V" + "\x41" + "\x03";
+
+      const bytes = encoder.encode(data);
+      for (let i = 0; i < bytes.length; i += 64) {
+        await device.transferOut(endpointNumber, bytes.slice(i, i + 64));
+      }
+      toast.success("Nota berhasil dicetak via USB!");
+    } catch (e: any) {
+      if (e.name !== "NotFoundError") toast.error(`Gagal cetak USB: ${e.message || e}`);
+    } finally {
+      setIsPrintingUsb(false);
+    }
+  };
+
+  const connectBluetoothPrinter = async (forceNewScan = false) => {
+    if (!(navigator as any).bluetooth) {
+      throw new Error("Browser tidak mendukung Web Bluetooth.");
+    }
+    const BT_SERVICE_UUIDS = [
+      "0000ffe0-0000-1000-8000-00805f9b34fb",
+      "0000ffe5-0000-1000-8000-00805f9b34fb",
+      "000018f0-0000-1000-8000-00805f9b34fb",
+      "0000aabb-0000-1000-8000-00805f9b34fb",
+      "0000ae30-0000-1000-8000-00805f9b34fb",
+      "0000af30-0000-1000-8000-00805f9b34fb",
+      "e7810a71-73ae-499d-8c15-faa9aef0c3f2",
+      "49535441-5254-4745-4e49-555353455256",
+    ];
+
+    const BT_NAME_PREFIXES = [
+      "MTP", "PT", "RP", "Thermal", "58mm", "80mm",
+      "BT_", "Printer", "POS", "Xprinter", "ZJ", "GH",
+      "LP", "GP", "PP", "MA", "BP", "ECO", "BP-ECO",
+    ];
+
+    if (!forceNewScan && selectedBtDevice && selectedBtDevice.gatt.connected) {
+      return selectedBtDevice;
+    }
+
+    setIsBtConnecting(true);
+    try {
+      const device = await (navigator as any).bluetooth.requestDevice({
+        filters: [
+          ...BT_NAME_PREFIXES.map((prefix) => ({ namePrefix: prefix })),
+          ...BT_SERVICE_UUIDS.map((uuid) => ({ services: [uuid] })),
+        ],
+        optionalServices: BT_SERVICE_UUIDS,
+      });
+
+      await device.gatt.connect();
+      setSelectedBtDevice(device);
+      toast.success(`Terhubung ke Bluetooth: ${device.name || "Thermal Printer"}`);
+      return device;
+    } catch (e: any) {
+      if (e.name !== "NotFoundError") toast.error(`Gagal konek Bluetooth: ${e.message}`);
+      throw e;
+    } finally {
+      setIsBtConnecting(false);
+    }
+  };
+
+  const handlePrintBluetoothDirect = async (tx: SaleTransaction) => {
+    try {
+      setIsPrintingBt(true);
+      const device = await connectBluetoothPrinter(false);
+      if (!device || !device.gatt || !device.gatt.connected) {
+        throw new Error("Printer Bluetooth tidak terhubung.");
+      }
+
+      const server = device.gatt;
+      const services = await server.getPrimaryServices();
+      let targetChar: any = null;
+
+      for (const service of services) {
+        const characteristics = await service.getCharacteristics();
+        for (const char of characteristics) {
+          if (char.properties.write || char.properties.writeWithoutResponse) {
+            targetChar = char;
+            break;
+          }
+        }
+        if (targetChar) break;
+      }
+
+      if (!targetChar) throw new Error("Karakteristik Bluetooth tidak ditemukan.");
+
+      const encoder = new TextEncoder();
+      const ESC = "\x1b";
+      const GS = "\x1d";
+      const LF = "\n";
+
+      let data = "";
+      data += ESC + "@";
+      data += ESC + "a" + "\x01";
+      data += ESC + "!" + "\x10";
+      data += (businessName || "SIPPETO POS").toUpperCase() + LF;
+      data += ESC + "!" + "\x00";
+
+      if (address) data += address + LF;
+      data += "--------------------------------" + LF;
+
+      data += ESC + "a" + "\x00";
+      data += `Nota : #${tx.reference_number}` + LF;
+      data += `Tgl  : ${new Date(tx.transaction_date).toLocaleDateString("id-ID")}` + LF;
+      data += `Cust : ${tx.customer_name || "Pembeli Umum"}` + LF;
+      const payMethod = tx.transaction_items[0]?.payment_methods?.name || "Tunai";
+      data += `Bayar: ${payMethod}` + LF;
+      data += "--------------------------------" + LF;
+
+      tx.transaction_items.forEach((item) => {
+        const cleanName = item.name.replace(/\s*\(x\d+\)/, "");
+        const qty = item.quantity || 1;
+        const unitPrice = Math.round(item.amount / qty);
+        const nameLines = wrapText(cleanName, 32);
+        nameLines.forEach((l: string) => { data += l + LF; });
+
+        const qtyText = `${qty} x ${new Intl.NumberFormat("id-ID").format(unitPrice)}`;
+        const subtotalText = new Intl.NumberFormat("id-ID").format(item.amount);
+        const spacesCount = 32 - qtyText.length - subtotalText.length;
+        if (spacesCount >= 1) {
+          data += qtyText + " ".repeat(spacesCount) + subtotalText + LF;
+        } else {
+          data += qtyText + LF;
+          data += " ".repeat(Math.max(0, 32 - subtotalText.length)) + subtotalText + LF;
+        }
+      });
+
+      data += "--------------------------------" + LF;
+      const totalText = "TOTAL BAYAR:";
+      const totalVal = new Intl.NumberFormat("id-ID").format(Number(tx.total_income));
+      const totalSpaces = 32 - totalText.length - totalVal.length;
+      data += totalText + " ".repeat(Math.max(1, totalSpaces)) + totalVal + LF + LF;
+
+      data += ESC + "a" + "\x01";
+      data += "terima kasih atas pesanan anda ." + LF;
+      data += "dicetak dari Sippeto POS system" + LF;
+      data += LF + LF + LF;
+      data += GS + "V" + "\x41" + "\x03";
+
+      const bytes = encoder.encode(data);
+      const chunkSize = 100;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.slice(i, i + chunkSize);
+        await targetChar.writeValue(chunk);
+      }
+      toast.success("Nota berhasil dicetak via Bluetooth!");
+    } catch (e: any) {
+      if (e.name !== "NotFoundError") toast.error(`Gagal cetak Bluetooth: ${e.message || e}`);
+    } finally {
+      setIsPrintingBt(false);
+    }
   };
 
   const formatCurrency = (v: number) =>
@@ -1048,122 +1324,32 @@ export default function SalesHistoryTable({
         </>
       )}
 
-      {/* Modal Detail Nota */}
+      {/* Modal Detail Nota using shared ReceiptModal */}
       {selectedTx && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
-          onClick={(e) => { if (e.target === e.currentTarget) setSelectedTx(null); }}
-        >
-          <div className="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden border border-zinc-150 border-0">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-zinc-100">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="w-3 h-1 bg-emerald-500 rounded-full" />
-                  <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Detail Nota</span>
-                </div>
-                <h3 className="text-base font-black text-[#030037]">
-                  #{selectedTx.reference_number || "—"}
-                </h3>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handlePrintNota(selectedTx)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#030037] text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-black transition-all"
-                >
-                  <Printer className="w-3 h-3" />
-                  Cetak
-                </button>
-                <button
-                  onClick={() => setSelectedTx(null)}
-                  className="p-2 bg-zinc-100 hover:bg-zinc-200 rounded-xl transition-colors"
-                >
-                  <X className="w-4 h-4 text-zinc-500" />
-                </button>
-              </div>
-            </div>
-
-            {/* Meta Info */}
-            <div className="px-6 py-4 bg-zinc-50 border-b border-zinc-100 grid grid-cols-2 gap-3">
-              <div>
-                <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-0.5">Tanggal</p>
-                <p className="text-xs font-bold text-zinc-800">{formatDate(selectedTx.transaction_date)}</p>
-              </div>
-              <div>
-                <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-0.5">Pelanggan</p>
-                <p className="text-xs font-bold text-zinc-800">{selectedTx.customer_name || "Pembeli Umum"}</p>
-              </div>
-              <div>
-                <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-0.5">Metode Bayar</p>
-                <p className="text-xs font-bold text-zinc-800">
-                  {selectedTx.transaction_items[0]?.payment_methods?.name || "Tunai"}
-                </p>
-              </div>
-              <div>
-                <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-0.5">Keterangan</p>
-                <p className="text-xs font-bold text-zinc-800">{selectedTx.description || "—"}</p>
-              </div>
-            </div>
-
-            {/* Items List */}
-            <div data-lenis-prevent className="px-6 py-4 max-h-64 overflow-y-auto space-y-2">
-              {selectedTx.transaction_items.map((item, idx) => {
-                const qty = item.quantity || 1;
-                const unitPrice = Math.round(item.amount / qty);
-                return (
-                  <div key={item.id || idx} className="flex items-center gap-3 py-2 border-b border-zinc-50 last:border-0">
-                    <div className="w-8 h-8 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-center shrink-0">
-                      <Package className="w-3.5 h-3.5 text-[#3c39d6]" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-zinc-800 truncate">
-                        {item.name.replace(/\s*\(x\d+\)/, "")}
-                      </p>
-                      <p className="text-[10px] text-zinc-400 font-medium">
-                        {qty} × {formatCurrency(unitPrice)}
-                      </p>
-                    </div>
-                    <p className="text-sm font-black text-zinc-800 shrink-0">
-                      {formatCurrency(item.amount)}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Total Footer */}
-            <div className="px-6 py-4 bg-[#030037] flex items-center justify-between">
-              <span className="text-xs font-black text-white/60 uppercase tracking-widest">Total Pembayaran</span>
-              <span className="text-xl font-black text-emerald-400">
-                {formatCurrency(Number(selectedTx.total_income))}
-              </span>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-3 px-6 py-4">
-              <button
-                onClick={() => {
-                  setSelectedTx(null);
-                  router.push(`/backend/tenant/sales?id=${selectedTx.id}`);
-                }}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
-              >
-                <Edit2 className="w-3.5 h-3.5" />
-                Edit Transaksi
-              </button>
-              <button
-                onClick={() => {
-                  setSelectedTx(null);
-                  handleDelete(selectedTx.id);
-                }}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                Hapus
-              </button>
-            </div>
-          </div>
-        </div>
+        <ReceiptModal
+          isOpen={!!selectedTx}
+          onClose={() => setSelectedTx(null)}
+          profile={{
+            business_name: businessName,
+            branch_name: "Cabang Utama",
+            address: address,
+            avatar_url: avatarUrl,
+          }}
+          data={buildReceiptDataFromSaleTransaction(selectedTx)}
+          title="Detail Nota POS"
+          subtitle={`#${selectedTx.reference_number || "—"}`}
+          showSuccessBadge={false}
+          onEdit={() => {
+            const id = selectedTx.id;
+            setSelectedTx(null);
+            router.push(`/backend/tenant/sales?id=${id}`);
+          }}
+          onDelete={() => {
+            const id = selectedTx.id;
+            setSelectedTx(null);
+            handleDelete(id);
+          }}
+        />
       )}
       {/* Custom Confirmation Modal E-Catalog */}
       {confirmModal.isOpen && (

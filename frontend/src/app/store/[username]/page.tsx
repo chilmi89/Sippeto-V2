@@ -63,20 +63,20 @@ export async function generateMetadata({ params }: { params: Params }) {
 
   if (!data) {
     return {
-      title: "Toko Tidak Ditemukan - SiPetto",
-      description: "Halaman toko UMKM tidak ditemukan di ekosistem SiPetto.",
+      title: "Toko Tidak Ditemukan - Sippeto",
+      description: "Halaman toko UMKM tidak ditemukan di ekosistem Sippeto.",
     };
   }
 
   const { profile } = data;
   const storeTitle = profile.business_name || profile.username || username;
   return {
-    title: `${storeTitle} - E-Catalog Online SiPetto`,
+    title: `${storeTitle} - E-Catalog Online Sippeto`,
     description:
       profile.bio ||
       `Temukan produk-produk terbaik dari ${storeTitle} dengan pemesanan praktis via WhatsApp.`,
     openGraph: {
-      title: `${storeTitle} - E-Catalog Online SiPetto`,
+      title: `${storeTitle} - E-Catalog Online Sippeto`,
       images: profile.banner_url ? [{ url: profile.banner_url }] : [],
     },
   };

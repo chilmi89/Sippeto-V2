@@ -38,14 +38,14 @@ export default function StoreHero({ profile, productCount }: StoreHeroProps) {
   return (
     <header className="relative pt-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 2xl:px-12">
       {/* Banner */}
-      <div className="w-full h-[42vh] min-h-[220px] max-h-[420px] relative overflow-hidden rounded-3xl shadow-2xl border border-white/5">
+      <div className="w-full h-[32vh] sm:h-[40vh] min-h-[220px] max-h-[420px] relative overflow-hidden rounded-3xl shadow-2xl border border-white/10 bg-slate-900">
         {profile.banner_url ? (
           <Image
             src={profile.banner_url}
             alt={`Banner toko ${storeName}`}
             fill
             priority
-            className="object-cover"
+            className="object-cover object-center"
             sizes="(max-width: 768px) 100vw, 1280px"
           />
         ) : (
@@ -60,9 +60,9 @@ export default function StoreHero({ profile, productCount }: StoreHeroProps) {
             />
           </div>
         )}
-        {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/50 to-transparent" />
+        {/* Soft Ambient Overlay to prevent stark cut-offs */}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-slate-950/30 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/40 via-transparent to-slate-950/40 pointer-events-none" />
       </div>
 
       {/* Profile Info — overlapping banner */}

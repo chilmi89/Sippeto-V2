@@ -27,7 +27,8 @@ import { toast } from "react-toastify";
 import jsPDF from "jspdf";
 import { getPOSProductsAction, savePOSTransactionAction } from "./actions";
 import { validateDiscountCodeAction, getDiscountsAction } from "@/app/actions/discount";
-import { div } from "framer-motion/client";
+import ReceiptModal from "./ReceiptModal";
+import { printReceiptPdf } from "./receiptUtils";
 
 // Bluetooth thermal printer constants
 const BT_SERVICE_UUIDS = [
@@ -67,6 +68,32 @@ const getQuickCashPresets = (total: number): number[] => {
   const nearest50k = Math.ceil(total / 50000) * 50000;
   if (nearest50k > total) presets.add(nearest50k);
   return Array.from(presets).sort((a, b) => a - b).slice(0, 3);
+};
+
+const wrapText = (text: string, maxWidth: number = 32): string[] => {
+  const words = text.split(" ");
+  const lines: string[] = [];
+  let currentLine = "";
+
+  for (const word of words) {
+    if ((currentLine + (currentLine ? " " : "") + word).length <= maxWidth) {
+      currentLine += (currentLine ? " " : "") + word;
+    } else {
+      if (currentLine) lines.push(currentLine);
+      if (word.length > maxWidth) {
+        let remaining = word;
+        while (remaining.length > maxWidth) {
+          lines.push(remaining.slice(0, maxWidth));
+          remaining = remaining.slice(maxWidth);
+        }
+        currentLine = remaining;
+      } else {
+        currentLine = word;
+      }
+    }
+  }
+  if (currentLine) lines.push(currentLine);
+  return lines.length > 0 ? lines : [text];
 };
 
 interface Product {
@@ -354,6 +381,21 @@ export default function POSForm({
     };
   }, [availableDiscounts]);
 
+  useEffect(() => {
+    if (availableDiscounts.length > 0 && cart.length > 0) {
+      setCart(prevCart =>
+        prevCart.map(item => {
+          const info = getEffectivePriceInfo(item.product);
+          return {
+            ...item,
+            effective_price: info.effectivePrice,
+            product_discount: info.discount,
+          };
+        })
+      );
+    }
+  }, [availableDiscounts, getEffectivePriceInfo]);
+
   const calculateCartDiscount = useCallback((disc: any, cartItems: CartItem[]) => {
     const netSubtotal = cartItems.reduce(
       (sum, item) => sum + (item.effective_price * item.quantity),
@@ -602,17 +644,49 @@ export default function POSForm({
                         || txCategories.find(c => c.type === "pemasukan") 
                         || { id: null };
 
-      const itemsPayload = cart.map(item => ({
-        name: `${item.product.name} (x${item.quantity})`,
-        amount: item.product.sell_price * item.quantity,
-        category_id: targetCat.id,
-        payment_method_id: paymentMethodId,
-        type: "INCOME",
-        product_id: item.product.id,
-        quantity: item.quantity
-      }));
+      const netSubtotal = cart.reduce((sum, item) => sum + (item.effective_price * item.quantity), 0);
+      const globalDiscVal = appliedDiscount ? appliedDiscount.discount_amount : 0;
+      const ratio = netSubtotal > 0 ? Math.max(0, netSubtotal - globalDiscVal) / netSubtotal : 1;
+
+      const itemsPayload = cart.map(item => {
+        const itemNet = item.effective_price * item.quantity;
+        const itemFinalAmount = Math.round(itemNet * ratio);
+        return {
+          name: `${item.product.name} (x${item.quantity})`,
+          amount: itemFinalAmount,
+          category_id: targetCat.id,
+          payment_method_id: paymentMethodId,
+          type: "INCOME",
+          product_id: item.product.id,
+          quantity: item.quantity
+        };
+      });
 
       const isEditMode = !!editId;
+      const numericCashPaid = Number(cashPaid) || 0;
+      const changeAmount = numericCashPaid > cartFinalTotal ? numericCashPaid - cartFinalTotal : 0;
+
+      const posMeta = {
+        items: cart.map(item => ({
+          product_id: item.product.id,
+          name: item.product.name,
+          sell_price: item.product.sell_price,
+          effective_price: item.effective_price
+        })),
+        subtotal: cartSubtotal,
+        product_discount: cartProductDiscountTotal,
+        global_discount: appliedDiscount ? {
+          name: appliedDiscount.name,
+          amount: appliedDiscount.discount_amount
+        } : null,
+        cash_paid: numericCashPaid,
+        change: changeAmount
+      };
+
+      const descriptionPayload = JSON.stringify({
+        pos_meta: posMeta,
+        note: description || "Transaksi POS Kasir"
+      });
 
       const payload = {
         ...(isEditMode && { id: editId }),
@@ -620,7 +694,7 @@ export default function POSForm({
         branch_id: selectedBranchId,
         reference_number: reference,
         transaction_date: date,
-        description: description || "Transaksi POS Kasir",
+        description: descriptionPayload,
         customer_name: customerName || "Pembeli Umum",
         customer_phone: customerPhone || null,
         customer_address: customerAddress || null,
@@ -679,102 +753,42 @@ export default function POSForm({
     }
   };
 
-  const handlePrintReceipt = () => {
+  const handlePrintReceipt = async () => {
     if (!lastTransaction) return;
-
-    const doc = new jsPDF({
-      unit: "mm",
-      format: [80, 150]
-    });
-
-    const activeBranchName = branches.find(b => b.id === selectedBranchId)?.name || "Cabang Utama";
-
-    doc.setFont("courier", "bold");
-    doc.setFontSize(10);
-    doc.text(profile.business_name.toUpperCase(), 40, 10, { align: "center" });
-
-    doc.setFont("courier", "normal");
-    doc.setFontSize(8);
-    doc.text(activeBranchName, 40, 14, { align: "center" });
-    
-    let currentY = 14;
-    if (profile.address) {
-      doc.setFontSize(7);
-      const splitAddress = doc.splitTextToSize(profile.address, 70);
-      splitAddress.forEach((line: string) => {
-        currentY += 4;
-        doc.text(line, 40, currentY, { align: "center" });
-      });
-    }
-
-    doc.setFontSize(8);
-    currentY += 4;
-    doc.text("---------------------------------", 40, currentY, { align: "center" });
-    
-    doc.text(`Nota : #${lastTransaction.reference_number}`, 5, currentY + 5);
-    doc.text(`Tgl  : ${new Date(lastTransaction.transaction_date || "").toLocaleDateString()}`, 5, currentY + 9);
-    doc.text(`Cust : ${lastTransaction.customer_name}`, 5, currentY + 13);
-    doc.text(`Bayar: ${lastTransaction.payment_method}`, 5, currentY + 17);
-    
-    currentY += 22;
-    doc.text("---------------------------------", 40, currentY, { align: "center" });
-    
-    let yPos = currentY + 5;
-    lastTransaction.items.forEach((item: CartItem) => {
-      const name = item.product.name.slice(0, 18);
-      const qtyText = `${item.quantity} x ${formatCurrency(item.product.sell_price).replace("Rp", "").trim()}`;
-      const subtotalText = formatCurrency(item.product.sell_price * item.quantity).replace("Rp", "").trim();
-
-      doc.setFont("courier", "bold");
-      doc.text(name, 5, yPos);
-      doc.setFont("courier", "normal");
-      doc.text(qtyText, 5, yPos + 4);
-      doc.text(subtotalText, 75, yPos + 4, { align: "right" });
-      yPos += 9;
-    });
-
-    doc.text("---------------------------------", 40, yPos, { align: "center" });
-    
-    const subtotalAmount = lastTransaction.items.reduce((sum: number, item: any) => sum + (item.product.sell_price * item.quantity), 0);
-    const discountAmount = lastTransaction.applied_discount ? lastTransaction.applied_discount.discount_amount : 0;
-    const finalTotalAmount = Math.max(0, subtotalAmount - discountAmount);
-
-    doc.setFont("courier", "normal");
-    doc.text("Subtotal:", 5, yPos + 5);
-    doc.text(formatCurrency(subtotalAmount).replace("Rp", "").trim(), 75, yPos + 5, { align: "right" });
-    yPos += 4;
-
-    if (discountAmount > 0) {
-      const discName = (lastTransaction.applied_discount?.name || "DISKON").slice(0, 10);
-      doc.text(`Diskon (${discName}):`, 5, yPos + 5);
-      doc.text(`-${formatCurrency(discountAmount).replace("Rp", "").trim()}`, 75, yPos + 5, { align: "right" });
-      yPos += 4;
-    }
-
-    doc.setFont("courier", "bold");
-    doc.text("TOTAL BAYAR:", 5, yPos + 5);
-    doc.text(formatCurrency(finalTotalAmount).replace("Rp", "").trim(), 75, yPos + 5, { align: "right" });
-
-    let nextY = yPos + 9;
-    if (lastTransaction.cash_paid !== undefined && lastTransaction.cash_paid > 0) {
-      doc.setFont("courier", "normal");
-      doc.text("BAYAR :", 5, nextY);
-      doc.text(formatCurrency(lastTransaction.cash_paid).replace("Rp", "").trim(), 75, nextY, { align: "right" });
-      nextY += 4;
-      doc.text("KEMBALI:", 5, nextY);
-      doc.text(formatCurrency(lastTransaction.change || 0).replace("Rp", "").trim(), 75, nextY, { align: "right" });
-      nextY += 5;
-    } else {
-      nextY += 5;
-    }
-
-    doc.setFont("courier", "normal");
-    doc.setFontSize(7);
-    doc.text("Terima kasih atas kunjungan Anda !", 40, nextY + 5, { align: "center" });
-    doc.text("Sippeto POS System", 40, nextY + 9, { align: "center" });
-
-    const pdfBlobUrl = doc.output("bloburl");
-    window.open(pdfBlobUrl);
+    await printReceiptPdf(
+      {
+        business_name: profile?.business_name,
+        branch_name: branches.find((b) => b.id === selectedBranchId)?.name || "Cabang Utama",
+        address: profile?.address,
+        avatar_url: profile?.avatar_url,
+      },
+      {
+        reference_number: lastTransaction.reference_number,
+        transaction_date: lastTransaction.transaction_date || new Date().toISOString(),
+        customer_name: lastTransaction.customer_name || "Pembeli Umum",
+        payment_method: lastTransaction.payment_method || "Tunai",
+        items: (lastTransaction.items || []).map((it: any) => ({
+          name: it.product?.name || it.name || "Produk",
+          quantity: it.quantity || 1,
+          sell_price: it.product?.sell_price || it.sell_price || 0,
+          effective_price: it.effective_price ?? (it.product?.sell_price ?? 0),
+          subtotal: (it.effective_price ?? (it.product?.sell_price ?? 0)) * (it.quantity || 1),
+        })),
+        subtotal: (lastTransaction.items || []).reduce((sum: number, it: any) => sum + ((it.product?.sell_price || 0) * (it.quantity || 1)), 0),
+        product_discount: (lastTransaction.items || []).reduce((sum: number, it: any) => sum + (Math.max(0, (it.product?.sell_price || 0) - (it.effective_price ?? (it.product?.sell_price || 0))) * (it.quantity || 1)), 0),
+        global_discount: lastTransaction.applied_discount ? {
+          name: lastTransaction.applied_discount.name,
+          amount: lastTransaction.applied_discount.discount_amount,
+        } : null,
+        total_income: Math.max(0,
+          ((lastTransaction.items || []).reduce((sum: number, it: any) => sum + ((it.product?.sell_price || 0) * (it.quantity || 1)), 0)) -
+          ((lastTransaction.items || []).reduce((sum: number, it: any) => sum + (Math.max(0, (it.product?.sell_price || 0) - (it.effective_price ?? (it.product?.sell_price || 0))) * (it.quantity || 1)), 0)) -
+          (lastTransaction.applied_discount ? lastTransaction.applied_discount.discount_amount : 0)
+        ),
+        cash_paid: lastTransaction.cash_paid,
+        change: lastTransaction.change,
+      }
+    );
   };
 
   const connectBluetoothPrinter = async (forceNewScan = false) => {
@@ -1097,30 +1111,62 @@ export default function POSForm({
       data += "--------------------------------" + LF;
 
       lastTransaction.items.forEach((item: CartItem) => {
-        const name = item.product.name.slice(0, 18);
-        const qtyText = `${item.quantity} x ${formatCurrency(item.product.sell_price).replace("Rp", "").trim()}`;
-        const subtotalText = formatCurrency(item.product.sell_price * item.quantity).replace("Rp", "").trim();
+        const origPrice = item.product.sell_price;
+        const effPrice = item.effective_price ?? origPrice;
+        const hasDisc = origPrice > effPrice;
 
-        data += name + LF;
-        const spacesCount = 32 - qtyText.length - subtotalText.length;
-        const spaces = " ".repeat(Math.max(1, spacesCount));
-        data += qtyText + spaces + subtotalText + LF;
+        const origFmt = formatCurrency(origPrice).replace("Rp", "").trim();
+        const effFmt = formatCurrency(effPrice).replace("Rp", "").trim();
+        const subtotalFmt = formatCurrency(effPrice * item.quantity).replace("Rp", "").trim();
+
+        const nameLines = wrapText(item.product.name, 32);
+        nameLines.forEach((line) => {
+          data += line + LF;
+        });
+
+        if (hasDisc) {
+          data += `${item.quantity} x ${origFmt}` + LF;
+          const discText = `      -> ${effFmt}`;
+          const spacesCount = 32 - discText.length - subtotalFmt.length;
+          if (spacesCount >= 1) {
+            data += discText + " ".repeat(spacesCount) + subtotalFmt + LF;
+          } else {
+            data += discText + LF;
+            data += " ".repeat(Math.max(0, 32 - subtotalFmt.length)) + subtotalFmt + LF;
+          }
+        } else {
+          const qtyText = `${item.quantity} x ${effFmt}`;
+          const spacesCount = 32 - qtyText.length - subtotalFmt.length;
+          if (spacesCount >= 1) {
+            data += qtyText + " ".repeat(spacesCount) + subtotalFmt + LF;
+          } else {
+            data += qtyText + LF;
+            data += " ".repeat(Math.max(0, 32 - subtotalFmt.length)) + subtotalFmt + LF;
+          }
+        }
       });
 
       data += "--------------------------------" + LF;
 
       const subtotalVal = lastTransaction.items.reduce((sum: number, i: CartItem) => sum + (i.product.sell_price * i.quantity), 0);
-      const discountVal = lastTransaction.applied_discount ? lastTransaction.applied_discount.discount_amount : 0;
-      const finalTotalVal = Math.max(0, subtotalVal - discountVal);
+      const prodDiscountVal = lastTransaction.items.reduce((sum: number, i: CartItem) => sum + (Math.max(0, i.product.sell_price - (i.effective_price ?? i.product.sell_price)) * i.quantity), 0);
+      const globalDiscountVal = lastTransaction.applied_discount ? lastTransaction.applied_discount.discount_amount : 0;
+      const finalTotalVal = Math.max(0, subtotalVal - prodDiscountVal - globalDiscountVal);
 
       const subText = "Subtotal:";
       const subStr = formatCurrency(subtotalVal).replace("Rp", "").trim();
       data += subText + " ".repeat(Math.max(1, 32 - subText.length - subStr.length)) + subStr + LF;
 
-      if (discountVal > 0) {
-        const discName = (lastTransaction.applied_discount?.name || "Diskon").slice(0, 10);
+      if (prodDiscountVal > 0) {
+        const prodDiscText = "Diskon Produk:";
+        const prodDiscStr = "-" + formatCurrency(prodDiscountVal).replace("Rp", "").trim();
+        data += prodDiscText + " ".repeat(Math.max(1, 32 - prodDiscText.length - prodDiscStr.length)) + prodDiscStr + LF;
+      }
+
+      if (globalDiscountVal > 0) {
+        const discName = (lastTransaction.applied_discount?.name || "Global").slice(0, 10);
         const discText = `Diskon (${discName}):`;
-        const discStr = "-" + formatCurrency(discountVal).replace("Rp", "").trim();
+        const discStr = "-" + formatCurrency(globalDiscountVal).replace("Rp", "").trim();
         data += discText + " ".repeat(Math.max(1, 32 - discText.length - discStr.length)) + discStr + LF;
       }
 
@@ -1143,8 +1189,8 @@ export default function POSForm({
       data += LF;
 
       data += ESC + "a" + "\x01";
-      data += "Terima kasih atas kunjungan Anda!" + LF;
-      data += "Sippeto POS System" + LF;
+      data += "terima kasih atas pesanan anda ." + LF;
+      data += "dicetak dari Sippeto POS system" + LF;
       data += LF + LF + LF;
 
       data += GS + "V" + "\x41" + "\x03";
@@ -1212,30 +1258,62 @@ export default function POSForm({
       data += "--------------------------------" + LF;
 
       lastTransaction.items.forEach((item: CartItem) => {
-        const name = item.product.name.slice(0, 18);
-        const qtyText = `${item.quantity} x ${formatCurrency(item.product.sell_price).replace("Rp", "").trim()}`;
-        const subtotalText = formatCurrency(item.product.sell_price * item.quantity).replace("Rp", "").trim();
+        const origPrice = item.product.sell_price;
+        const effPrice = item.effective_price ?? origPrice;
+        const hasDisc = origPrice > effPrice;
 
-        data += name + LF;
-        const spacesCount = 32 - qtyText.length - subtotalText.length;
-        const spaces = " ".repeat(Math.max(1, spacesCount));
-        data += qtyText + spaces + subtotalText + LF;
+        const origFmt = formatCurrency(origPrice).replace("Rp", "").trim();
+        const effFmt = formatCurrency(effPrice).replace("Rp", "").trim();
+        const subtotalFmt = formatCurrency(effPrice * item.quantity).replace("Rp", "").trim();
+
+        const nameLines = wrapText(item.product.name, 32);
+        nameLines.forEach((line) => {
+          data += line + LF;
+        });
+
+        if (hasDisc) {
+          data += `${item.quantity} x ${origFmt}` + LF;
+          const discText = `   -> ${effFmt}`;
+          const spacesCount = 32 - discText.length - subtotalFmt.length;
+          if (spacesCount >= 1) {
+            data += discText + " ".repeat(spacesCount) + subtotalFmt + LF;
+          } else {
+            data += discText + LF;
+            data += " ".repeat(Math.max(0, 32 - subtotalFmt.length)) + subtotalFmt + LF;
+          }
+        } else {
+          const qtyText = `${item.quantity} x ${effFmt}`;
+          const spacesCount = 32 - qtyText.length - subtotalFmt.length;
+          if (spacesCount >= 1) {
+            data += qtyText + " ".repeat(spacesCount) + subtotalFmt + LF;
+          } else {
+            data += qtyText + LF;
+            data += " ".repeat(Math.max(0, 32 - subtotalFmt.length)) + subtotalFmt + LF;
+          }
+        }
       });
 
       data += "--------------------------------" + LF;
 
       const subtotalValBt = lastTransaction.items.reduce((sum: number, i: CartItem) => sum + (i.product.sell_price * i.quantity), 0);
-      const discountValBt = lastTransaction.applied_discount ? lastTransaction.applied_discount.discount_amount : 0;
-      const finalTotalValBt = Math.max(0, subtotalValBt - discountValBt);
+      const prodDiscountValBt = lastTransaction.items.reduce((sum: number, i: CartItem) => sum + (Math.max(0, i.product.sell_price - (i.effective_price ?? i.product.sell_price)) * i.quantity), 0);
+      const globalDiscountValBt = lastTransaction.applied_discount ? lastTransaction.applied_discount.discount_amount : 0;
+      const finalTotalValBt = Math.max(0, subtotalValBt - prodDiscountValBt - globalDiscountValBt);
 
       const subTextBt = "Subtotal:";
       const subStrBt = formatCurrency(subtotalValBt).replace("Rp", "").trim();
       data += subTextBt + " ".repeat(Math.max(1, 32 - subTextBt.length - subStrBt.length)) + subStrBt + LF;
 
-      if (discountValBt > 0) {
-        const discNameBt = (lastTransaction.applied_discount?.name || "Diskon").slice(0, 10);
+      if (prodDiscountValBt > 0) {
+        const prodDiscTextBt = "Diskon Produk:";
+        const prodDiscStrBt = "-" + formatCurrency(prodDiscountValBt).replace("Rp", "").trim();
+        data += prodDiscTextBt + " ".repeat(Math.max(1, 32 - prodDiscTextBt.length - prodDiscStrBt.length)) + prodDiscStrBt + LF;
+      }
+
+      if (globalDiscountValBt > 0) {
+        const discNameBt = (lastTransaction.applied_discount?.name || "Global").slice(0, 10);
         const discTextBt = `Diskon (${discNameBt}):`;
-        const discStrBt = "-" + formatCurrency(discountValBt).replace("Rp", "").trim();
+        const discStrBt = "-" + formatCurrency(globalDiscountValBt).replace("Rp", "").trim();
         data += discTextBt + " ".repeat(Math.max(1, 32 - discTextBt.length - discStrBt.length)) + discStrBt + LF;
       }
 
@@ -1258,8 +1336,8 @@ export default function POSForm({
       data += LF;
 
       data += ESC + "a" + "\x01";
-      data += "Terima kasih atas kunjungan Anda!" + LF;
-      data += "Sippeto POS System" + LF;
+      data += "terima kasih atas pesanan anda ." + LF;
+      data += "dicetak dari Sippeto POS system" + LF;
       data += LF + LF + LF;
 
       data += GS + "V" + "\x41" + "\x03";
@@ -1673,34 +1751,41 @@ export default function POSForm({
                                            </div>
                                         </td>
                                         <td className="px-4 py-4 text-right font-mono">
-                                           {formatCurrency(item.product.sell_price)}
+                                            {item.effective_price < item.product.sell_price ? (
+                                               <div>
+                                                  <span className="text-[#10b981] font-bold block">{formatCurrency(item.effective_price)}</span>
+                                                  <span className="text-[10px] text-zinc-400 line-through block">{formatCurrency(item.product.sell_price)}</span>
+                                               </div>
+                                            ) : (
+                                               formatCurrency(item.product.sell_price)
+                                            )}
+                                         </td>
+                                         <td className="px-4 py-4">
+                                             <div className="flex items-center justify-center gap-0.5 bg-white border border-zinc-300 px-1.5 py-0.5 rounded-md w-16 mx-auto">
+                                              <button 
+                                                 type="button"
+                                                 onClick={() => updateQuantity(item.product.id, -1)}
+                                                 className="p-0.5 text-zinc-700 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-all"
+                                              >
+                                                 <Minus className="w-2.5 h-2.5" />
+                                              </button>
+                                              <input 
+                                                 type="text" 
+                                                 className="w-6 border-none bg-transparent text-center text-[10px] font-bold focus:ring-0 p-0 text-zinc-900"
+                                                 value={item.quantity}
+                                                 onChange={(e) => handleQtyInput(item.product.id, e.target.value)}
+                                              />
+                                              <button 
+                                                 type="button"
+                                                 onClick={() => updateQuantity(item.product.id, 1)}
+                                                 className="p-0.5 text-zinc-700 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-all"
+                                              >
+                                                 <Plus className="w-2.5 h-2.5" />
+                                              </button>
+                                           </div>
                                         </td>
-                                        <td className="px-4 py-4">
-                                            <div className="flex items-center justify-center gap-0.5 bg-white border border-zinc-300 px-1.5 py-0.5 rounded-md w-16 mx-auto">
-                                             <button 
-                                                type="button"
-                                                onClick={() => updateQuantity(item.product.id, -1)}
-                                                className="p-0.5 text-zinc-700 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-all"
-                                             >
-                                                <Minus className="w-2.5 h-2.5" />
-                                             </button>
-                                             <input 
-                                                type="text" 
-                                                className="w-6 border-none bg-transparent text-center text-[10px] font-bold focus:ring-0 p-0 text-zinc-900"
-                                                value={item.quantity}
-                                                onChange={(e) => handleQtyInput(item.product.id, e.target.value)}
-                                             />
-                                             <button 
-                                                type="button"
-                                                onClick={() => updateQuantity(item.product.id, 1)}
-                                                className="p-0.5 text-zinc-700 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-all"
-                                             >
-                                                <Plus className="w-2.5 h-2.5" />
-                                             </button>
-                                          </div>
-                                       </td>
                                         <td className="px-4 py-4 text-right font-mono text-emerald-600">
-                                           {formatCurrency(item.product.sell_price * item.quantity)}
+                                           {formatCurrency(item.effective_price * item.quantity)}
                                         </td>
                                         <td className="px-4 py-4 text-center">
                                            <button 
@@ -1904,299 +1989,56 @@ export default function POSForm({
                    )}
                 </div>
              </div>
-      {/* Success Modal Receipt */}
-      {showReceiptModal && lastTransaction && (
-        <div 
-          onClick={() => {
-             setShowReceiptModal(false);
-             if (editId) {
-                router.push('/backend/tenant/sales');
-             }
+            {/* Success Modal Receipt using shared ReceiptModal */}
+      {lastTransaction && (
+        <ReceiptModal
+          isOpen={showReceiptModal}
+          onClose={() => {
+            setShowReceiptModal(false);
+            if (editId) {
+              router.push('/backend/tenant/sales');
+            }
           }}
-          className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-200 cursor-pointer"
-        >
-           <div 
-             onClick={(e) => e.stopPropagation()}
-             className="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-zinc-200 cursor-default my-auto relative"
-           >
-              {/* Tombol Close [X] Atas Kanan */}
-              <button
-                type="button"
-                onClick={() => {
-                   setShowReceiptModal(false);
-                   if (editId) {
-                      router.push('/backend/tenant/sales');
-                   }
-                }}
-                className="absolute top-2 right-2 z-10 w-6 h-6 rounded-full bg-zinc-100 hover:bg-rose-100 text-zinc-500 hover:text-rose-600 flex items-center justify-center transition-colors cursor-pointer"
-                title="Tutup Nota"
-              >
-                 <X className="w-3.5 h-3.5" />
-              </button>
-
-              <div className="p-2.5 sm:p-3 text-center space-y-1.5 overflow-hidden">
-                 {/* Glowing Success Badge */}
-                 <div className="w-7 h-7 bg-emerald-500 text-white rounded-full flex items-center justify-center mx-auto shadow-md shadow-emerald-500/20 ring-4 ring-emerald-100">
-                    <Check className="w-4 h-4 stroke-[3]" />
-                 </div>
-                 <div>
-                    <h4 className="text-xs font-black text-[#030037] tracking-tight leading-none">Transaksi Berhasil!</h4>
-                    <p className="text-[8px] text-zinc-500 font-bold mt-0.5">Nota siap dicetak atau disimpan ke riwayat</p>
-                 </div>
-
-                 {/* REALISTIC DIGITAL THERMAL RECEIPT CARD */}
-                 <div className="bg-zinc-50 border border-zinc-200/90 rounded-xl p-2 text-left font-mono text-[10px] text-black shadow-inner space-y-1 relative">
-                    {/* Header Toko */}
-                    <div className="text-center pb-1 border-b border-dashed border-zinc-300">
-                       <h5 className="font-black text-[11px] uppercase tracking-wider text-black leading-none">{profile.business_name || "SIPPETO POS"}</h5>
-                       <p className="text-[8px] text-zinc-600 font-sans font-bold leading-tight mt-0.5">
-                          {branches.find(b => b.id === selectedBranchId)?.name || "Cabang Utama"}
-                       </p>
-                       {profile.address && (
-                          <p className="text-[7.5px] text-zinc-500 font-sans leading-tight mt-0.5 line-clamp-1">{profile.address}</p>
-                       )}
-                    </div>
-
-                    {/* Metadata Nota */}
-                    <div className="space-y-0.5 text-[9.5px] font-bold text-zinc-800">
-                       <div className="flex justify-between">
-                          <span className="text-zinc-500">Nomor Nota:</span>
-                          <span className="text-black font-black">#{lastTransaction.reference_number}</span>
-                       </div>
-                       <div className="flex justify-between">
-                          <span className="text-zinc-500">Tanggal:</span>
-                          <span>{new Date(lastTransaction.transaction_date || "").toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}</span>
-                       </div>
-                       <div className="flex justify-between">
-                          <span className="text-zinc-500">Pelanggan:</span>
-                          <span className="truncate max-w-[130px]">{lastTransaction.customer_name}</span>
-                       </div>
-                       <div className="flex justify-between">
-                          <span className="text-zinc-500">Pembayaran:</span>
-                          <span className="text-indigo-700">{lastTransaction.payment_method}</span>
-                       </div>
-                    </div>
-
-                    {/* Rincian Produk / Itemized Items */}
-                    {lastTransaction.items && lastTransaction.items.length > 0 && (
-                       <div className="pt-1 border-t border-dashed border-zinc-300 space-y-0.5 max-h-16 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden pr-0.5">
-                          {lastTransaction.items.map((item: any, idx: number) => (
-                             <div key={idx} className="text-[9.5px]">
-                                <div className="font-bold text-black truncate">{item.product?.name || "Produk"}</div>
-                                <div className="flex justify-between text-zinc-600 text-[8.5px]">
-                                   <span>{item.quantity} x {formatCurrency(item.product?.sell_price || 0).replace("Rp", "").trim()}</span>
-                                   <span className="font-bold text-black">{formatCurrency((item.product?.sell_price || 0) * item.quantity).replace("Rp", "").trim()}</span>
-                                </div>
-                             </div>
-                          ))}
-                       </div>
-                    )}
-
-                    {/* Subtotal, Diskon & Total Bayar */}
-                    {(() => {
-                      const subtotalAmt = lastTransaction.items ? lastTransaction.items.reduce((sum: number, item: any) => sum + (item.product.sell_price * item.quantity), 0) : 0;
-                      const discAmt = lastTransaction.applied_discount ? lastTransaction.applied_discount.discount_amount : 0;
-                      const finalAmt = Math.max(0, subtotalAmt - discAmt);
-                      return (
-                        <div className="pt-1 border-t border-dashed border-zinc-300 space-y-0.5 text-[9.5px]">
-                          <div className="flex justify-between text-zinc-600">
-                            <span>Subtotal:</span>
-                            <span>{formatCurrency(subtotalAmt)}</span>
-                          </div>
-                          {discAmt > 0 && (
-                            <div className="flex justify-between font-bold text-emerald-700">
-                              <span>Diskon ({lastTransaction.applied_discount?.name}):</span>
-                              <span>-{formatCurrency(discAmt)}</span>
-                            </div>
-                          )}
-                          <div className="flex justify-between items-center font-black text-[11px] text-black pt-0.5 border-t border-zinc-300">
-                            <span className="uppercase tracking-wider">TOTAL BAYAR:</span>
-                            <span className="text-[#3c39d6] text-xs font-black font-mono">{formatCurrency(finalAmt)}</span>
-                          </div>
-                        </div>
-                      );
-                    })()}
-
-                    {/* Uang Dibayar & Kembalian - HIGHTLIGHTED PROMINENT KEMBALIAN */}
-                    {lastTransaction.cash_paid !== undefined && lastTransaction.cash_paid > 0 && (
-                       <div className="pt-1 border-t border-zinc-300 space-y-0.5 text-[9.5px]">
-                          <div className="flex justify-between text-zinc-600 font-bold">
-                             <span>Uang Dibayar:</span>
-                             <span className="font-mono text-black">{formatCurrency(lastTransaction.cash_paid)}</span>
-                          </div>
-                          <div className="flex justify-between items-center font-black text-[11px] text-emerald-800 bg-emerald-100/90 border border-emerald-200 px-1.5 py-0.5 rounded-md">
-                             <span className="uppercase tracking-wider text-[10px]">Kembalian:</span>
-                             <span className="font-mono text-xs font-black text-emerald-600">{formatCurrency(lastTransaction.change || 0)}</span>
-                          </div>
-                       </div>
-                    )}
-                 </div>
-
-                 {/* ACTION BUTTONS & CONNECTION SWITCHER */}
-                 <div className="space-y-1 pt-0.5">
-                    {/* Top PDF & History Buttons */}
-                    <div className="grid grid-cols-2 gap-1">
-                       <button 
-                          type="button"
-                          onClick={() => { setShowReceiptModal(false); router.push('/backend/tenant/sales/history'); }}
-                          className="py-1 px-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 rounded-lg text-[9.5px] font-black transition-colors flex items-center justify-center gap-1 cursor-pointer"
-                       >
-                          <Receipt className="w-3 h-3 text-zinc-600" /> Lihat Riwayat
-                       </button>
-                       <button 
-                          type="button"
-                          onClick={handlePrintReceipt}
-                          className="py-1 px-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded-lg text-[9.5px] font-black transition-colors flex items-center justify-center gap-1 cursor-pointer"
-                       >
-                          <Printer className="w-3 h-3 text-[#3c39d6]" /> Cetak PDF
-                       </button>
-                    </div>
-                    
-                    {/* Segmented Tab Selector for Direct Thermal Printers */}
-                    <div className="p-0.5 bg-zinc-100 rounded-lg flex gap-1 border border-zinc-200/80">
-                      <button
-                        type="button"
-                        onClick={() => setPrintMethod("usb")}
-                        className={`flex-1 py-0.5 text-center text-[8.5px] font-black uppercase tracking-wider rounded-md transition-all cursor-pointer ${
-                          printMethod === "usb"
-                            ? "bg-[#3c39d6] text-white shadow-xs"
-                            : "text-zinc-600 hover:text-black"
-                        }`}
-                      >
-                        🔌 Kabel USB
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPrintMethod("bluetooth")}
-                        className={`flex-1 py-0.5 text-center text-[8.5px] font-black uppercase tracking-wider rounded-md transition-all cursor-pointer ${
-                          printMethod === "bluetooth"
-                            ? "bg-[#3c39d6] text-white shadow-xs"
-                            : "text-zinc-600 hover:text-black"
-                        }`}
-                      >
-                        📶 Bluetooth
-                      </button>
-                    </div>
-
-                    {/* Direct Thermal Print Section */}
-                    {printMethod === "usb" ? (
-                      <div className="space-y-0.5 bg-zinc-50 p-1 rounded-lg border border-zinc-200/80">
-                        {isUsbSupported ? (
-                          <>
-                            <button 
-                               type="button"
-                               onClick={handlePrintUsbDirect}
-                               disabled={isPrintingUsb}
-                               className="w-full flex items-center justify-center gap-1 py-1 bg-[#030037] hover:bg-[#3c39d6] disabled:bg-zinc-400 text-white rounded-md text-[9.5px] font-black transition-all cursor-pointer shadow-2xs"
-                            >
-                               <Printer className={`w-3 h-3 ${isPrintingUsb ? "animate-pulse" : ""}`} />
-                               {isPrintingUsb ? "Mencetak..." : "Cetak Thermal via USB"}
-                            </button>
-                            <div className="flex items-center justify-between px-1 text-[7.5px] font-bold">
-                              <div className="flex items-center gap-1">
-                                <span className={`w-1.5 h-1.5 rounded-full ${isUsbConnected ? "bg-emerald-500 animate-ping" : "bg-zinc-400"}`}></span>
-                                <span className="text-zinc-700 truncate max-w-[160px]">
-                                  {isUsbConnected ? `Terhubung (${usbDeviceName})` : "Printer USB Terputus"}
-                                </span>
-                              </div>
-                              <div className="flex gap-1">
-                                <button
-                                  type="button"
-                                  onClick={handleConnectUsbManual}
-                                  className="text-[#3c39d6] hover:underline font-black cursor-pointer"
-                                >
-                                  {isUsbConnected ? "Ganti" : "Hubungkan"}
-                                </button>
-                                {isUsbConnected && (
-                                  <button
-                                    type="button"
-                                    onClick={handleDisconnectUsbManual}
-                                    className="text-rose-600 hover:underline font-black cursor-pointer"
-                                  >
-                                    Putus
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="w-full p-1 bg-amber-50 border border-amber-200 text-amber-800 text-[7.5px] font-bold text-center rounded-md">
-                            Kabel USB tidak didukung browser ini.
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="space-y-0.5 bg-zinc-50 p-1 rounded-lg border border-zinc-200/80">
-                        {isBluetoothSupported ? (
-                          <>
-                            <button 
-                               type="button"
-                               onClick={handlePrintBluetoothDirect}
-                               disabled={isPrintingBt}
-                               className="w-full flex items-center justify-center gap-1 py-1 bg-[#030037] hover:bg-[#3c39d6] disabled:bg-zinc-400 text-white rounded-md text-[9.5px] font-black transition-all cursor-pointer shadow-2xs"
-                            >
-                               <Printer className={`w-3 h-3 ${isPrintingBt ? "animate-pulse" : ""}`} />
-                               {isPrintingBt ? "Mencetak..." : "Cetak Thermal via Bluetooth"}
-                            </button>
-                            <div className="flex items-center justify-between px-1 text-[7.5px] font-bold">
-                              <div className="flex items-center gap-1">
-                                <span className={`w-1.5 h-1.5 rounded-full ${isBtConnected ? "bg-emerald-500 animate-ping" : "bg-zinc-400"}`}></span>
-                                <span className="text-zinc-700 truncate max-w-[160px]">
-                                  {isBtConnected ? `Terhubung (${bluetoothDeviceName})` : "Printer BT Terputus"}
-                                </span>
-                              </div>
-                              <div className="flex gap-1">
-                                <button
-                                  type="button"
-                                  onClick={handleConnectPrinterManual}
-                                  className="text-[#3c39d6] hover:underline font-black cursor-pointer"
-                                >
-                                  {isBtConnected ? "Ganti" : "Hubungkan"}
-                                </button>
-                                {isBtConnected && (
-                                  <button
-                                    type="button"
-                                    onClick={handleDisconnectPrinterManual}
-                                    className="text-rose-600 hover:underline font-black cursor-pointer"
-                                  >
-                                    Putus
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="w-full p-1 bg-amber-50 border border-amber-200 text-amber-800 text-[7.5px] font-bold text-center rounded-md space-y-0.5">
-                            <p>Printer Bluetooth tidak tersedia.</p>
-                            <button
-                              type="button"
-                              onClick={checkBluetoothSupport}
-                              className="text-amber-900 underline font-black text-[7.5px]"
-                            >
-                              Cek Ulang Bluetooth
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Transaksi Baru Button */}
-                    <button
-                       type="button"
-                       onClick={() => {
-                          setShowReceiptModal(false);
-                          if (editId) {
-                             router.push('/backend/tenant/sales');
-                          }
-                       }}
-                       className="w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-black tracking-wider transition-all shadow-md cursor-pointer"
-                    >
-                       + Transaksi Kasir Baru
-                    </button>
-                 </div>
-              </div>
-           </div>
-        </div>
+          profile={{
+            business_name: profile?.business_name,
+            branch_name: branches.find(b => b.id === selectedBranchId)?.name || "Cabang Utama",
+            address: profile?.address,
+            avatar_url: profile?.avatar_url,
+          }}
+          data={{
+            reference_number: lastTransaction.reference_number,
+            transaction_date: lastTransaction.transaction_date || new Date().toISOString(),
+            customer_name: lastTransaction.customer_name || "Pembeli Umum",
+            payment_method: lastTransaction.payment_method || "Tunai",
+            items: (lastTransaction.items || []).map((it: any) => ({
+              name: it.product?.name || it.name || "Produk",
+              quantity: it.quantity || 1,
+              sell_price: it.product?.sell_price || it.sell_price || 0,
+              effective_price: it.effective_price ?? (it.product?.sell_price ?? 0),
+              subtotal: (it.effective_price ?? (it.product?.sell_price ?? 0)) * (it.quantity || 1),
+            })),
+            subtotal: (lastTransaction.items || []).reduce((sum: number, it: any) => sum + ((it.product?.sell_price || 0) * (it.quantity || 1)), 0),
+            product_discount: (lastTransaction.items || []).reduce((sum: number, it: any) => sum + (Math.max(0, (it.product?.sell_price || 0) - (it.effective_price ?? (it.product?.sell_price || 0))) * (it.quantity || 1)), 0),
+            global_discount: lastTransaction.applied_discount ? {
+              name: lastTransaction.applied_discount.name,
+              amount: lastTransaction.applied_discount.discount_amount,
+            } : null,
+            total_income: Math.max(0,
+              ((lastTransaction.items || []).reduce((sum: number, it: any) => sum + ((it.product?.sell_price || 0) * (it.quantity || 1)), 0)) -
+              ((lastTransaction.items || []).reduce((sum: number, it: any) => sum + (Math.max(0, (it.product?.sell_price || 0) - (it.effective_price ?? (it.product?.sell_price || 0))) * (it.quantity || 1)), 0)) -
+              (lastTransaction.applied_discount ? lastTransaction.applied_discount.discount_amount : 0)
+            ),
+            cash_paid: lastTransaction.cash_paid,
+            change: lastTransaction.change,
+          }}
+          title="Transaksi Berhasil!"
+          subtitle="Nota siap dicetak atau disimpan ke riwayat"
+          showSuccessBadge={true}
+          onViewHistory={() => {
+            setShowReceiptModal(false);
+            router.push('/backend/tenant/sales/history');
+          }}
+        />
       )}
       {/* MODAL DISKON & KUPON PROMO */}
       {isDiscountModalOpen && (

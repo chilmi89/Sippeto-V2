@@ -414,6 +414,8 @@ export async function getSalesHistoryPageData(payload: {
     return {
       status: "success",
       businessName: profile.business_name || "SiPetto UMKM",
+      avatarUrl: profile.avatar_url || null,
+      address: profile.address || null,
       data: formattedData,
       total: txData.total || 0,
       totalPages: txData.totalPages || 1,

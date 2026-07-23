@@ -44,6 +44,8 @@ export default async function SalesHistoryPage(props: PageProps) {
       totalPages={totalPages}
       stats={stats}
       businessName={businessName}
+      avatarUrl={result.avatarUrl || null}
+      address={result.address || null}
       searchParams={searchParams}
     />
   );
