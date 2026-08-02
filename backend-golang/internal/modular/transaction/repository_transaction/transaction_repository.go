@@ -969,7 +969,7 @@ func (r *transactionRepository) DeleteAttachment(ctx context.Context, id string)
 
 func (r *transactionRepository) UpdateGroupTotals(ctx context.Context, tx bun.Tx, groupID string) error {
 	var totalIncome, totalExpense float64
-	rows, err := tx.QueryContext(ctx, `SELECT type, amount, quantity FROM transaction_items WHERE group_id = ?`, groupID)
+	rows, err := tx.QueryContext(ctx, `SELECT type, amount FROM transaction_items WHERE group_id = ?`, groupID)
 	if err != nil {
 		return err
 	}
@@ -978,14 +978,12 @@ func (r *transactionRepository) UpdateGroupTotals(ctx context.Context, tx bun.Tx
 	for rows.Next() {
 		var iType string
 		var amount float64
-		var qty int
-		if err := rows.Scan(&iType, &amount, &qty); err == nil {
+		if err := rows.Scan(&iType, &amount); err == nil {
 			mType := mapType(iType)
-			fullAmount := amount * float64(qty)
 			if mType == "INCOME" {
-				totalIncome += fullAmount
+				totalIncome += amount
 			} else {
-				totalExpense += fullAmount
+				totalExpense += amount
 			}
 		}
 	}

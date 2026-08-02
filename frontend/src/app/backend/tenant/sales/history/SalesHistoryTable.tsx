@@ -35,7 +35,7 @@ import { toast } from "react-toastify";
 import jsPDF from "jspdf";
 import { deleteSalesTransactionAction, getSalesHistoryPageData } from "../actions";
 import ReceiptModal from "../ReceiptModal";
-import { printReceiptPdf, buildReceiptDataFromSaleTransaction } from "../receiptUtils";
+import { printReceiptPdf, printReceiptUsb, printReceiptBluetooth, buildReceiptDataFromSaleTransaction } from "../receiptUtils";
 
 interface TransactionItem {
   id: string;
@@ -472,96 +472,18 @@ export default function SalesHistoryTable({
   };
 
   const handlePrintUsbDirect = async (tx: SaleTransaction) => {
-    if (!(navigator as any).usb) {
-      toast.error("Browser Anda tidak mendukung WebUSB.");
-      return;
-    }
     try {
       setIsPrintingUsb(true);
-      const paired = await (navigator as any).usb.getDevices();
-      let device = paired.length > 0 ? paired[0] : await (navigator as any).usb.requestDevice({ filters: [] });
-      if (!device.opened) await device.open();
-      if (device.configuration === null) await device.selectConfiguration(1);
-
-      let interfaceNumber: number | null = null;
-      let endpointNumber: number | null = null;
-      for (const config of device.configurations) {
-        for (const iface of config.interfaces) {
-          for (const alternate of iface.alternates) {
-            const outEndpoint = alternate.endpoints.find((ep: any) => ep.direction === "out" && ep.type === "bulk");
-            if (outEndpoint) {
-              interfaceNumber = iface.interfaceNumber;
-              endpointNumber = outEndpoint.endpointNumber;
-              break;
-            }
-          }
-          if (interfaceNumber !== null) break;
-        }
-        if (interfaceNumber !== null) break;
-      }
-      if (interfaceNumber === null || endpointNumber === null) throw new Error("Endpoint USB tidak ditemukan.");
-      try { await device.claimInterface(interfaceNumber); } catch (_) {}
-
-      const encoder = new TextEncoder();
-      const ESC = "\x1b";
-      const GS = "\x1d";
-      const LF = "\n";
-
-      let data = "";
-      data += ESC + "@";
-      data += ESC + "a" + "\x01";
-      data += ESC + "!" + "\x10";
-      data += (businessName || "SIPPETO POS").toUpperCase() + LF;
-      data += ESC + "!" + "\x00";
-
-      if (address) data += address + LF;
-      data += "--------------------------------" + LF;
-
-      data += ESC + "a" + "\x00";
-      data += `Nota : #${tx.reference_number}` + LF;
-      data += `Tgl  : ${new Date(tx.transaction_date).toLocaleDateString("id-ID")}` + LF;
-      data += `Cust : ${tx.customer_name || "Pembeli Umum"}` + LF;
-      const payMethod = tx.transaction_items[0]?.payment_methods?.name || "Tunai";
-      data += `Bayar: ${payMethod}` + LF;
-      data += "--------------------------------" + LF;
-
-      tx.transaction_items.forEach((item) => {
-        const cleanName = item.name.replace(/\s*\(x\d+\)/, "");
-        const qty = item.quantity || 1;
-        const unitPrice = Math.round(item.amount / qty);
-        const nameLines = wrapText(cleanName, 32);
-        nameLines.forEach((l: string) => { data += l + LF; });
-
-        const qtyText = `${qty} x ${new Intl.NumberFormat("id-ID").format(unitPrice)}`;
-        const subtotalText = new Intl.NumberFormat("id-ID").format(item.amount);
-        const spacesCount = 32 - qtyText.length - subtotalText.length;
-        if (spacesCount >= 1) {
-          data += qtyText + " ".repeat(spacesCount) + subtotalText + LF;
-        } else {
-          data += qtyText + LF;
-          data += " ".repeat(Math.max(0, 32 - subtotalText.length)) + subtotalText + LF;
-        }
-      });
-
-      data += "--------------------------------" + LF;
-      const totalText = "TOTAL BAYAR:";
-      const totalVal = new Intl.NumberFormat("id-ID").format(Number(tx.total_income));
-      const totalSpaces = 32 - totalText.length - totalVal.length;
-      data += totalText + " ".repeat(Math.max(1, totalSpaces)) + totalVal + LF + LF;
-
-      data += ESC + "a" + "\x01";
-      data += "terima kasih atas pesanan anda ." + LF;
-      data += "dicetak dari Sippeto POS system" + LF;
-      data += LF + LF + LF;
-      data += GS + "V" + "\x41" + "\x03";
-
-      const bytes = encoder.encode(data);
-      for (let i = 0; i < bytes.length; i += 64) {
-        await device.transferOut(endpointNumber, bytes.slice(i, i + 64));
-      }
-      toast.success("Nota berhasil dicetak via USB!");
-    } catch (e: any) {
-      if (e.name !== "NotFoundError") toast.error(`Gagal cetak USB: ${e.message || e}`);
+      const receiptData = buildReceiptDataFromSaleTransaction(tx);
+      await printReceiptUsb(
+        {
+          business_name: businessName,
+          branch_name: "Cabang Utama",
+          address: address,
+          avatar_url: avatarUrl,
+        },
+        receiptData
+      );
     } finally {
       setIsPrintingUsb(false);
     }
@@ -618,87 +540,17 @@ export default function SalesHistoryTable({
     try {
       setIsPrintingBt(true);
       const device = await connectBluetoothPrinter(false);
-      if (!device || !device.gatt || !device.gatt.connected) {
-        throw new Error("Printer Bluetooth tidak terhubung.");
-      }
-
-      const server = device.gatt;
-      const services = await server.getPrimaryServices();
-      let targetChar: any = null;
-
-      for (const service of services) {
-        const characteristics = await service.getCharacteristics();
-        for (const char of characteristics) {
-          if (char.properties.write || char.properties.writeWithoutResponse) {
-            targetChar = char;
-            break;
-          }
-        }
-        if (targetChar) break;
-      }
-
-      if (!targetChar) throw new Error("Karakteristik Bluetooth tidak ditemukan.");
-
-      const encoder = new TextEncoder();
-      const ESC = "\x1b";
-      const GS = "\x1d";
-      const LF = "\n";
-
-      let data = "";
-      data += ESC + "@";
-      data += ESC + "a" + "\x01";
-      data += ESC + "!" + "\x10";
-      data += (businessName || "SIPPETO POS").toUpperCase() + LF;
-      data += ESC + "!" + "\x00";
-
-      if (address) data += address + LF;
-      data += "--------------------------------" + LF;
-
-      data += ESC + "a" + "\x00";
-      data += `Nota : #${tx.reference_number}` + LF;
-      data += `Tgl  : ${new Date(tx.transaction_date).toLocaleDateString("id-ID")}` + LF;
-      data += `Cust : ${tx.customer_name || "Pembeli Umum"}` + LF;
-      const payMethod = tx.transaction_items[0]?.payment_methods?.name || "Tunai";
-      data += `Bayar: ${payMethod}` + LF;
-      data += "--------------------------------" + LF;
-
-      tx.transaction_items.forEach((item) => {
-        const cleanName = item.name.replace(/\s*\(x\d+\)/, "");
-        const qty = item.quantity || 1;
-        const unitPrice = Math.round(item.amount / qty);
-        const nameLines = wrapText(cleanName, 32);
-        nameLines.forEach((l: string) => { data += l + LF; });
-
-        const qtyText = `${qty} x ${new Intl.NumberFormat("id-ID").format(unitPrice)}`;
-        const subtotalText = new Intl.NumberFormat("id-ID").format(item.amount);
-        const spacesCount = 32 - qtyText.length - subtotalText.length;
-        if (spacesCount >= 1) {
-          data += qtyText + " ".repeat(spacesCount) + subtotalText + LF;
-        } else {
-          data += qtyText + LF;
-          data += " ".repeat(Math.max(0, 32 - subtotalText.length)) + subtotalText + LF;
-        }
-      });
-
-      data += "--------------------------------" + LF;
-      const totalText = "TOTAL BAYAR:";
-      const totalVal = new Intl.NumberFormat("id-ID").format(Number(tx.total_income));
-      const totalSpaces = 32 - totalText.length - totalVal.length;
-      data += totalText + " ".repeat(Math.max(1, totalSpaces)) + totalVal + LF + LF;
-
-      data += ESC + "a" + "\x01";
-      data += "terima kasih atas pesanan anda ." + LF;
-      data += "dicetak dari Sippeto POS system" + LF;
-      data += LF + LF + LF;
-      data += GS + "V" + "\x41" + "\x03";
-
-      const bytes = encoder.encode(data);
-      const chunkSize = 100;
-      for (let i = 0; i < bytes.length; i += chunkSize) {
-        const chunk = bytes.slice(i, i + chunkSize);
-        await targetChar.writeValue(chunk);
-      }
-      toast.success("Nota berhasil dicetak via Bluetooth!");
+      const receiptData = buildReceiptDataFromSaleTransaction(tx);
+      await printReceiptBluetooth(
+        {
+          business_name: businessName,
+          branch_name: "Cabang Utama",
+          address: address,
+          avatar_url: avatarUrl,
+        },
+        receiptData,
+        device
+      );
     } catch (e: any) {
       if (e.name !== "NotFoundError") toast.error(`Gagal cetak Bluetooth: ${e.message || e}`);
     } finally {

@@ -140,33 +140,149 @@ export function buildReceiptDataFromSaleTransaction(tx: {
   };
 }
 
+export async function loadLogoDataUrl(url: string | null | undefined): Promise<string | null> {
+  if (!url) return null;
+  if (url.startsWith("data:image/")) return url;
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return resolve(null);
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL("image/png"));
+      } catch (e) {
+        resolve(null);
+      }
+    };
+    img.onerror = () => {
+      fetch(url)
+        .then((res) => res.blob())
+        .then((blob) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = () => resolve(null);
+          reader.readAsDataURL(blob);
+        })
+        .catch(() => resolve(null));
+    };
+    img.src = url;
+  });
+}
+
+export async function getEscPosRasterLogoBytes(url: string | null | undefined, maxPixelWidth: number = 192): Promise<Uint8Array | null> {
+  const dataUrl = await loadLogoDataUrl(url);
+  if (!dataUrl) return null;
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        let w = img.naturalWidth || img.width;
+        let h = img.naturalHeight || img.height;
+
+        if (w > maxPixelWidth) {
+          h = Math.round((h * maxPixelWidth) / w);
+          w = maxPixelWidth;
+        }
+
+        const widthBytes = Math.ceil(w / 8);
+        const alignedWidth = widthBytes * 8;
+
+        const canvas = document.createElement("canvas");
+        canvas.width = alignedWidth;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return resolve(null);
+
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, alignedWidth, h);
+
+        const offsetX = Math.floor((alignedWidth - w) / 2);
+        ctx.drawImage(img, offsetX, 0, w, h);
+
+        const imgData = ctx.getImageData(0, 0, alignedWidth, h);
+        const pixels = imgData.data;
+
+        const xL = widthBytes % 256;
+        const xH = Math.floor(widthBytes / 256);
+        const yL = h % 256;
+        const yH = Math.floor(h / 256);
+
+        const header = new Uint8Array([0x1b, 0x61, 0x01, 0x1d, 0x76, 0x30, 0x00, xL, xH, yL, yH]);
+        const bitmapBytes = new Uint8Array(widthBytes * h);
+
+        let byteIdx = 0;
+        for (let y = 0; y < h; y++) {
+          for (let xByte = 0; xByte < widthBytes; xByte++) {
+            let b = 0;
+            for (let bit = 0; bit < 8; bit++) {
+              const x = xByte * 8 + bit;
+              const pxIdx = (y * alignedWidth + x) * 4;
+              const r = pixels[pxIdx];
+              const g = pixels[pxIdx + 1];
+              const bColor = pixels[pxIdx + 2];
+              const alpha = pixels[pxIdx + 3];
+
+              const lum = r * 0.299 + g * 0.587 + bColor * 0.114;
+              if (alpha > 50 && lum < 180) {
+                b |= 1 << (7 - bit);
+              }
+            }
+            bitmapBytes[byteIdx++] = b;
+          }
+        }
+
+        const total = new Uint8Array(header.length + bitmapBytes.length + 1);
+        total.set(header, 0);
+        total.set(bitmapBytes, header.length);
+        total[total.length - 1] = 0x0a;
+
+        resolve(total);
+      } catch (e) {
+        console.warn("ESC/POS raster error:", e);
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = dataUrl;
+  });
+}
+
 export async function printReceiptPdf(profile: StoreProfile, data: ReceiptData) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: [80, 200] });
   let currentY = 8;
 
   if (profile.avatar_url) {
     try {
-      const img = new Image();
-      img.crossOrigin = "Anonymous";
-      img.src = profile.avatar_url;
-      await new Promise((resolve) => {
-        img.onload = () => resolve(true);
-        img.onerror = () => resolve(false);
-      });
-      if (img.complete && img.naturalWidth > 0) {
-        const maxDim = 22;
-        let w = maxDim;
-        let h = maxDim;
-        if (img.naturalWidth > img.naturalHeight) {
-          w = maxDim;
-          h = (img.naturalHeight / img.naturalWidth) * maxDim;
-        } else {
-          h = maxDim;
-          w = (img.naturalWidth / img.naturalHeight) * maxDim;
+      const dataUrl = await loadLogoDataUrl(profile.avatar_url);
+      if (dataUrl) {
+        const img = new Image();
+        img.src = dataUrl;
+        await new Promise((resolve) => {
+          img.onload = () => resolve(true);
+          img.onerror = () => resolve(false);
+        });
+        if (img.complete && img.naturalWidth > 0) {
+          const maxDim = 22;
+          let w = maxDim;
+          let h = maxDim;
+          if (img.naturalWidth > img.naturalHeight) {
+            w = maxDim;
+            h = (img.naturalHeight / img.naturalWidth) * maxDim;
+          } else {
+            h = maxDim;
+            w = (img.naturalWidth / img.naturalHeight) * maxDim;
+          }
+          const posX = (80 - w) / 2;
+          doc.addImage(dataUrl, "PNG", posX, currentY, w, h);
+          currentY += h + 4;
         }
-        const posX = (80 - w) / 2;
-        doc.addImage(img, "PNG", posX, currentY, w, h);
-        currentY += h + 4;
       }
     } catch (e) {
       console.warn("Logo load failed", e);
@@ -427,9 +543,15 @@ export async function printReceiptUsb(profile: StoreProfile, data: ReceiptData) 
     payload += LF + LF + LF;
     payload += GS + "V" + "\x41" + "\x03";
 
-    const bytes = encoder.encode(payload);
-    for (let i = 0; i < bytes.length; i += 64) {
-      await device.transferOut(endpointNumber, bytes.slice(i, i + 64));
+    const logoBytes = await getEscPosRasterLogoBytes(profile.avatar_url, 192);
+    const textBytes = encoder.encode(payload);
+
+    const fullPayload = logoBytes 
+      ? new Uint8Array([...logoBytes, ...textBytes])
+      : textBytes;
+
+    for (let i = 0; i < fullPayload.length; i += 64) {
+      await device.transferOut(endpointNumber, fullPayload.slice(i, i + 64));
     }
     toast.success("Nota berhasil dicetak via USB!");
   } catch (e: any) {
@@ -563,10 +685,16 @@ export async function printReceiptBluetooth(profile: StoreProfile, data: Receipt
   payload += LF + LF + LF;
   payload += GS + "V" + "\x41" + "\x03";
 
-  const bytes = encoder.encode(payload);
+  const logoBytes = await getEscPosRasterLogoBytes(profile.avatar_url, 192);
+  const textBytes = encoder.encode(payload);
+
+  const fullPayload = logoBytes 
+    ? new Uint8Array([...logoBytes, ...textBytes])
+    : textBytes;
+
   const chunkSize = 100;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.slice(i, i + chunkSize);
+  for (let i = 0; i < fullPayload.length; i += chunkSize) {
+    const chunk = fullPayload.slice(i, i + chunkSize);
     await targetChar.writeValue(chunk);
   }
   toast.success("Nota berhasil dicetak via Bluetooth!");

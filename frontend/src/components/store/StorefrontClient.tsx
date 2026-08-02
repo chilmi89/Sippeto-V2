@@ -329,9 +329,13 @@ export default function StorefrontClient({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 2xl:px-12">
           <div className="flex items-center justify-between h-16">
             <a href="/" className="flex items-center gap-2.5 group cursor-pointer" title="Kembali ke Sippeto Platform">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-600 flex items-center justify-center font-black text-white text-base shadow-lg shadow-blue-500/30 ring-2 ring-white/10 group-hover:scale-105 transition-all">
-                S
-              </div>
+              <Image
+                src="/logo/logo_icon.png"
+                alt="Sippeto Logo"
+                width={36}
+                height={36}
+                className="w-9 h-9 object-contain group-hover:scale-105 transition-all"
+              />
               <span className="font-black text-base text-white tracking-tight">
                 Sippeto
               </span>
@@ -591,9 +595,13 @@ export default function StorefrontClient({
       <footer className="relative z-10 border-t border-white/5 py-8 mt-10">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <div className="flex items-center justify-center gap-2 mb-2">
-            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
-              <Store className="w-3 h-3 text-white" />
-            </div>
+            <Image
+              src="/logo/logo_icon.png"
+              alt="Sippeto Logo"
+              width={24}
+              height={24}
+              className="w-6 h-6 object-contain"
+            />
             <span className="font-black text-sm text-white">Sippeto</span>
           </div>
           <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-1">

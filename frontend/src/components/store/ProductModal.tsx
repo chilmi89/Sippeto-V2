@@ -9,6 +9,7 @@ import {
   Plus,
   Minus,
   ShieldCheck,
+  FileText,
 } from "lucide-react";
 import {
   VirtualProduct,
@@ -106,17 +107,14 @@ export default function ProductModal({
 
         {/* Content */}
         <div className="flex-1 flex flex-col p-6 sm:p-8 overflow-y-auto">
-          <div className="mb-5">
-            <h2 className="text-xl sm:text-2xl font-black text-white leading-tight mb-2 pr-8">
+          <div className="mb-4">
+            <h2 className="text-xl sm:text-2xl font-black text-white leading-tight pr-8">
               {mp.name}
             </h2>
-            {mp.description && (
-              <p className="text-sm text-slate-400 leading-relaxed">{mp.description}</p>
-            )}
           </div>
 
           {/* Price */}
-          <div className="bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border border-blue-500/20 rounded-2xl p-4 mb-5">
+          <div className="bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border border-blue-500/20 rounded-2xl p-4 mb-4">
             <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1">
               Harga Jual
             </p>
@@ -126,7 +124,7 @@ export default function ProductModal({
           </div>
 
           {/* Meta */}
-          <div className="grid grid-cols-2 gap-3 mb-6">
+          <div className="grid grid-cols-2 gap-3 mb-4">
             <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
                 Ketersediaan
@@ -145,6 +143,18 @@ export default function ProductModal({
                 </p>
               </div>
             )}
+          </div>
+
+          {/* Deskripsi Produk */}
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-6">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+              <FileText className="w-3.5 h-3.5 text-blue-400" /> Deskripsi Produk
+            </p>
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              {mp.description && mp.description.trim() !== ""
+                ? mp.description
+                : "Tidak ada deskripsi produk."}
+            </p>
           </div>
 
           {/* Actions */}
