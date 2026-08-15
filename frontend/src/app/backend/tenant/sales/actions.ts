@@ -31,22 +31,20 @@ export async function getPOSPageData(editId?: string | null) {
     const headers = await getHeaders();
 
     // Batch 1: Semua fetch independen dilakukan paralel
-    const [tenantRes, meRes, branchesRes, prodCatRes] = await Promise.all([
+    const [tenantRes, meRes, branchesRes] = await Promise.all([
       fetch(`${GOLANG_BASE}/tenant-umkm`, { method: "GET", headers, next: { revalidate: 0 } }),
       fetch(`${GOLANG_BASE}/auth/me`, { method: "GET", headers, next: { revalidate: 0 } }),
       fetch(`${GOLANG_BASE}/branches`, { method: "GET", headers, next: { revalidate: 0 } }),
-      fetch(`${GOLANG_BASE}/product-categories`, { method: "GET", headers, next: { revalidate: 0 } }),
     ]);
 
     if (!tenantRes.ok) {
       return { status: "error", message: "Gagal memuat profil UMKM dari server Go" };
     }
 
-    const [tenantData, meData, branchesData, prodCatData] = await Promise.all([
+    const [tenantData, meData, branchesData] = await Promise.all([
       tenantRes.json(),
       meRes.ok ? meRes.json() : Promise.resolve({}),
       branchesRes.ok ? branchesRes.json() : Promise.resolve({ data: [] }),
-      prodCatRes.ok ? prodCatRes.json() : Promise.resolve({ data: [] }),
     ]);
 
     const profile = tenantData.profile;
@@ -57,7 +55,6 @@ export async function getPOSPageData(editId?: string | null) {
     const tenantOwnerId = profile.tenant_owner_id || profile.id;
     const userRole = meData.role_name || "";
     const branches = branchesData.data || [];
-    const categories = prodCatData.data || [];
 
     // Tentukan selected branch
     let selectedBranchId = "";
@@ -68,7 +65,8 @@ export async function getPOSPageData(editId?: string | null) {
     }
 
     // Batch 2: Fetch yang dependen pada tenantOwnerId & selectedBranchId
-    const [pmRes, catRes, prodRes] = await Promise.all([
+    const [prodCatRes, pmRes, catRes, prodRes] = await Promise.all([
+      fetch(`${GOLANG_BASE}/product-categories?profile_id=${tenantOwnerId}&limit=100&scope=all`, { method: "GET", headers, next: { revalidate: 0 } }),
       fetch(`${GOLANG_BASE}/payment_kategori?profile_id=${tenantOwnerId}&limit=100`, { method: "GET", headers, next: { revalidate: 0 } }),
       fetch(`${GOLANG_BASE}/kategori?profile_id=${tenantOwnerId}&limit=100`, { method: "GET", headers, next: { revalidate: 0 } }),
       selectedBranchId
@@ -76,12 +74,14 @@ export async function getPOSPageData(editId?: string | null) {
         : Promise.resolve(null),
     ]);
 
-    const [pmData, catData, prodDataJson] = await Promise.all([
+    const [prodCatData, pmData, catData, prodDataJson] = await Promise.all([
+      prodCatRes.ok ? prodCatRes.json() : Promise.resolve({ data: [] }),
       pmRes.ok ? pmRes.json() : Promise.resolve({ data: [] }),
       catRes.ok ? catRes.json() : Promise.resolve({ data: [] }),
       prodRes?.ok ? prodRes.json() : Promise.resolve({ data: [] }),
     ]);
 
+    const categories = prodCatData.data || [];
     const paymentMethods = pmData.data || [];
     const txCategories = catData.data || [];
 

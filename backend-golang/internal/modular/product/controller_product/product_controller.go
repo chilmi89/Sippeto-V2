@@ -30,8 +30,11 @@ func (ctrl *ProductController) GetCategories(c *gin.Context) {
 	if page < 1 {
 		page = 1
 	}
-	if limit < 1 || limit > 100 {
+	if limit < 1 {
 		limit = 10
+	}
+	if limit > 500 {
+		limit = 500
 	}
 
 	resp, err := ctrl.svc.GetCategoriesPaginated(c.Request.Context(), page, limit, scope, search, profileID)
