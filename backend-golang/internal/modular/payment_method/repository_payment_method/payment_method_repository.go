@@ -41,8 +41,10 @@ func (r *paymentMethodRepository) FindPaymentMethods(ctx context.Context, page, 
 	args := []interface{}{}
 
 	if profileID != "" {
-		whereClause += " AND (profile_id = ? OR profile_id IS NULL)"
+		whereClause += " AND (profile_id = ? OR profile_id IS NULL OR profile_id = '')"
 		args = append(args, profileID)
+	} else {
+		whereClause += " AND (profile_id IS NULL OR profile_id = '')"
 	}
 
 	if search != "" {
@@ -55,26 +57,50 @@ func (r *paymentMethodRepository) FindPaymentMethods(ctx context.Context, page, 
 		args = append(args, *isActiveFilter)
 	}
 
-	// Count
-	countQuery := `SELECT COUNT(*) FROM payment_methods` + whereClause
+	// Hitung Total (Count) dengan Deduplikasi jika dipanggil oleh Tenant
+	var countQuery string
+	if profileID != "" {
+		countQuery = `SELECT COUNT(DISTINCT name) FROM payment_methods` + whereClause
+	} else {
+		countQuery = `SELECT COUNT(*) FROM payment_methods` + whereClause
+	}
+
 	var total int
 	err := r.db.NewRaw(countQuery, args...).Scan(ctx, &total)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	// Data
-	args = append(args, limit, offset)
-	dataQuery := `
-		SELECT id, profile_id, name, is_active, created_at
-		FROM payment_methods
-	` + whereClause + `
-		ORDER BY name ASC
-		LIMIT ? OFFSET ?
-	`
+	// Ambil Data dengan salinan parameter binding yang aman dari slice sharing
+	var dataQuery string
+	dataArgs := make([]interface{}, len(args))
+	copy(dataArgs, args)
+	dataArgs = append(dataArgs, limit, offset)
+
+	if profileID != "" {
+		dataQuery = `
+			SELECT id, profile_id, name, is_active, created_at
+			FROM (
+				SELECT DISTINCT ON (name) id, profile_id, name, is_active, created_at
+				FROM payment_methods
+				` + whereClause + `
+				ORDER BY name ASC, profile_id DESC NULLS LAST
+			) AS t
+			ORDER BY name ASC
+			LIMIT ? OFFSET ?
+		`
+	} else {
+		dataQuery = `
+			SELECT id, profile_id, name, is_active, created_at
+			FROM payment_methods
+			` + whereClause + `
+			ORDER BY name ASC
+			LIMIT ? OFFSET ?
+		`
+	}
 
 	var rows []rawPaymentMethod
-	err = r.db.NewRaw(dataQuery, args...).Scan(ctx, &rows)
+	err = r.db.NewRaw(dataQuery, dataArgs...).Scan(ctx, &rows)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -82,7 +108,7 @@ func (r *paymentMethodRepository) FindPaymentMethods(ctx context.Context, page, 
 	var methods []dto_payment_method.PaymentMethodResponse
 	for _, row := range rows {
 		var profID *string
-		if row.ProfileID.Valid {
+		if row.ProfileID.Valid && row.ProfileID.String != "" {
 			profID = &row.ProfileID.String
 		}
 

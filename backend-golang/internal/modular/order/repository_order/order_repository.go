@@ -306,11 +306,21 @@ func (r *orderRepository) UpdateOrderStatus(ctx context.Context, id, status, ten
 		}
 
 		var pmID string
-		queryPM := `SELECT id FROM payment_methods WHERE profile_id = ? AND name ILIKE ? LIMIT 1`
+		queryPM := `
+			SELECT id FROM payment_methods 
+			WHERE (profile_id = ? OR profile_id IS NULL OR profile_id = '') AND name ILIKE ? 
+			ORDER BY profile_id DESC NULLS LAST 
+			LIMIT 1
+		`
 		err = tx.NewRaw(queryPM, tenantOwnerID, "%"+matchName+"%").Scan(ctx, &pmID)
 		if err != nil || pmID == "" {
 			// fallback 1
-			queryPMFallback := `SELECT id FROM payment_methods WHERE profile_id = ? LIMIT 1`
+			queryPMFallback := `
+				SELECT id FROM payment_methods 
+				WHERE (profile_id = ? OR profile_id IS NULL OR profile_id = '') 
+				ORDER BY profile_id DESC NULLS LAST 
+				LIMIT 1
+			`
 			tx.NewRaw(queryPMFallback, tenantOwnerID).Scan(ctx, &pmID)
 		}
 

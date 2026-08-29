@@ -132,6 +132,33 @@ func RunSeed(db *bun.DB) error {
 		log.Println("Admin already exists")
 	}
 
+	// Seeding metode pembayaran global default
+	defaultPaymentMethods := []struct {
+		id   string
+		name string
+	}{
+		{"3e40969c-0f35-4d5d-ad83-2d78e17b765c", "QRIS"},
+		{"16de8c7f-47c9-4192-aa31-d059b13f23fc", "Tunai"},
+		{"5257d090-becc-4466-b5ef-51f81f9b7648", "Transfer Bank"},
+	}
+
+	for _, pm := range defaultPaymentMethods {
+		var exists bool
+		err := db.NewRaw(`SELECT EXISTS(SELECT 1 FROM payment_methods WHERE name = ? AND (profile_id IS NULL OR profile_id = ''))`, pm.name).Scan(ctx, &exists)
+		if err == nil && !exists {
+			_, err = db.ExecContext(ctx,
+				`INSERT INTO payment_methods (id, profile_id, name, is_active, created_at)
+				 VALUES (?, NULL, ?, true, NOW())`,
+				pm.id, pm.name,
+			)
+			if err != nil {
+				log.Printf("Gagal seed metode pembayaran %s: %v", pm.name, err)
+			} else {
+				log.Printf("Berhasil seed metode pembayaran global: %s", pm.name)
+			}
+		}
+	}
+
 	log.Println("Seed selesai!")
 	return nil
 }
