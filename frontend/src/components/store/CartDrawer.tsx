@@ -59,6 +59,84 @@ export default function CartDrawer({
   const [tenantBanks, setTenantBanks] = useState<any[]>([]);
   const [selectedBankId, setSelectedBankId] = useState<string | null>(null);
 
+  // Coupon & Promo States
+  const [selectedDiscountId, setSelectedDiscountId] = useState<string>("");
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedDiscount, setAppliedDiscount] = useState<{
+    id: string;
+    name: string;
+    discount_amount: number;
+  } | null>(null);
+  const [activeDiscountObject, setActiveDiscountObject] = useState<any | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
+
+  const calculateCartDiscount = (disc: any, subtotal: number) => {
+    if (!disc) return 0;
+    if (disc.min_purchase && subtotal < Number(disc.min_purchase)) {
+      return 0; // Belum memenuhi syarat minimal belanja
+    }
+
+    let amount = 0;
+    if (disc.type === "PERCENTAGE") {
+      amount = (subtotal * Number(disc.value)) / 100;
+      if (disc.max_discount && amount > Number(disc.max_discount)) {
+        amount = Number(disc.max_discount);
+      }
+    } else {
+      amount = Number(disc.value);
+    }
+    return Math.min(amount, subtotal);
+  };
+
+  const handleApplyPromo = (discId: string) => {
+    setSelectedDiscountId(discId);
+    if (!discId) {
+      setActiveDiscountObject(null);
+      return;
+    }
+    const disc = discounts.find((d) => d.id === discId);
+    if (disc) {
+      setActiveDiscountObject(disc);
+    }
+  };
+
+  const handleApplyCouponCode = async () => {
+    if (!couponCode.trim()) return;
+    setIsValidating(true);
+    try {
+      const res = await validateDiscountCodeAction({
+        code: couponCode.trim(),
+        profile_id: profile.id,
+        subtotal: cartTotalPrice,
+      });
+      if (res.success && res.data) {
+        const disc = res.data;
+        setActiveDiscountObject(disc);
+        alert(`Kupon "${disc.name}" berhasil diterapkan!`);
+      } else {
+        alert(res.error || "Kode kupon tidak valid atau sudah kedaluwarsa");
+      }
+    } catch {
+      alert("Gagal memvalidasi kupon");
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  // Recalculate discount value dynamically if cartTotalPrice changes
+  useEffect(() => {
+    if (activeDiscountObject) {
+      const amount = calculateCartDiscount(activeDiscountObject, cartTotalPrice);
+      setAppliedDiscount({
+        id: activeDiscountObject.id,
+        name: activeDiscountObject.name,
+        discount_amount: amount,
+      });
+    } else {
+      setAppliedDiscount(null);
+    }
+  }, [cartTotalPrice, activeDiscountObject]);
+
   useEffect(() => {
     if (profile?.id) {
       getTenantBanksAction(profile.id).then((res) => {
@@ -148,6 +226,10 @@ export default function CartDrawer({
         price: getProductEffectivePrice(item.virtualProduct.originalProduct),
       }));
 
+      const cartSubtotal = cartTotalPrice;
+      const cartDiscountAmount = appliedDiscount ? appliedDiscount.discount_amount : 0;
+      const cartFinalTotal = Math.max(0, cartSubtotal - cartDiscountAmount);
+
       const response = await fetch("/api/store/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -161,7 +243,7 @@ export default function CartDrawer({
           customer_phone: checkoutPhone,
           customer_address: isAddressRequired ? checkoutAddress : null,
           payment_method: checkoutPayment,
-          total_price: cartTotalPrice,
+          total_price: cartFinalTotal,
           items: checkoutItems,
         }),
       });
@@ -176,6 +258,10 @@ export default function CartDrawer({
     const branchGreeting = branchName ? ` (Cabang ${branchName})` : "";
     const selectedBank = tenantBanks.find((b) => b.id === selectedBankId) || tenantBanks[0];
 
+    const cartSubtotal = cartTotalPrice;
+    const cartDiscountAmount = appliedDiscount ? appliedDiscount.discount_amount : 0;
+    const cartFinalTotal = Math.max(0, cartSubtotal - cartDiscountAmount);
+
     let message = `*Halo ${storeTitle}${branchGreeting}! Saya ingin memesan produk berikut:*\n`;
     message += `👉 *Nomor Referensi Pesanan:* ${orderRef}\n\n`;
     message += `───────────────────────\n`;
@@ -188,7 +274,11 @@ export default function CartDrawer({
       message += `   ${item.quantity} x ${formatCurrency(effectivePrice)} = *${formatCurrency(subtotal)}*\n\n`;
     });
     message += `───────────────────────\n`;
-    message += `💵 *Total Belanja:* ${formatCurrency(cartTotalPrice)}\n\n`;
+    message += `💵 *Subtotal:* ${formatCurrency(cartSubtotal)}\n`;
+    if (appliedDiscount) {
+      message += `🎟️ *Promo Terpakai:* ${appliedDiscount.name} (-${formatCurrency(appliedDiscount.discount_amount)})\n`;
+    }
+    message += `💰 *Total Bayar:* ${formatCurrency(cartFinalTotal)}\n\n`;
     message += `*📋 DATA PENGIRIMAN:*\n`;
     message += `👤 *Nama Penerima:* ${checkoutName}\n`;
     message += `📞 *No. WhatsApp:* ${checkoutPhone}\n`;
@@ -312,6 +402,69 @@ export default function CartDrawer({
                 </div>
               );
             })}
+          </div>
+
+          {/* Promo & Voucher Section */}
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <Ticket className="w-4 h-4 text-blue-400" />
+              <h4 className="text-sm font-black text-white uppercase tracking-wide">
+                Promo & Voucher Toko
+              </h4>
+            </div>
+
+            {/* Dropdown Promo Global */}
+            {discounts && discounts.length > 0 ? (
+              <div className="space-y-1.5">
+                <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                  Pilih Promo yang Tersedia
+                </label>
+                <select
+                  value={selectedDiscountId}
+                  onChange={(e) => handleApplyPromo(e.target.value)}
+                  className="w-full bg-slate-900 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:ring-2 focus:ring-blue-500/30 transition-all cursor-pointer"
+                >
+                  <option value="">-- Pilih Promo --</option>
+                  {discounts.map((d) => (
+                    <option key={d.id} value={d.id} className="bg-slate-900 text-white">
+                      {d.name} {d.type === "PERCENTAGE" ? `(${d.value}%)` : `(-${formatCurrency(d.value)})`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+
+            {/* Input Manual Kode Kupon */}
+            <div className="space-y-1.5">
+              <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                Atau Punya Kode Kupon?
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Ketik kode kupon..."
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value)}
+                  className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={handleApplyCouponCode}
+                  disabled={isValidating || !couponCode.trim()}
+                  className="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold disabled:opacity-50 transition-all shrink-0 cursor-pointer shadow-md shadow-blue-600/10"
+                >
+                  {isValidating ? "Mengecek..." : "Gunakan"}
+                </button>
+              </div>
+            </div>
+
+            {/* Info Diskon yang Diterapkan */}
+            {appliedDiscount && (
+              <div className="flex items-center justify-between p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs text-emerald-400 font-medium animate-in fade-in duration-300">
+                <span>Promo Terpakai: "{appliedDiscount.name}"</span>
+                <span className="font-bold">-{formatCurrency(appliedDiscount.discount_amount)}</span>
+              </div>
+            )}
           </div>
 
           {/* Checkout Form */}
@@ -536,6 +689,18 @@ export default function CartDrawer({
 
         {/* Footer Summary */}
         <div className="p-5 bg-slate-900/80 border-t border-white/10 shrink-0">
+          {appliedDiscount && (
+            <div className="flex justify-between items-center mb-2 text-xs">
+              <span className="text-slate-400 font-bold">Subtotal</span>
+              <span className="text-slate-300 font-bold font-mono">{formatCurrency(cartTotalPrice)}</span>
+            </div>
+          )}
+          {appliedDiscount && (
+            <div className="flex justify-between items-center mb-3 text-xs">
+              <span className="text-emerald-400 font-bold">Diskon Promo</span>
+              <span className="text-emerald-400 font-bold font-mono">-{formatCurrency(appliedDiscount.discount_amount)}</span>
+            </div>
+          )}
           <div className="flex justify-between items-end mb-4">
             <div>
               <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
@@ -543,7 +708,7 @@ export default function CartDrawer({
               </span>
             </div>
             <span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400 font-mono">
-              {formatCurrency(cartTotalPrice)}
+              {formatCurrency(appliedDiscount ? Math.max(0, cartTotalPrice - appliedDiscount.discount_amount) : cartTotalPrice)}
             </span>
           </div>
           <button
