@@ -41,10 +41,10 @@ func (r *paymentMethodRepository) FindPaymentMethods(ctx context.Context, page, 
 	args := []interface{}{}
 
 	if profileID != "" {
-		whereClause += " AND (profile_id = ? OR profile_id IS NULL OR profile_id = '')"
+		whereClause += " AND (profile_id = ? OR profile_id IS NULL)"
 		args = append(args, profileID)
 	} else {
-		whereClause += " AND (profile_id IS NULL OR profile_id = '')"
+		whereClause += " AND profile_id IS NULL"
 	}
 
 	if search != "" {

@@ -144,7 +144,7 @@ func RunSeed(db *bun.DB) error {
 
 	for _, pm := range defaultPaymentMethods {
 		var exists bool
-		err := db.NewRaw(`SELECT EXISTS(SELECT 1 FROM payment_methods WHERE name = ? AND (profile_id IS NULL OR profile_id = ''))`, pm.name).Scan(ctx, &exists)
+		err := db.NewRaw(`SELECT EXISTS(SELECT 1 FROM payment_methods WHERE name = ? AND profile_id IS NULL)`, pm.name).Scan(ctx, &exists)
 		if err == nil && !exists {
 			_, err = db.ExecContext(ctx,
 				`INSERT INTO payment_methods (id, profile_id, name, is_active, created_at)

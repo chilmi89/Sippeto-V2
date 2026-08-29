@@ -308,7 +308,7 @@ func (r *orderRepository) UpdateOrderStatus(ctx context.Context, id, status, ten
 		var pmID string
 		queryPM := `
 			SELECT id FROM payment_methods 
-			WHERE (profile_id = ? OR profile_id IS NULL OR profile_id = '') AND name ILIKE ? 
+			WHERE (profile_id = ? OR profile_id IS NULL) AND name ILIKE ? 
 			ORDER BY profile_id DESC NULLS LAST 
 			LIMIT 1
 		`
@@ -317,7 +317,7 @@ func (r *orderRepository) UpdateOrderStatus(ctx context.Context, id, status, ten
 			// fallback 1
 			queryPMFallback := `
 				SELECT id FROM payment_methods 
-				WHERE (profile_id = ? OR profile_id IS NULL OR profile_id = '') 
+				WHERE (profile_id = ? OR profile_id IS NULL) 
 				ORDER BY profile_id DESC NULLS LAST 
 				LIMIT 1
 			`
