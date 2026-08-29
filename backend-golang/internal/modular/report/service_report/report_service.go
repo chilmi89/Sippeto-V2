@@ -11,7 +11,7 @@ import (
 )
 
 type ReportService interface {
-	GetReport(ctx context.Context, userID, branchID, reportType, dateStart, dateEnd string) (*dto_report.ReportResponse, error)
+	GetReport(ctx context.Context, userID, branchID, reportType, dateStart, dateEnd, sortOrder string) (*dto_report.ReportResponse, error)
 }
 
 type reportService struct {
@@ -44,7 +44,7 @@ func getPeriodKey(t time.Time, reportType string) string {
 	}
 }
 
-func (s *reportService) GetReport(ctx context.Context, userID, branchID, reportType, dateStart, dateEnd string) (*dto_report.ReportResponse, error) {
+func (s *reportService) GetReport(ctx context.Context, userID, branchID, reportType, dateStart, dateEnd, sortOrder string) (*dto_report.ReportResponse, error) {
 	tenantOwnerID, forceBranchID, err := s.repo.GetTenantOwnerID(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -74,34 +74,39 @@ func (s *reportService) GetReport(ctx context.Context, userID, branchID, reportT
 
 	switch reportType {
 	case "daily":
-		// Pre-fill 7 hari terakhir
-		for i := 6; i >= 0; i-- {
-			d := now.AddDate(0, 0, -i)
-			period := getPeriodKey(d, reportType)
-			groupedMap[period] = &dto_report.ReportItem{Period: period}
+		// Pre-fill 7 hari terakhir jika dateStart/dateEnd kosong
+		if dateStart == "" && dateEnd == "" {
+			for i := 6; i >= 0; i-- {
+				d := now.AddDate(0, 0, -i)
+				period := getPeriodKey(d, reportType)
+				groupedMap[period] = &dto_report.ReportItem{Period: period}
+			}
 		}
 	case "weekly":
-		// Pre-fill 5 minggu terakhir
-		for i := 4; i >= 0; i-- {
-			d := now.AddDate(0, 0, -(i * 7))
-			period := getPeriodKey(d, reportType)
-			groupedMap[period] = &dto_report.ReportItem{Period: period}
+		if dateStart == "" && dateEnd == "" {
+			for i := 4; i >= 0; i-- {
+				d := now.AddDate(0, 0, -(i * 7))
+				period := getPeriodKey(d, reportType)
+				groupedMap[period] = &dto_report.ReportItem{Period: period}
+			}
 		}
 	case "monthly":
-		// Pre-fill 12 bulan tahun ini
-		year := now.Year()
-		for i := 1; i <= 12; i++ {
-			d := time.Date(year, time.Month(i), 1, 0, 0, 0, 0, loc)
-			period := getPeriodKey(d, reportType)
-			groupedMap[period] = &dto_report.ReportItem{Period: period}
+		if dateStart == "" && dateEnd == "" {
+			year := now.Year()
+			for i := 1; i <= 12; i++ {
+				d := time.Date(year, time.Month(i), 1, 0, 0, 0, 0, loc)
+				period := getPeriodKey(d, reportType)
+				groupedMap[period] = &dto_report.ReportItem{Period: period}
+			}
 		}
 	case "yearly":
-		// Pre-fill 5 tahun terakhir
-		year := now.Year()
-		for i := 4; i >= 0; i-- {
-			d := time.Date(year-i, 1, 1, 0, 0, 0, 0, loc)
-			period := getPeriodKey(d, reportType)
-			groupedMap[period] = &dto_report.ReportItem{Period: period}
+		if dateStart == "" && dateEnd == "" {
+			year := now.Year()
+			for i := 4; i >= 0; i-- {
+				d := time.Date(year-i, 1, 1, 0, 0, 0, 0, loc)
+				period := getPeriodKey(d, reportType)
+				groupedMap[period] = &dto_report.ReportItem{Period: period}
+			}
 		}
 	}
 
@@ -125,13 +130,16 @@ func (s *reportService) GetReport(ctx context.Context, userID, branchID, reportT
 		summary.NetBalance += tx.NetBalance
 	}
 
-	// Ubah map ke slice & urutkan
+	// Ubah map ke slice & urutkan ASC / DESC
 	var reportData []dto_report.ReportItem
 	for _, item := range groupedMap {
 		reportData = append(reportData, *item)
 	}
 
 	sort.Slice(reportData, func(i, j int) bool {
+		if sortOrder == "desc" {
+			return reportData[i].Period > reportData[j].Period
+		}
 		return reportData[i].Period < reportData[j].Period
 	})
 

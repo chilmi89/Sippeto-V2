@@ -91,7 +91,7 @@ export default function TenantDashboardClient({
   const displayName = initialProfile?.business_name ?? initialProfile?.full_name ?? "UMKM Anda";
 
   return (
-    <div className="w-full flex flex-col gap-4 py-2 pb-20 px-4 sm:px-6">
+    <div className="w-full flex flex-col gap-6 py-2 pb-20 px-4 sm:px-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 py-2">
         <div className="max-w-xl">
@@ -144,7 +144,7 @@ export default function TenantDashboardClient({
         </div>
       </div>
 
-      {/* Charts 3-col horizontal */}
+      {/* 6 Grafik Lengkap */}
       <ChartsSection summary={summary} charts={charts} isFiltering={isPending} />
     </div>
   );

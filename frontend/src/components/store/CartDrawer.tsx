@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import {
   ShoppingCart,
@@ -10,6 +10,10 @@ import {
   Package,
   MessageSquareShare,
   Ticket,
+  Copy,
+  Check,
+  QrCode,
+  Building2,
 } from "lucide-react";
 import {
   CartItem,
@@ -18,6 +22,7 @@ import {
   formatCurrency,
 } from "./types";
 import { validateDiscountCodeAction } from "@/app/actions/discount";
+import { getTenantBanksAction } from "@/app/actions/tenant-bank";
 
 export interface CartDrawerProps {
   cart: CartItem[];
@@ -49,7 +54,28 @@ export default function CartDrawer({
   const [checkoutName, setCheckoutName] = useState("");
   const [checkoutPhone, setCheckoutPhone] = useState("");
   const [checkoutAddress, setCheckoutAddress] = useState("");
-  const [checkoutPayment, setCheckoutPayment] = useState("COD");
+  const [checkoutPayment, setCheckoutPayment] = useState("QRIS");
+  const [copiedBank, setCopiedBank] = useState<string | null>(null);
+  const [tenantBanks, setTenantBanks] = useState<any[]>([]);
+  const [selectedBankId, setSelectedBankId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (profile?.id) {
+      getTenantBanksAction(profile.id).then((res) => {
+        if (res.success && res.data && res.data.length > 0) {
+          setTenantBanks(res.data);
+          const primaryBank = res.data.find((b: any) => b.is_primary) || res.data[0];
+          if (primaryBank) setSelectedBankId(primaryBank.id);
+        }
+      });
+    }
+  }, [profile?.id]);
+
+  const handleCopyBank = (accNumber: string, bankName: string) => {
+    navigator.clipboard.writeText(accNumber);
+    setCopiedBank(bankName);
+    setTimeout(() => setCopiedBank(null), 2000);
+  };
 
   const getProductEffectivePrice = (product: any) => {
     const origPrice = Number(product.sell_price);
@@ -148,6 +174,7 @@ export default function CartDrawer({
 
     const storeTitle = profile.business_name || profile.username;
     const branchGreeting = branchName ? ` (Cabang ${branchName})` : "";
+    const selectedBank = tenantBanks.find((b) => b.id === selectedBankId) || tenantBanks[0];
 
     let message = `*Halo ${storeTitle}${branchGreeting}! Saya ingin memesan produk berikut:*\n`;
     message += `👉 *Nomor Referensi Pesanan:* ${orderRef}\n\n`;
@@ -167,7 +194,11 @@ export default function CartDrawer({
     message += `📞 *No. WhatsApp:* ${checkoutPhone}\n`;
     if (isAddressRequired) message += `📍 *Alamat Lengkap:* ${checkoutAddress}\n`;
     if (branchName) message += `📍 *Cabang Pengiriman:* ${branchName}\n`;
-    message += `💳 *Metode Pembayaran:* ${checkoutPayment}\n\n`;
+    message += `💳 *Metode Pembayaran:* ${checkoutPayment}\n`;
+    if (checkoutPayment === "Transfer" && selectedBank) {
+      message += `🏦 *Rekening Tujuan:* ${selectedBank.bank_name} (${selectedBank.account_number} a.n. ${selectedBank.account_name})\n`;
+    }
+    message += `\n_Pesanan dibuat via E-Catalog SiPetto_`;
     message += `_Pesanan dibuat via E-Catalog Sippeto_`;
 
     window.open(
@@ -333,41 +364,47 @@ export default function CartDrawer({
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
                   Metode Pembayaran
                 </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {["COD", "Transfer"].map((method) => (
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: "COD", label: "Di Tempat", icon: Package },
+                    { id: "QRIS", label: "QRIS", icon: QrCode },
+                    { id: "Transfer", label: "Transfer", icon: Building2 },
+                  ].map(({ id, label, icon: Icon }) => (
                     <button
-                      key={method}
+                      key={id}
                       type="button"
-                      onClick={() => setCheckoutPayment(method)}
-                      className={`py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider border transition-all ${
-                        checkoutPayment === method
-                          ? "bg-blue-500/10 border-blue-500/30 text-blue-300"
+                      onClick={() => setCheckoutPayment(id)}
+                      className={`py-2.5 px-1.5 rounded-xl text-xs font-bold uppercase tracking-wider border transition-all flex flex-col items-center justify-center gap-1 cursor-pointer ${
+                        checkoutPayment === id
+                          ? "bg-blue-500/10 border-blue-500/40 text-blue-300 shadow-sm"
                           : "bg-white/5 border-white/10 text-slate-400 hover:border-blue-500/20 hover:text-white"
                       }`}
                     >
-                      {method === "COD" ? "Di Tempat" : "Transfer"}
+                      <Icon className="w-4 h-4" />
+                      <span className="text-[10px]">{label}</span>
                     </button>
                   ))}
                 </div>
 
-                {checkoutPayment === "Transfer" && (
+                {/* Info Display per Metode Pembayaran */}
+                {checkoutPayment === "QRIS" && (
                   <div className="mt-3 bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col items-center text-center">
                     {activeQrCodeUrl ? (
                       <>
                         <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20 mb-3">
-                          QR Pembayaran ({activeQrCodeUrl.source})
+                          QRIS Pembayaran ({activeQrCodeUrl.source})
                         </span>
-                        <div className="relative w-[140px] h-[140px] bg-white rounded-xl p-2 mb-2">
+                        <div className="relative w-[150px] h-[150px] bg-white rounded-xl p-2 mb-2 shadow-md">
                           <Image
                             src={activeQrCodeUrl.url}
-                            alt={`QR ${activeQrCodeUrl.source}`}
+                            alt={`QRIS ${activeQrCodeUrl.source}`}
                             fill
                             className="object-contain p-2"
-                            sizes="140px"
+                            sizes="150px"
                           />
                         </div>
                         <p className="text-[10px] text-slate-400 font-semibold leading-relaxed max-w-[280px]">
-                          Screenshot QR Code di atas untuk proses transfer/QRIS, lalu kirim bukti transfer via WhatsApp.
+                          Scan QRIS di atas melalui e-Wallet (GoPay, OVO, Dana, ShopeePay) atau m-Banking untuk bayar instant.
                         </p>
                         <a
                           href={activeQrCodeUrl.url}
@@ -375,19 +412,121 @@ export default function CartDrawer({
                           rel="noopener noreferrer"
                           className="mt-2 text-[9px] font-bold text-blue-400 hover:text-blue-300 hover:underline uppercase tracking-wider"
                         >
-                          Buka Ukuran Penuh
+                          Buka QRIS Ukuran Penuh
                         </a>
                       </>
                     ) : (
                       <>
                         <span className="text-[9px] font-bold text-amber-400 uppercase tracking-widest bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20 mb-2">
-                          QR Code Belum Tersedia
+                          QRIS Code Belum Diunggah
                         </span>
                         <p className="text-[10px] text-slate-400 font-semibold">
-                          Hubungi toko via WhatsApp untuk detail rekening.
+                          QRIS toko belum dikonfigurasi. Anda dapat melanjutkan pemesanan dan minta QRIS via WhatsApp.
                         </p>
                       </>
                     )}
+                  </div>
+                )}
+
+                {checkoutPayment === "Transfer" && (
+                  <div className="mt-3 bg-white/5 border border-white/10 rounded-xl p-3.5 flex flex-col gap-2.5">
+                    <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                      <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+                        Transfer Bank Toko
+                      </span>
+                      <span className="text-[9px] text-slate-400 font-medium">Verifikasi WA</span>
+                    </div>
+
+                    {tenantBanks.length > 0 ? (
+                      tenantBanks.map((bank) => {
+                        const isSelected = selectedBankId === bank.id;
+                        return (
+                          <div
+                            key={bank.id}
+                            onClick={() => setSelectedBankId(bank.id)}
+                            className={`flex items-center justify-between border rounded-xl p-2.5 transition-all cursor-pointer ${
+                              isSelected
+                                ? "bg-blue-500/10 border-blue-500/40 text-white shadow-sm"
+                                : "bg-slate-800/40 border-white/5 text-slate-400 hover:border-white/20"
+                            }`}
+                          >
+                            <div className="flex items-start gap-2.5">
+                              <input
+                                type="radio"
+                                name="selectedBank"
+                                checked={isSelected}
+                                onChange={() => setSelectedBankId(bank.id)}
+                                className="mt-1 accent-blue-500 cursor-pointer"
+                              />
+                              <div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[10px] font-black text-blue-300 uppercase tracking-wider block">
+                                    {bank.bank_name}
+                                  </span>
+                                  {bank.is_primary && (
+                                    <span className="text-[8px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.2 rounded border border-amber-500/20">
+                                      Utama
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-xs font-mono font-bold text-white block mt-0.5 select-all">
+                                  {bank.account_number}
+                                </span>
+                                <span className="text-[9px] text-slate-400 font-medium block">
+                                  a.n. {bank.account_name}
+                                </span>
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCopyBank(bank.account_number, bank.id);
+                              }}
+                              className="px-2.5 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 border border-blue-500/20 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 shrink-0 cursor-pointer"
+                            >
+                              {copiedBank === bank.id ? (
+                                <>
+                                  <Check className="w-3 h-3 text-emerald-400" />
+                                  <span className="text-emerald-400">Tersalin</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-3 h-3" />
+                                  <span>Salin</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="text-center py-3 bg-white/5 rounded-xl border border-white/5 p-3">
+                        <span className="text-[10px] text-amber-400 font-bold block mb-1">
+                          Rekening Bank Toko Belum Diatur
+                        </span>
+                        <p className="text-[10px] text-slate-400 font-medium">
+                          Silakan selesaikan pemesanan via WhatsApp untuk meminta detail rekening toko secara langsung.
+                        </p>
+                      </div>
+                    )}
+
+                    <p className="text-[10px] text-slate-400 font-semibold text-center mt-0.5">
+                      Transfer ke rekening di atas lalu lampirkan bukti transfer saat konfirmasi WhatsApp.
+                    </p>
+                  </div>
+                )}
+
+                {checkoutPayment === "COD" && (
+                  <div className="mt-3 bg-white/5 border border-white/10 rounded-xl p-3 flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+                      <Package className="w-4 h-4" />
+                    </div>
+                    <div className="text-left">
+                      <span className="text-xs font-bold text-white block">Bayar Di Tempat (COD)</span>
+                      <span className="text-[10px] text-slate-400 font-medium block">Bayar tunai secara langsung saat barang diantar ke lokasi Anda.</span>
+                    </div>
                   </div>
                 )}
               </div>

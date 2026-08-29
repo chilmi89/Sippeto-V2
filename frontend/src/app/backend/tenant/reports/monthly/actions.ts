@@ -16,7 +16,12 @@ async function getHeaders() {
   return headers;
 }
 
-export async function getMonthlyReportData(selectedBranchId = "all") {
+export async function getMonthlyReportData(
+  selectedBranchId = "all",
+  dateStart = "",
+  dateEnd = "",
+  sortOrder = "asc"
+) {
   try {
     const headers = await getHeaders();
 
@@ -60,6 +65,10 @@ export async function getMonthlyReportData(selectedBranchId = "all") {
       type: "monthly",
       branch_id: activeBranchId,
     });
+    if (dateStart) query.set("date_start", dateStart);
+    if (dateEnd) query.set("date_end", dateEnd);
+    if (sortOrder) query.set("sort", sortOrder);
+
     const reportRes = await fetch(`${GOLANG_BASE}/reports/sales?${query.toString()}`, {
       method: "GET",
       headers,

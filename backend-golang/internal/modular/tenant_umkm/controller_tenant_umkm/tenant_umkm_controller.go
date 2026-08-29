@@ -26,8 +26,9 @@ func (ctrl *TenantUMKMController) GetTenantUMKM(c *gin.Context) {
 	}
 
 	branchID := c.Query("branch_id")
+	period := c.Query("period")
 
-	res, err := ctrl.svc.GetTenantUMKM(c.Request.Context(), userID.(string), branchID)
+	res, err := ctrl.svc.GetTenantUMKM(c.Request.Context(), userID.(string), branchID, period)
 	if err != nil {
 		log.Printf("GetTenantUMKM Controller Error: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data UMKM"})

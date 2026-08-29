@@ -9,6 +9,9 @@ type FinancialSummary struct {
 	TotalPengeluaran float64 `json:"totalPengeluaran"`
 	TotalSaldo       float64 `json:"totalSaldo"`
 	NetProfit        float64 `json:"netProfit"`
+	TotalHariIni     float64 `json:"totalHariIni"`
+	TotalMingguIni   float64 `json:"totalMingguIni"`
+	TotalBulanIni    float64 `json:"totalBulanIni"`
 }
 
 type SaldoChartItem struct {
@@ -37,6 +40,9 @@ type FinancialCharts struct {
 	Pendapatan  []PendapatanChartItem  `json:"pendapatan"`
 	Pengeluaran []PengeluaranChartItem `json:"pengeluaran"`
 	LabaRugi    []LabaRugiChartItem    `json:"labaRugi"`
+	HariIni     []PendapatanChartItem  `json:"hariIni"`
+	MingguIni   []PendapatanChartItem  `json:"mingguIni"`
+	BulanIni    []PendapatanChartItem  `json:"bulanIni"`
 }
 
 type FinancialsResponse struct {

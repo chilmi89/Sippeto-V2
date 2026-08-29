@@ -27,8 +27,9 @@ func (ctrl *ReportController) GetSalesReport(c *gin.Context) {
 	reportType := c.DefaultQuery("type", "daily")
 	dateStart := c.Query("date_start")
 	dateEnd := c.Query("date_end")
+	sortOrder := c.DefaultQuery("sort", "asc")
 
-	res, err := ctrl.svc.GetReport(c.Request.Context(), userID.(string), branchID, reportType, dateStart, dateEnd)
+	res, err := ctrl.svc.GetReport(c.Request.Context(), userID.(string), branchID, reportType, dateStart, dateEnd, sortOrder)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil laporan"})
 		return

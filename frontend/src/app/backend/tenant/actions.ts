@@ -16,10 +16,13 @@ async function getHeaders() {
   return headers;
 }
 
-export async function getTenantDashboardData(branchId?: string) {
+export async function getTenantDashboardData(branchId?: string, period?: string) {
   try {
     const headers = await getHeaders();
-    const query = branchId && branchId !== "all" ? `?branch_id=${branchId}` : "";
+    const queryParts: string[] = [];
+    if (branchId && branchId !== "all") queryParts.push(`branch_id=${branchId}`);
+    if (period) queryParts.push(`period=${period}`);
+    const query = queryParts.length > 0 ? `?${queryParts.join("&")}` : "";
 
     const [tenantRes, branchesRes] = await Promise.all([
       fetch(`${GOLANG_BASE}/tenant-umkm${query}`, {
@@ -64,10 +67,14 @@ export async function getTenantDashboardData(branchId?: string) {
   }
 }
 
-export async function getTenantFinancialsAction(branchId?: string) {
+export async function getTenantFinancialsAction(branchId?: string, period?: string) {
   try {
     const headers = await getHeaders();
-    const query = branchId && branchId !== "all" ? `?branch_id=${branchId}` : "";
+    const queryParts: string[] = [];
+    if (branchId && branchId !== "all") queryParts.push(`branch_id=${branchId}`);
+    if (period) queryParts.push(`period=${period}`);
+    const query = queryParts.length > 0 ? `?${queryParts.join("&")}` : "";
+
     const res = await fetch(`${GOLANG_BASE}/tenant-umkm${query}`, {
       method: "GET",
       headers,

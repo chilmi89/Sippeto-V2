@@ -2,6 +2,7 @@ package service_tenant_umkm
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"backend-golang/internal/modular/tenant_umkm/dto_tenant_umkm"
@@ -9,7 +10,7 @@ import (
 )
 
 type TenantUMKMService interface {
-	GetTenantUMKM(ctx context.Context, userID string, branchID string) (*dto_tenant_umkm.TenantUMKMResponse, error)
+	GetTenantUMKM(ctx context.Context, userID string, branchID string, period string) (*dto_tenant_umkm.TenantUMKMResponse, error)
 	UpdateTenantUMKM(ctx context.Context, userID string, req dto_tenant_umkm.UpdateTenantUMKMRequest) (*dto_tenant_umkm.UpdateTenantUMKMResponse, error)
 	GetPublicStorefront(ctx context.Context, username string) (*dto_tenant_umkm.PublicStorefrontResponse, error)
 	CreateRegisterUMKM(ctx context.Context, req dto_tenant_umkm.CompleteRegisterUMKMRequest) (*dto_tenant_umkm.TenantProfileInfo, error)
@@ -26,14 +27,14 @@ func NewTenantUMKMService(repo repository_tenant_umkm.TenantUMKMRepository) Tena
 
 var MONTH_LABELS = []string{"Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Ags", "Sep", "Okt", "Nov", "Des"}
 
-func (s *tenantUMKMService) GetTenantUMKM(ctx context.Context, userID string, branchID string) (*dto_tenant_umkm.TenantUMKMResponse, error) {
+func (s *tenantUMKMService) GetTenantUMKM(ctx context.Context, userID string, branchID string, period string) (*dto_tenant_umkm.TenantUMKMResponse, error) {
 	// 1. Ambil profil user
 	profile, err := s.repo.GetProfile(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	// 2. Tentukan tenantOwnerId dan paksa filter branch jika user adalah staf cabang (memiliki branch_id)
+	// 2. Tentukan tenantOwnerId dan paksa filter branch jika user adalah staf cabang
 	tenantOwnerID := profile.ID
 	forcedBranchID := branchID
 
@@ -46,12 +47,14 @@ func (s *tenantUMKMService) GetTenantUMKM(ctx context.Context, userID string, br
 	}
 	profile.TenantOwnerID = tenantOwnerID
 
-	// 3. Ambil data transaksi setahun penuh (Jan 1 - Des 31 tahun saat ini)
-	currentYear := time.Now().Year()
+	// 3. Rentang tanggal Jan 1 - Des 31 tahun ini
 	loc, _ := time.LoadLocation("Asia/Jakarta")
 	if loc == nil {
 		loc = time.Local
 	}
+
+	now := time.Now().In(loc)
+	currentYear := now.Year()
 	startOfYear := time.Date(currentYear, time.January, 1, 0, 0, 0, 0, loc)
 	endOfYear := time.Date(currentYear, time.December, 31, 23, 59, 59, 999999999, loc)
 
@@ -60,23 +63,81 @@ func (s *tenantUMKMService) GetTenantUMKM(ctx context.Context, userID string, br
 		return nil, err
 	}
 
-	// 4. Inisialisasi map/slice bulanan
+	// Data Tahunan (12 bulan)
 	monthlyData := make([]struct {
 		Pendapatan  float64
 		Pengeluaran float64
 		Saldo       float64
 	}, 12)
 
+	// Data Hari Ini (6 Slots: 00:00, 04:00, 08:00, 12:00, 16:00, 20:00)
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+	todayEnd := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 999999999, loc)
+	todaySlots := make([]float64, 6)
+
+	// Data Minggu Ini (7 Slots: Sen, Sel, Rab, Kam, Jum, Sab, Min)
+	offset := int(now.Weekday()) - 1
+	if offset < 0 {
+		offset = 6
+	}
+	weekStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc).AddDate(0, 0, -offset)
+	weekEnd := weekStart.AddDate(0, 0, 7).Add(-1 * time.Nanosecond)
+	weekSlots := make([]float64, 7)
+
+	// Data Bulan Ini (Days in month)
+	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, loc)
+	nextMonth := monthStart.AddDate(0, 1, 0)
+	monthEnd := nextMonth.Add(-1 * time.Nanosecond)
+	daysInMonth := nextMonth.AddDate(0, 0, -1).Day()
+	monthSlots := make([]float64, daysInMonth)
+
+	var totalHariIni float64
+	var totalMingguIni float64
+	var totalBulanIni float64
+
 	for _, tx := range txs {
-		month := int(tx.TransactionDate.In(loc).Month()) - 1 // 0-indexed
+		txTime := tx.TransactionDate.In(loc)
+
+		// 1. Year aggregation
+		month := int(txTime.Month()) - 1
 		if month >= 0 && month < 12 {
 			monthlyData[month].Pendapatan += tx.TotalIncome
 			monthlyData[month].Pengeluaran += tx.TotalExpense
 			monthlyData[month].Saldo += tx.NetBalance
 		}
+
+		// 2. Hari Ini aggregation
+		if !txTime.Before(todayStart) && !txTime.After(todayEnd) {
+			slotIdx := txTime.Hour() / 4
+			if slotIdx >= 0 && slotIdx < 6 {
+				todaySlots[slotIdx] += tx.TotalIncome
+			}
+			totalHariIni += tx.TotalIncome
+		}
+
+		// 3. Minggu Ini aggregation
+		if !txTime.Before(weekStart) && !txTime.After(weekEnd) {
+			wd := int(txTime.Weekday()) - 1
+			if wd < 0 {
+				wd = 6
+			}
+			if wd >= 0 && wd < 7 {
+				weekSlots[wd] += tx.TotalIncome
+			}
+			totalMingguIni += tx.TotalIncome
+		}
+
+		// 4. Bulan Ini aggregation
+		if !txTime.Before(monthStart) && !txTime.After(monthEnd) {
+			dIdx := txTime.Day() - 1
+			if dIdx >= 0 && dIdx < daysInMonth {
+				monthSlots[dIdx] += tx.TotalIncome
+			}
+			totalBulanIni += tx.TotalIncome
+		}
 	}
 
-	// 5. Saldo akumulatif (running total) & mapping chart
+	// Formatter Slice Tahunan
 	var runningBalance float64
 	saldoChart := make([]dto_tenant_umkm.SaldoChartItem, 12)
 	pendapatanChart := make([]dto_tenant_umkm.PendapatanChartItem, 12)
@@ -94,17 +155,14 @@ func (s *tenantUMKMService) GetTenantUMKM(ctx context.Context, userID string, br
 			Name:  name,
 			Saldo: runningBalance,
 		}
-
 		pendapatanChart[i] = dto_tenant_umkm.PendapatanChartItem{
 			Name:       name,
 			Pendapatan: monthlyData[i].Pendapatan,
 		}
-
 		pengeluaranChart[i] = dto_tenant_umkm.PengeluaranChartItem{
 			Name:        name,
 			Pengeluaran: monthlyData[i].Pengeluaran,
 		}
-
 		labaRugiChart[i] = dto_tenant_umkm.LabaRugiChartItem{
 			Name:   name,
 			Untung: monthlyData[i].Pendapatan,
@@ -115,7 +173,34 @@ func (s *tenantUMKMService) GetTenantUMKM(ctx context.Context, userID string, br
 		totalPengeluaran += monthlyData[i].Pengeluaran
 	}
 
-	totalSaldo := runningBalance
+	// Formatter Slice Hari Ini
+	todayLabels := []string{"00:00", "04:00", "08:00", "12:00", "16:00", "20:00"}
+	hariIniChart := make([]dto_tenant_umkm.PendapatanChartItem, 6)
+	for i := 0; i < 6; i++ {
+		hariIniChart[i] = dto_tenant_umkm.PendapatanChartItem{
+			Name:       todayLabels[i],
+			Pendapatan: todaySlots[i],
+		}
+	}
+
+	// Formatter Slice Minggu Ini
+	weekLabels := []string{"Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"}
+	mingguIniChart := make([]dto_tenant_umkm.PendapatanChartItem, 7)
+	for i := 0; i < 7; i++ {
+		mingguIniChart[i] = dto_tenant_umkm.PendapatanChartItem{
+			Name:       weekLabels[i],
+			Pendapatan: weekSlots[i],
+		}
+	}
+
+	// Formatter Slice Bulan Ini
+	bulanIniChart := make([]dto_tenant_umkm.PendapatanChartItem, daysInMonth)
+	for i := 0; i < daysInMonth; i++ {
+		bulanIniChart[i] = dto_tenant_umkm.PendapatanChartItem{
+			Name:       fmt.Sprintf("%d", i+1),
+			Pendapatan: monthSlots[i],
+		}
+	}
 
 	response := &dto_tenant_umkm.TenantUMKMResponse{
 		Profile: *profile,
@@ -123,14 +208,20 @@ func (s *tenantUMKMService) GetTenantUMKM(ctx context.Context, userID string, br
 			Summary: dto_tenant_umkm.FinancialSummary{
 				TotalPendapatan:  totalPendapatan,
 				TotalPengeluaran: totalPengeluaran,
-				TotalSaldo:       totalSaldo,
+				TotalSaldo:       runningBalance,
 				NetProfit:        totalPendapatan - totalPengeluaran,
+				TotalHariIni:     totalHariIni,
+				TotalMingguIni:   totalMingguIni,
+				TotalBulanIni:    totalBulanIni,
 			},
 			Charts: dto_tenant_umkm.FinancialCharts{
 				Saldo:       saldoChart,
 				Pendapatan:  pendapatanChart,
 				Pengeluaran: pengeluaranChart,
 				LabaRugi:    labaRugiChart,
+				HariIni:     hariIniChart,
+				MingguIni:   mingguIniChart,
+				BulanIni:    bulanIniChart,
 			},
 		},
 	}

@@ -119,6 +119,7 @@ interface CartItem {
 interface Category {
   id: string;
   name: string;
+  profile_id?: string | null;
 }
 
 interface Branch {
@@ -198,6 +199,7 @@ export default function POSForm({
   // Search & Filter & Bluetooth States
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState("all");
+  const [categoryScope, setCategoryScope] = useState<"all" | "pusat" | "tenant">("all");
   const [isPrintingBt, setIsPrintingBt] = useState(false);
   const [isBluetoothSupported, setIsBluetoothSupported] = useState(false);
   const [productSearchQuery, setProductSearchQuery] = useState("");
@@ -216,13 +218,38 @@ export default function POSForm({
   const ITEMS_PER_PAGE = 8;
   const [currentPage, setCurrentPage] = useState(1);
 
+  const pusatCategories = useMemo(() => {
+    return categories.filter((c) => !c.profile_id);
+  }, [categories]);
+
+  const tenantCategories = useMemo(() => {
+    return categories.filter((c) => !!c.profile_id);
+  }, [categories]);
+
+  const filteredCategoryList = useMemo(() => {
+    if (categoryScope === "pusat") return pusatCategories;
+    if (categoryScope === "tenant") return tenantCategories;
+    return categories;
+  }, [categoryScope, pusatCategories, tenantCategories, categories]);
+
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
       const matchesSearch = !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCategory = selectedCategoryId === "all" || p.category_id === selectedCategoryId;
+      
+      let matchesCategory = true;
+      if (selectedCategoryId !== "all") {
+        matchesCategory = p.category_id === selectedCategoryId;
+      } else if (categoryScope === "pusat") {
+        const cat = categories.find(c => c.id === p.category_id);
+        matchesCategory = cat ? !cat.profile_id : false;
+      } else if (categoryScope === "tenant") {
+        const cat = categories.find(c => c.id === p.category_id);
+        matchesCategory = cat ? !!cat.profile_id : false;
+      }
+
       return matchesSearch && matchesCategory;
     });
-  }, [products, searchQuery, selectedCategoryId]);
+  }, [products, searchQuery, selectedCategoryId, categoryScope, categories]);
 
   const totalPages = useMemo(() => {
     return Math.max(1, Math.ceil(filteredProducts.length / ITEMS_PER_PAGE));
@@ -1820,57 +1847,116 @@ export default function POSForm({
                       </span>
                    </div>
                    
-                   {/* Search Bar */}
-                   <div className="relative">
-                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-                      <input 
-                         type="text" 
-                         placeholder="Cari produk berdasarkan nama..." 
-                         value={searchQuery}
-                         onChange={(e) => {
-                            setSearchQuery(e.target.value);
-                            setCurrentPage(1);
-                         }}
-                         className="w-full pl-11 pr-10 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm font-bold text-black outline-none focus:bg-white focus:border-[#10b981] shadow-sm transition-all"
-                      />
-                      {searchQuery && (
-                         <button
-                            type="button"
-                            onClick={() => { setSearchQuery(""); setCurrentPage(1); }}
-                            className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-655"
+                   {/* Baris Filter: Search + Dropdown Tipe Kategori + Dropdown Spesifik Kategori */}
+                   <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                      
+                      {/* Search Bar (6 cols) */}
+                      <div className="relative sm:col-span-6">
+                         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                         <input 
+                            type="text" 
+                            placeholder="Cari produk berdasarkan nama..." 
+                            value={searchQuery}
+                            onChange={(e) => {
+                               setSearchQuery(e.target.value);
+                               setCurrentPage(1);
+                            }}
+                            className="w-full pl-10 pr-9 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-bold text-black outline-none focus:bg-white focus:border-[#10b981] shadow-xs transition-all"
+                         />
+                         {searchQuery && (
+                            <button
+                               type="button"
+                               onClick={() => { setSearchQuery(""); setCurrentPage(1); }}
+                               className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                            >
+                               <X className="w-4 h-4" />
+                            </button>
+                         )}
+                      </div>
+
+                      {/* Dropdown Tipe Kategori (Pusat vs Tenant) (3 cols) */}
+                      <div className="relative sm:col-span-3">
+                         <select
+                            className="w-full pl-3 pr-8 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-bold text-black appearance-none cursor-pointer focus:outline-none focus:border-primary transition-all"
+                            value={categoryScope}
+                            onChange={(e) => {
+                               setCategoryScope(e.target.value as "all" | "pusat" | "tenant");
+                               setSelectedCategoryId("all");
+                               setCurrentPage(1);
+                            }}
                          >
-                            <X className="w-4 h-4" />
-                         </button>
-                      )}
+                            <option value="all" className="text-black">Semua Tipe</option>
+                            <option value="pusat" className="text-black">🏢 Kategori Pusat</option>
+                            <option value="tenant" className="text-black">🏪 Kategori Tenant</option>
+                         </select>
+                         <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+                      </div>
+
+                      {/* Dropdown Spesifik Kategori (3 cols) */}
+                      <div className="relative sm:col-span-3">
+                         <select
+                            className="w-full pl-3 pr-8 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-bold text-black appearance-none cursor-pointer focus:outline-none focus:border-primary transition-all"
+                            value={selectedCategoryId}
+                            onChange={(e) => {
+                               setSelectedCategoryId(e.target.value);
+                               setCurrentPage(1);
+                            }}
+                         >
+                            <option value="all" className="text-black">Semua Kategori</option>
+                            {pusatCategories.length > 0 && (
+                               <optgroup label="🏢 Kategori Pusat (Admin)">
+                                  {pusatCategories.map((c) => (
+                                     <option key={c.id} value={c.id} className="text-black">
+                                        {c.name}
+                                     </option>
+                                  ))}
+                               </optgroup>
+                            )}
+                            {tenantCategories.length > 0 && (
+                               <optgroup label="🏪 Kategori Tenant (Milik Saya)">
+                                  {tenantCategories.map((c) => (
+                                     <option key={c.id} value={c.id} className="text-black">
+                                        {c.name}
+                                     </option>
+                                  ))}
+                               </optgroup>
+                            )}
+                         </select>
+                         <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+                      </div>
                    </div>
 
-                   {/* Kategori Slider */}
+                   {/* Kategori Tabs / Pills (Tergolong & Terpisah) */}
                    <div className="flex gap-2 overflow-x-auto pb-1.5 shrink-0 select-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                       <button
                          type="button"
                          onClick={() => { setSelectedCategoryId("all"); setCurrentPage(1); }}
-                         className={`px-4 py-2 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all border whitespace-nowrap ${
+                         className={`px-3.5 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all border whitespace-nowrap cursor-pointer ${
                             selectedCategoryId === "all"
-                               ? "bg-[#3c39d6] text-white border-transparent shadow-sm"
-                               : "bg-zinc-50 text-zinc-500 border-zinc-200 hover:bg-zinc-100"
+                               ? "bg-[#3c39d6] text-white border-transparent shadow-xs"
+                               : "bg-zinc-50 text-zinc-600 border-zinc-200 hover:bg-zinc-100"
                          }`}
                       >
                          📂 Semua Kategori
                       </button>
-                      {categories.map((c) => (
-                         <button
-                            key={c.id}
-                            type="button"
-                            onClick={() => { setSelectedCategoryId(c.id); setCurrentPage(1); }}
-                            className={`px-4 py-2 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all border whitespace-nowrap ${
-                               selectedCategoryId === c.id
-                                  ? "bg-[#3c39d6] text-white border-transparent shadow-sm"
-                                  : "bg-zinc-50 text-zinc-500 border-zinc-200 hover:bg-zinc-100"
-                            }`}
-                         >
-                            {c.name}
-                         </button>
-                      ))}
+                      {filteredCategoryList.map((c) => {
+                         const isPusat = !c.profile_id;
+                         return (
+                            <button
+                               key={c.id}
+                               type="button"
+                               onClick={() => { setSelectedCategoryId(c.id); setCurrentPage(1); }}
+                               className={`px-3.5 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all border whitespace-nowrap cursor-pointer flex items-center gap-1 ${
+                                  selectedCategoryId === c.id
+                                     ? "bg-[#3c39d6] text-white border-transparent shadow-xs"
+                                     : "bg-zinc-50 text-zinc-600 border-zinc-200 hover:bg-zinc-100"
+                               }`}
+                            >
+                               <span className="text-[10px]">{isPusat ? "🏢" : "🏪"}</span>
+                               <span>{c.name}</span>
+                            </button>
+                         );
+                      })}
                    </div>
 
                    {/* Grid Produk */}

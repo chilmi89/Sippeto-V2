@@ -158,7 +158,11 @@ export async function getPOSPageData(editId?: string | null) {
         tenant_owner_id: tenantOwnerId,
       },
       branches: branches.map((b: any) => ({ id: b.id, name: b.name })),
-      categories: categories.map((c: any) => ({ id: c.id, name: c.name })),
+      categories: categories.map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        profile_id: c.profile_id || null,
+      })),
       paymentMethods: paymentMethods.map((pm: any) => ({
         id: pm.id,
         name: pm.name,

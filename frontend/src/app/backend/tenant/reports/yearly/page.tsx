@@ -9,12 +9,17 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { getYearlyReportData } from "./actions";
-import BranchReportFilter from "@/components/dashboard/BranchReportFilter";
+import ReportFilterControls from "@/components/dashboard/ReportFilterControls";
 
 export const dynamic = "force-dynamic";
 
 interface PageProps {
-  searchParams: Promise<{ branch_id?: string }>;
+  searchParams: Promise<{
+    branch_id?: string;
+    date_start?: string;
+    date_end?: string;
+    sort?: string;
+  }>;
 }
 
 const formatCurrency = (v: number) =>
@@ -27,8 +32,16 @@ const formatCurrency = (v: number) =>
 export default async function YearlyReportPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const selectedBranchId = params.branch_id || "all";
+  const dateStart = params.date_start || "";
+  const dateEnd = params.date_end || "";
+  const sortOrder = params.sort || "asc";
 
-  const reportResult = await getYearlyReportData(selectedBranchId);
+  const reportResult = await getYearlyReportData(
+    selectedBranchId,
+    dateStart,
+    dateEnd,
+    sortOrder
+  );
 
   if (reportResult.status === "error") {
     return (
@@ -143,7 +156,7 @@ export default async function YearlyReportPage({ searchParams }: PageProps) {
   const gridLinesY = [0, 0.25, 0.5, 0.75, 1];
 
   return (
-    <div className="w-full flex flex-col gap-4 py-2 pb-20 px-4 sm:px-6">
+    <div className="w-full flex flex-col gap-5 py-2 pb-20 px-4 sm:px-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 py-2">
         <div className="max-w-xl">
@@ -181,15 +194,6 @@ export default async function YearlyReportPage({ searchParams }: PageProps) {
 
           <div className="hidden sm:block w-px h-8 bg-zinc-200/80 sm:mx-1" />
 
-          {/* Filter Cabang Dropdown */}
-          <BranchReportFilter
-            branches={branches}
-            selectedBranchId={selectedBranchId}
-            userBranchId={userBranchId}
-          />
-
-          <div className="hidden sm:block w-px h-8 bg-zinc-200/80 sm:mx-1" />
-
           {/* Export Buttons */}
           <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
             <span className="text-[9px] font-bold uppercase text-zinc-400 tracking-widest leading-none shrink-0">
@@ -197,7 +201,7 @@ export default async function YearlyReportPage({ searchParams }: PageProps) {
             </span>
             <div className="flex items-center gap-2">
               <Link
-                href={`/api/backend/reports/export?type=yearly&format=excel&branch_id=${selectedBranchId}`}
+                href={`/api/backend/reports/export?type=yearly&format=excel&branch_id=${selectedBranchId}${dateStart ? `&date_start=${dateStart}` : ''}${dateEnd ? `&date_end=${dateEnd}` : ''}&sort=${sortOrder}`}
                 className="flex items-center gap-1.5 p-2.5 px-3.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white rounded-xl transition-all font-bold text-xs shadow-sm hover:shadow-md hover:shadow-emerald-500/10 active:scale-95 cursor-pointer"
                 title="Unduh Laporan Excel (Server-side)"
               >
@@ -205,7 +209,7 @@ export default async function YearlyReportPage({ searchParams }: PageProps) {
                 <span>Excel</span>
               </Link>
               <Link
-                href={`/api/backend/reports/export?type=yearly&format=pdf&branch_id=${selectedBranchId}`}
+                href={`/api/backend/reports/export?type=yearly&format=pdf&branch_id=${selectedBranchId}${dateStart ? `&date_start=${dateStart}` : ''}${dateEnd ? `&date_end=${dateEnd}` : ''}&sort=${sortOrder}`}
                 className="flex items-center gap-1.5 p-2.5 px-3.5 bg-rose-50 text-rose-600 hover:bg-rose-500 hover:text-white rounded-xl transition-all font-bold text-xs shadow-sm hover:shadow-md hover:shadow-rose-500/10 active:scale-95 cursor-pointer"
                 title="Unduh Laporan PDF (Server-side)"
               >
@@ -216,6 +220,16 @@ export default async function YearlyReportPage({ searchParams }: PageProps) {
           </div>
         </div>
       </div>
+
+      {/* Control Filter Rentang Tanggal & Sorting ASC/DESC */}
+      <ReportFilterControls
+        branches={branches}
+        selectedBranchId={selectedBranchId}
+        userBranchId={userBranchId}
+        dateStart={dateStart}
+        dateEnd={dateEnd}
+        sortOrder={sortOrder}
+      />
 
       {/* Summary Widgets */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

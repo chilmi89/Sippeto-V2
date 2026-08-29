@@ -9,6 +9,7 @@ import {
 import { toast } from 'react-toastify';
 import { uploadFileAction } from '@/app/actions/upload';
 import { compressImageToWebp } from '@/lib/image';
+import TenantBankManager from '@/components/dashboard/TenantBankManager';
 
 interface Profile {
   id: string;
@@ -206,7 +207,7 @@ const ProfileTenantPage = () => {
             <div className="flex gap-2 border-b border-zinc-150 pb-px">
                 <button 
                     onClick={() => setActiveTab('profile')} 
-                    className={`px-5 py-2.5 text-xs font-black uppercase tracking-wider border-b-2 transition-all select-none ${
+                    className={`px-5 py-2.5 text-xs font-black uppercase tracking-wider border-b-2 transition-all select-none cursor-pointer ${
                         activeTab === 'profile' 
                             ? 'border-emerald-500 text-black' 
                             : 'border-transparent text-zinc-500 hover:text-black'
@@ -216,7 +217,7 @@ const ProfileTenantPage = () => {
                 </button>
                 <button 
                     onClick={() => setActiveTab('store')} 
-                    className={`px-5 py-2.5 text-xs font-black uppercase tracking-wider border-b-2 transition-all select-none ${
+                    className={`px-5 py-2.5 text-xs font-black uppercase tracking-wider border-b-2 transition-all select-none cursor-pointer ${
                         activeTab === 'store' 
                             ? 'border-emerald-500 text-black' 
                             : 'border-transparent text-zinc-500 hover:text-black'
@@ -226,7 +227,7 @@ const ProfileTenantPage = () => {
                 </button>
             </div>
 
-            {activeTab === 'profile' ? (
+            {activeTab === 'profile' && (
                 /* Tab 1: Profil Bisnis Content */
                 <div className="grid grid-cols-12 auto-rows-min gap-3 w-full animate-in fade-in duration-200">
                     {/* Banner */}
@@ -338,6 +339,11 @@ const ProfileTenantPage = () => {
 
                             {/* Tile: Address (full) */}
                             <BentoTile span={12} icon={<MapPin className="w-4 h-4" />} label="Alamat Operasional" value={profile?.address} />
+
+                            {/* Section: Rekening Bank Pembayaran Tenant */}
+                            <div className="col-span-12 mt-2">
+                                <TenantBankManager profileId={profile?.id || ''} />
+                            </div>
                         </>
                     ) : (
                         /* EDITING MODE: Full-width form card */
@@ -424,8 +430,10 @@ const ProfileTenantPage = () => {
                         </div>
                     )}
                 </div>
-            ) : (
-                /* Tab 2: Integrasi E-Catalog Toko Content */
+            )}
+
+            {activeTab === 'store' && (
+                /* Tab 3: Integrasi E-Catalog Toko Content */
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start w-full animate-in fade-in duration-300">
                     {/* Left Side: Status & QR (7 Columns) */}
                     <div className="lg:col-span-7 space-y-4">
