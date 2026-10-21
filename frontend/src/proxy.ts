@@ -12,9 +12,12 @@ const LOGIN_PAGE = "/login";
 const PUBLIC_PREFIXES = [
   "/login",
   "/register",
+  "/forgot-password",
   "/api/auth/login",
   "/api/auth/register",
   "/api/auth/refresh",
+  "/api/auth/verify-reset-phone",
+  "/api/auth/reset-password-phone",
   "/_next",
   "/favicon.ico",
   "/unauthorized",

@@ -155,3 +155,11 @@ type PublicStorefrontResponse struct {
 	Products []PublicProductInfo `json:"products"`
 	Branches []PublicBranchInfo  `json:"branches"`
 }
+
+type LandingStatsResponse struct {
+	TotalUsers        int     `json:"total_users"`
+	TotalTransactions int     `json:"total_transactions"`
+	TotalVolume       float64 `json:"total_volume"`
+	FormattedVolume   string  `json:"formatted_volume"`
+	FastResponseSLA   float64 `json:"fast_response_sla"`
+}

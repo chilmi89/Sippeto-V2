@@ -20,6 +20,8 @@ type AuthService interface {
 	RefreshToken(ctx context.Context, tokenString string) (*dto_auth.RefreshResponse, error)
 	GenerateResetToken(ctx context.Context, email string) (string, error)
 	ResetPassword(ctx context.Context, req dto_auth.ResetPasswordRequest) error
+	VerifyAccountWithPhone(ctx context.Context, req dto_auth.VerifyResetPhoneRequest) (*dto_auth.VerifyResetPhoneResponse, error)
+	ResetPasswordWithPhone(ctx context.Context, req dto_auth.ResetPasswordPhoneRequest) error
 	Register(ctx context.Context, req dto_auth.RegisterRequest) (*dto_auth.RegisterResponse, error)
 }
 
@@ -229,6 +231,40 @@ func (s *authService) ResetPassword(ctx context.Context, req dto_auth.ResetPassw
 	// Simpan ke database menggunakan raw SQL query
 	err = s.repo.UpdatePassword(ctx, email, string(hashedBytes))
 	return err
+}
+
+func (s *authService) VerifyAccountWithPhone(ctx context.Context, req dto_auth.VerifyResetPhoneRequest) (*dto_auth.VerifyResetPhoneResponse, error) {
+	profile, err := s.repo.FindByEmailAndPhone(ctx, req.Email, req.PhoneNumber)
+	if err != nil {
+		return nil, err
+	}
+	if profile == nil {
+		return nil, errors.New("Akun tidak ditemukan atau nomor HP tidak cocok.")
+	}
+
+	return &dto_auth.VerifyResetPhoneResponse{
+		Valid:        true,
+		FullName:     profile.FullName,
+		BusinessName: profile.BusinessName,
+		Message:      "Data akun berhasil dicocokkan.",
+	}, nil
+}
+
+func (s *authService) ResetPasswordWithPhone(ctx context.Context, req dto_auth.ResetPasswordPhoneRequest) error {
+	profile, err := s.repo.FindByEmailAndPhone(ctx, req.Email, req.PhoneNumber)
+	if err != nil {
+		return err
+	}
+	if profile == nil {
+		return errors.New("Akun tidak ditemukan atau nomor HP tidak cocok.")
+	}
+
+	hashedBytes, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return errors.New("Gagal memproses kata sandi baru.")
+	}
+
+	return s.repo.UpdatePassword(ctx, profile.Email, string(hashedBytes))
 }
 
 func (s *authService) Register(ctx context.Context, req dto_auth.RegisterRequest) (*dto_auth.RegisterResponse, error) {

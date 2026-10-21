@@ -15,6 +15,7 @@ type TenantUMKMService interface {
 	GetPublicStorefront(ctx context.Context, username string) (*dto_tenant_umkm.PublicStorefrontResponse, error)
 	CreateRegisterUMKM(ctx context.Context, req dto_tenant_umkm.CompleteRegisterUMKMRequest) (*dto_tenant_umkm.TenantProfileInfo, error)
 	UpdateRegisterUMKM(ctx context.Context, req dto_tenant_umkm.CompleteRegisterUMKMRequest) (*dto_tenant_umkm.TenantProfileInfo, error)
+	GetLandingStats(ctx context.Context) (*dto_tenant_umkm.LandingStatsResponse, error)
 }
 
 type tenantUMKMService struct {
@@ -262,4 +263,8 @@ func (s *tenantUMKMService) CreateRegisterUMKM(ctx context.Context, req dto_tena
 
 func (s *tenantUMKMService) UpdateRegisterUMKM(ctx context.Context, req dto_tenant_umkm.CompleteRegisterUMKMRequest) (*dto_tenant_umkm.TenantProfileInfo, error) {
 	return s.repo.UpdateRegisterUMKM(ctx, req)
+}
+
+func (s *tenantUMKMService) GetLandingStats(ctx context.Context) (*dto_tenant_umkm.LandingStatsResponse, error) {
+	return s.repo.GetLandingStats(ctx)
 }

@@ -14,7 +14,11 @@ import {
   Handshake,
   CheckCircle2,
   GraduationCap,
-  Laptop
+  Laptop,
+  Mail,
+  MapPin,
+  ExternalLink,
+  ShieldCheck
 } from "lucide-react";
 import Link from "next/link";
 
@@ -74,21 +78,43 @@ export default function AboutPage() {
             <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-white leading-tight">
               Sippeto — Inovasi Digital
               <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-amber-400">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-amber-400 to-orange-400">
                 Oleh HIMAPINNO
               </span>
             </h1>
             <p className="text-white/70 text-sm md:text-base leading-relaxed">
-              <strong>Sippeto</strong> lahir dari inisiatif Himpunan Mahasiswa Program Studi Informatika (**HIMAPINNO**) Universitas Nusantara PGRI Kediri. Proyek ini dikembangkan sebagai kontribusi nyata pengabdian mahasiswa dalam mempercepat digitalisasi manajemen keuangan dan katalog penjualan online bagi para pelaku UMKM lokal.
+              <strong className="text-white">Sippeto</strong> lahir dari inisiatif Himpunan Mahasiswa Program Studi Informatika (<span className="text-amber-300 font-bold">HIMAPINNO</span>) Universitas Nusantara PGRI Kediri. Proyek ini dikembangkan sebagai kontribusi nyata pengabdian mahasiswa dalam mempercepat digitalisasi manajemen keuangan dan katalog penjualan online bagi para pelaku UMKM lokal.
             </p>
-            <div className="flex gap-4">
+            <div className="flex flex-wrap gap-3 pt-2">
               <Link
                 href="/register"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-xl shadow-blue-500/25 hover:scale-[1.02] active:scale-[0.98] transition-all text-xs uppercase tracking-wider"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-xl shadow-blue-500/25 hover:scale-[1.02] active:scale-[0.98] transition-all text-xs uppercase tracking-wider"
               >
                 Coba Sippeto Gratis
                 <ArrowRight className="w-4 h-4" />
               </Link>
+              <a
+                href="#visi-misi"
+                className="inline-flex items-center gap-2 px-5 py-3 border border-white/10 hover:border-white/20 text-white/70 hover:text-white font-semibold bg-white/5 hover:bg-white/10 rounded-xl transition-all text-xs"
+              >
+                Pelajari Visi Kami
+              </a>
+            </div>
+
+            {/* Quick trust tags */}
+            <div className="flex flex-wrap items-center gap-4 pt-4 border-t border-white/8 text-xs text-white/50 font-medium">
+              <span className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                Informatika UNP Kediri
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                Pengabdian Masyarakat
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                Solusi Nyata UMKM
+              </span>
             </div>
           </motion.div>
 
@@ -96,20 +122,40 @@ export default function AboutPage() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.7, delay: 0.2, ease: "easeOut" }}
-            className="relative flex justify-center"
+            className="relative flex justify-center w-full"
           >
-            <div className="w-full max-w-lg aspect-square relative rounded-3xl overflow-hidden border border-white/10 bg-white/[0.02] backdrop-blur-sm shadow-2xl p-4">
-              <img
-                src="/about_us_hero.png"
-                alt="Tentang Kami - Kolaborasi Tim Sippeto"
-                className="w-full h-full object-contain rounded-2xl"
-              />
+            {/* Ambient colorful backdrop glow */}
+            <div className="absolute -inset-4 bg-gradient-to-tr from-blue-600/25 via-indigo-500/20 to-cyan-400/25 blur-3xl rounded-3xl opacity-75 pointer-events-none" />
+
+            <div className="w-full max-w-xl relative rounded-2xl overflow-hidden border border-white/15 bg-slate-950/70 backdrop-blur-2xl shadow-2xl p-3 sm:p-4 group">
+              {/* Photo Container matching exact 3:2 aspect ratio */}
+              <div className="relative w-full aspect-[3/2] rounded-xl overflow-hidden bg-white shadow-inner">
+                <img
+                  src="/himapino.jpeg"
+                  alt="Tim Pengembang Sippeto - HIMAPINNO UNP Kediri"
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-60 pointer-events-none" />
+              </div>
+
+              {/* Bottom Caption Pill */}
+              <div className="mt-3 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/8 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="font-bold text-white text-xs">
+                    HIMAPINNO UNP Kediri
+                  </span>
+                </div>
+                <span className="text-[11px] text-white/50 font-medium">
+                  Tim Inovasi & Pengembang 2026
+                </span>
+              </div>
             </div>
           </motion.div>
         </section>
 
         {/* ── VISI & MISI PROYEK ── */}
-        <section className="space-y-12">
+        <section id="visi-misi" className="space-y-12">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -173,132 +219,88 @@ export default function AboutPage() {
           </motion.div>
         </section>
 
-        {/* ── TIM PENGEMBANG ── */}
-        <section className="space-y-12">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center max-w-2xl mx-auto space-y-3"
-          >
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-purple-500/20 bg-purple-500/5 text-[9px] font-extrabold uppercase tracking-wider text-purple-400">
-              Tim Inovator
-            </span>
-            <h2 className="text-3xl font-bold text-white">Profil Tim Pengembang</h2>
-            <p className="text-white/60 text-xs md:text-sm">
-              Mahasiswa bertalenta di balik perancangan dan implementasi sistem informasi Sippeto.
-            </p>
-          </motion.div>
+    
 
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            {/* Founder / Dev Card */}
-            <motion.div 
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              className="p-6 rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-md flex flex-col sm:flex-row items-center gap-6 hover:border-white/20 hover:bg-white/[0.05] transition-all duration-300"
-            >
-              <img
-                src="/founder_avatar.png"
-                alt="Muhammad Ilham"
-                className="w-24 h-24 rounded-2xl object-cover border border-white/10"
-              />
-              <div className="space-y-2 text-center sm:text-left">
-                <span className="inline-block text-[8px] font-black tracking-widest uppercase bg-blue-500/10 border border-blue-500/20 text-blue-300 px-2 py-0.5 rounded-full">
-                  Lead Developer
-                </span>
-                <h4 className="text-base font-bold text-white">Muhammad Ilham</h4>
-                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">HIMAPINNO UNP KEDIRI</p>
-                <p className="text-white/70 text-xs leading-relaxed">
-                  Fokus mengembangkan arsitektur backend Go (Gin Framework) serta optimasi performa query database relasional.
-                </p>
-              </div>
-            </motion.div>
-
-            {/* UI/UX / System Analyst Card */}
-            <motion.div 
-              initial={{ opacity: 0, x: 30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              className="p-6 rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-md flex flex-col sm:flex-row items-center gap-6 hover:border-white/20 hover:bg-white/[0.05] transition-all duration-300"
-            >
-              <img
-                src="/vet_avatar.png"
-                alt="Riska Amanda"
-                className="w-24 h-24 rounded-2xl object-cover border border-white/10"
-              />
-              <div className="space-y-2 text-center sm:text-left">
-                <span className="inline-block text-[8px] font-black tracking-widest uppercase bg-purple-500/10 border border-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full">
-                  Lead UI/UX & System Analyst
-                </span>
-                <h4 className="text-base font-bold text-white">Riska Amanda</h4>
-                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">HIMAPINNO UNP KEDIRI</p>
-                <p className="text-white/70 text-xs leading-relaxed">
-                  Merancang alur navigasi user-friendly, integrasi desain Tailwind, serta memastikan kompatibilitas halaman mobile-first.
-                </p>
-              </div>
-            </motion.div>
-          </div>
-        </section>
-
-        {/* ── KERJA SAMA & MITRA ── */}
-        <section className="grid lg:grid-cols-12 gap-8 lg:gap-12 items-center bg-white/[0.03] border border-white/8 rounded-3xl p-6 md:p-10 shadow-xl backdrop-blur-md overflow-hidden relative">
-          <div className="absolute -left-20 -top-20 w-72 h-72 bg-blue-500/5 blur-[100px] rounded-full pointer-events-none" />
-          <div className="absolute -right-20 -bottom-20 w-72 h-72 bg-emerald-500/5 blur-[100px] rounded-full pointer-events-none" />
+        {/* ── KERJA SAMA & MITRA (FULL WIDTH ELEGANT SHOWCASE) ── */}
+        <section className="bg-gradient-to-b from-white/[0.05] to-white/[0.02] border border-white/10 rounded-3xl p-6 sm:p-10 lg:p-14 shadow-2xl backdrop-blur-2xl overflow-hidden relative text-center space-y-10">
+          <div className="absolute -left-20 -top-20 w-80 h-80 bg-blue-600/15 blur-[120px] rounded-full pointer-events-none" />
+          <div className="absolute -right-20 -bottom-20 w-80 h-80 bg-amber-500/10 blur-[120px] rounded-full pointer-events-none" />
           
-          <div className="lg:col-span-6 space-y-6 relative z-10">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-yellow-500/25 bg-yellow-500/5 text-[9px] font-extrabold uppercase tracking-wider text-yellow-300">
-              Kerja Sama Mitra
+          {/* Section Header */}
+          <div className="max-w-3xl mx-auto space-y-4 relative z-10">
+            <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 text-[10px] font-extrabold uppercase tracking-widest text-amber-300 backdrop-blur-md">
+              <Handshake className="w-3.5 h-3.5 text-amber-400" />
+              Kemitraan Terbuka UMKM
             </span>
-            <h2 className="text-3xl font-bold text-white leading-tight">
-              Kolaborasi & Kemitraan <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 to-cyan-400">
-                Pemberdayaan Ekonomi
+
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-tight">
+              Kolaborasi & Kemitraan <br className="hidden sm:inline" />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-amber-400 to-orange-400">
+                Pemberdayaan UMKM Lokal
               </span>
             </h2>
-            <p className="text-white/60 text-xs md:text-sm leading-relaxed">
-              HIMAPINNO UNP Kediri mengundang seluruh pegiat UMKM kuliner, retail, fashion, hingga jasa di wilayah Kediri untuk berpartisipasi dan memanfaatkan platform Sippeto guna mengoptimalkan pencatatan penjualan dan promosi usaha.
+
+            <p className="text-white/65 text-sm md:text-base leading-relaxed max-w-2xl mx-auto">
+              HIMAPINNO UNP Kediri membuka ruang kolaborasi seluas-luasnya bagi pegiat usaha kuliner, retail, fashion, hingga jasa untuk mendigitalisasi operasional kasir dan katalog online secara mandiri dan berkelanjutan.
             </p>
-            <div className="space-y-3.5">
-              {[
-                "Kemitraan uji coba dan implementasi sistem secara cuma-cuma.",
-                "Pelatihan dan bimbingan teknis penggunaan dashboard keuangan mahasiswa.",
-                "Pendampingan publikasi katalog online untuk memperluas pasar digital.",
-                "Saran & umpan balik berkelanjutan untuk optimalisasi fitur Sippeto."
-              ].map((text, i) => (
-                <div key={i} className="flex gap-2.5 items-start">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                  <span className="text-white/80 text-xs">{text}</span>
-                </div>
-              ))}
-            </div>
           </div>
 
-          <div className="lg:col-span-6 flex justify-center relative z-10">
-            <div className="p-8 rounded-2xl border border-white/8 bg-slate-950/40 text-left space-y-6 w-full max-w-md">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center text-yellow-400">
-                  <Handshake className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-white">Hubungi Kami (HIMAPINNO)</h4>
-                  <p className="text-[10px] text-zinc-500">Hubungi kami untuk kerja sama uji coba</p>
-                </div>
+          {/* 4 Cards Grid - Full Width */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 relative z-10 text-left">
+            {[
+              {
+                title: "100% Bebas Biaya",
+                desc: "Uji coba dan implementasi sistem tanpa pungutan biaya langganan.",
+                icon: "✨"
+              },
+              {
+                title: "Bimbingan Teknis",
+                desc: "Pendampingan langsung oleh mahasiswa informatika UNP Kediri.",
+                icon: "🎓"
+              },
+              {
+                title: "Katalog Online Instan",
+                desc: "Publikasi etalase toko dan sistem pesanan terintegrasi WhatsApp.",
+                icon: "🌐"
+              },
+              {
+                title: "Dukungan Berkelanjutan",
+                desc: "Fitur aplikasi terus disempurnakan sesuai masukan nyata pelaku usaha.",
+                icon: "⚡"
+              },
+            ].map((item, i) => (
+              <div
+                key={i}
+                className="p-5 rounded-2xl bg-white/[0.03] border border-white/8 hover:border-amber-400/30 hover:bg-white/[0.06] transition-all duration-300 space-y-2 group"
+              >
+                <div className="text-2xl mb-1">{item.icon}</div>
+                <h3 className="text-sm font-bold text-white group-hover:text-amber-300 transition-colors">
+                  {item.title}
+                </h3>
+                <p className="text-xs text-white/50 leading-relaxed">
+                  {item.desc}
+                </p>
               </div>
-              <div className="space-y-3.5 text-xs text-white/70">
-                <p>Ingin bergabung sebagai mitra uji coba atau memiliki masukan mengenai fitur pengembangan Sippeto? Hubungi narahubung organisasi kami:</p>
-                <div className="p-4 rounded-xl bg-white/[0.03] border border-white/5 space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-white/40">Email:</span>
-                    <span className="text-yellow-300 font-mono">himapinno@unpkediri.ac.id</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-white/40">Sekretariat:</span>
-                    <span className="text-yellow-300 font-mono">Kampus UNP Kediri, Jawa Timur</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            ))}
+          </div>
+
+          {/* Clean Action CTA & Narahubung */}
+          <div className="pt-2 relative z-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link
+              href="/register"
+              className="inline-flex items-center gap-2 px-7 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-xl shadow-blue-500/25 hover:scale-[1.02] active:scale-[0.98] transition-all text-xs uppercase tracking-wider"
+            >
+              Daftarkan Toko UMKM Sekarang
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+
+            <a
+              href="mailto:himapinno@unpkediri.ac.id"
+              className="inline-flex items-center gap-2 px-6 py-3.5 border border-white/10 hover:border-white/20 text-white/70 hover:text-white font-semibold bg-white/5 hover:bg-white/10 rounded-xl transition-all text-xs"
+            >
+              <Mail className="w-3.5 h-3.5 text-cyan-400" />
+              Kontak: himapinno@unpkediri.ac.id
+            </a>
           </div>
         </section>
 
@@ -315,10 +317,10 @@ export default function AboutPage() {
               <Quote className="w-6 h-6 transform rotate-180" />
             </div>
             <blockquote className="text-base md:text-lg font-medium text-white/90 italic leading-relaxed">
-              &ldquo;Teknologi bukan sekadar baris kode, melainkan jembatan solusi untuk memajukan perekonomian masyarakat lokal. Sippeto hadir untuk mewujudkan itu.&ldquo;
+              &ldquo;Teknologi bukan sekadar baris kode, melainkan jembatan solusi untuk memajukan perekonomian masyarakat lokal. <span>Sippeto</span> hadir untuk mewujudkan itu.&ldquo;
             </blockquote>
             <div>
-              <p className="text-xs font-bold text-white uppercase tracking-widest">HIMAPINNO UNP Kediri</p>
+              <p className="text-xs font-bold text-white uppercase tracking-widest">- Chill Dev-</p>
               <p className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">Informatika &bull; Kreativitas &bull; Inovasi</p>
             </div>
           </motion.div>

@@ -11,20 +11,30 @@ import Lenis from "lenis";
 import {
   ArrowRight,
   ArrowRightLeft,
+  Boxes,
   Building,
   Check,
+  CheckCircle2,
   ChevronRight,
   Database,
+  ExternalLink,
   FileText,
   Globe,
   Layers,
   Lock,
   Menu,
+  MessageCircle,
   Moon,
+  Package,
+  QrCode,
+  Receipt,
+  Send,
   Shield,
   Smartphone,
+  Sparkles,
   Store,
   Sun,
+  TrendingUp,
   X,
   Zap,
 } from "lucide-react";
@@ -212,6 +222,49 @@ export default function LandingPage() {
   const [mobileMenu, setMobileMenu] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [lenisInstance, setLenisInstance] = useState<any>(null);
+  const [metrics, setMetrics] = useState({
+    totalUsers: 17,
+    totalVolume: 14,
+    volumePrefix: "Rp ",
+    volumeSuffix: "Jt+",
+    sla: 99,
+  });
+
+  useEffect(() => {
+    fetch("/api/public/landing-stats")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && data.total_users !== undefined) {
+          const vol = Number(data.total_volume) || 0;
+          let val = 0;
+          let pref = "Rp ";
+          let suff = "+";
+
+          if (vol >= 1_000_000_000) {
+            val = Math.round(vol / 1_000_000_000);
+            suff = "M+";
+          } else if (vol >= 1_000_000) {
+            val = Math.round(vol / 1_000_000);
+            suff = "Jt+";
+          } else if (vol >= 1_000) {
+            val = Math.round(vol / 1_000);
+            suff = "Rb+";
+          } else {
+            val = Math.round(vol);
+            suff = "+";
+          }
+
+          setMetrics({
+            totalUsers: data.total_users || 0,
+            totalVolume: val,
+            volumePrefix: pref,
+            volumeSuffix: suff,
+            sla: Math.floor(data.fast_response_sla || 99),
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const lenis = new Lenis({
@@ -244,7 +297,6 @@ export default function LandingPage() {
     ["E-Catalog WA", "#ecatalog"],
     ["Fitur Utama", "#features"],
     ["Alur Kerja", "#how"],
-    ["Kasir POS", "#pos"],
   ] as const;
 
   return (
@@ -484,7 +536,7 @@ export default function LandingPage() {
               className="flex flex-wrap justify-center lg:justify-start gap-4 pt-6 border-t border-white/8 mt-6"
             >
               {[
-                { icon: <Database className="w-3.5 h-3.5 text-cyan-400" />, label: "Go + Bun ORM" },
+                { icon: <Database className="w-3.5 h-3.5 text-cyan-400" />, label: "Dengan Teknologi Terbaru" },
                 { icon: <Lock className="w-3.5 h-3.5 text-cyan-400" />, label: "JWT + RLS Security" },
                 { icon: <Globe className="w-3.5 h-3.5 text-cyan-400" />, label: "Katalog Publik Instan" },
               ].map((b, i) => (
@@ -511,20 +563,19 @@ export default function LandingPage() {
       </section>
 
       {/* ── METRICS STRIP ── */}
-      <section className="py-4 px-6 md:px-12 max-w-7xl mx-auto z-10 relative">
+      <section className="py-4 px-6 md:px-12 max-w-5xl mx-auto z-10 relative">
         <AnimSection variant={scaleIn}>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-white/[0.04] border border-white/8 rounded-2xl p-5 md:p-7 backdrop-blur-xl">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-8 bg-white/[0.04] border border-white/8 rounded-2xl p-6 md:p-8 backdrop-blur-xl">
             {[
-              { value: 1250, suffix: "+", label: "Toko Terdaftar" },
-              { value: 45, prefix: "Rp ", suffix: "M+", label: "Volume Transaksi" },
-              { value: 8, label: "Integrasi Cabang" },
-              { value: 99, suffix: "%", label: "SLA Up-time" },
+              { value: metrics.totalUsers, suffix: "+", label: "Toko Terdaftar" },
+              { value: metrics.totalVolume, prefix: metrics.volumePrefix, suffix: metrics.volumeSuffix, label: "Volume Transaksi" },
+              { value: metrics.sla, suffix: "%", label: "Fast Response & SLA" },
             ].map((item, i) => (
               <div key={i} className="text-center">
-                <div className="text-2xl md:text-3xl font-extrabold text-white font-mono tracking-tight">
+                <div className="text-3xl md:text-4xl font-extrabold text-white font-mono tracking-tight">
                   <Counter value={item.value} prefix={item.prefix} suffix={item.suffix} />
                 </div>
-                <span className="text-[10px] text-white/40 uppercase tracking-widest block font-bold mt-1">
+                <span className="text-xs text-white/50 uppercase tracking-widest block font-bold mt-2">
                   {item.label}
                 </span>
               </div>
@@ -711,174 +762,167 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
-      {/* ── HOW IT WORKS ── */}
-      <section id="how" className="py-20 px-6 md:px-12 max-w-7xl mx-auto z-10 relative">
-        <div className="grid lg:grid-cols-12 gap-8 lg:gap-12 items-center bg-white/[0.03] border border-white/8 rounded-3xl p-6 md:p-10 shadow-xl backdrop-blur-md">
-          <AnimSection variant={slideLeft} className="lg:col-span-7 space-y-6 text-left">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-[9px] font-extrabold uppercase tracking-wider text-blue-300">
-              Cara Kerja
+      {/* ── HOW IT WORKS (MODERN 3-STEP BENTO WORKFLOW) ── */}
+      <section id="how" className="py-24 px-6 md:px-12 max-w-7xl mx-auto z-10 relative">
+        {/* Section Header */}
+        <AnimSection variant={fadeUp} className="text-center max-w-2xl mx-auto mb-16 space-y-4">
+          <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-blue-500/20 bg-blue-500/10 text-[10px] font-extrabold uppercase tracking-widest text-cyan-300 backdrop-blur-md">
+            <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+            Alur Kerja Sederhana
+          </span>
+          <h2 className="font-extrabold text-3xl md:text-5xl text-white tracking-tight leading-tight">
+            Mulai Digitalisasi <br className="hidden sm:inline" />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-cyan-300 to-teal-300">
+              Dalam 3 Langkah Praktis
             </span>
-            <h2 className="font-extrabold text-2xl md:text-3xl text-white">
-              Mulai Digitalisasi <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-amber-400">
-                Dalam 3 Langkah Mudah
-              </span>
-            </h2>
-            <p className="text-white/55 text-sm leading-relaxed max-w-lg">
-              Langkah sederhana untuk mulai menggunakan Sippeto bagi kemajuan bisnis Anda.
-            </p>
+          </h2>
+          <p className="text-white/60 text-sm md:text-base leading-relaxed">
+            Tidak butuh keahlian teknis khusus. SiPetto dirancang agar siapapun dapat mengelola toko, kasir, dan katalog online dalam hitungan menit.
+          </p>
+        </AnimSection>
 
-            <motion.div
-              variants={staggerContainer}
-              initial="hidden"
-              whileInView="show"
-              viewport={{ once: true, margin: "-50px" }}
-              className="space-y-5 pt-2"
-            >
-              {[
-                {
-                  step: "01",
-                  title: "Registrasi Akun",
-                  desc: "Buat akun bisnis Anda di Sippeto dan tentukan subdomain toko.",
-                },
-                {
-                  step: "02",
-                  title: "Setup Operasional",
-                  desc: "Daftarkan cabang toko dan input data produk inventori.",
-                },
-                {
-                  step: "03",
-                  title: "Berjualan Maksimal",
-                  desc: "Mulai transaksi kasir POS dan sebarkan link katalog digital.",
-                },
-              ].map((item, i) => (
-                <motion.div key={i} variants={fadeUp} className="flex gap-4 items-start group">
-                  <div className="shrink-0 w-9 h-9 rounded-xl bg-white/8 border border-white/10 text-yellow-400 flex items-center justify-center font-mono text-xs font-bold group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-500 transition-all duration-300">
-                    {item.step}
+        {/* 3 Step Cards Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 relative">
+          {/* Card 1 */}
+          <AnimSection variant={fadeUp} className="h-full">
+            <div className="h-full rounded-3xl p-6 lg:p-7 border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] backdrop-blur-2xl hover:border-blue-500/40 hover:shadow-[0_20px_50px_rgba(30,64,175,0.2)] transition-all duration-500 group flex flex-col justify-between relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-44 h-44 bg-blue-500/10 blur-3xl rounded-full pointer-events-none group-hover:bg-blue-500/20 transition-all" />
+
+              <div>
+                <div className="flex items-center justify-between mb-5">
+                  <span className="text-xs font-black tracking-widest px-3 py-1 rounded-xl bg-blue-600/20 border border-blue-500/30 text-blue-300 font-mono">
+                    LANGKAH 01
+                  </span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_12px_#34d399]" />
+                </div>
+
+                <h3 className="text-xl font-bold text-white mb-2 group-hover:text-blue-300 transition-colors">
+                  Daftar & Buat Toko
+                </h3>
+                <p className="text-white/55 text-xs leading-relaxed mb-6">
+                  Registrasi akun instan otomatis menjadi Owner. Dapatkan subdomain katalog publik gratis yang langsung aktif.
+                </p>
+              </div>
+
+              {/* Mini UI Mockup 1: Storefront Profile Card */}
+              <div className="p-4 rounded-2xl bg-slate-950/60 border border-white/8 space-y-3 group-hover:border-white/15 transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-black text-sm shadow-md">
+                    KS
                   </div>
-                  <div>
-                    <h4 className="font-bold text-white text-sm mb-1 group-hover:text-blue-400 transition-colors">
-                      {item.title}
-                    </h4>
-                    <p className="text-white/50 text-xs leading-relaxed">{item.desc}</p>
+                  <div className="leading-tight">
+                    <span className="text-xs font-bold text-white block">Kopi Aroma Senja</span>
+                    <span className="text-[10px] text-emerald-400 font-medium flex items-center gap-1 mt-0.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                      Status: Aktif Online
+                    </span>
                   </div>
-                </motion.div>
-              ))}
-            </motion.div>
+                </div>
+
+                <div className="px-3 py-2 rounded-xl bg-white/[0.04] border border-white/5 flex items-center justify-between text-[11px] font-mono text-cyan-300">
+                  <span className="truncate">sippeto.id/store/kopiaroma</span>
+                  <ExternalLink className="w-3 h-3 text-white/40 shrink-0 ml-1.5" />
+                </div>
+              </div>
+            </div>
           </AnimSection>
 
-          <AnimSection variant={slideRight} className="lg:col-span-5 flex justify-center">
-            <div className="w-full max-w-sm p-5 rounded-2xl border border-white/8 bg-white/[0.04] backdrop-blur-md text-left space-y-4">
-              <h4 className="text-[10px] font-bold text-white/50 tracking-wider uppercase flex items-center gap-1.5">
-                <Store className="w-3.5 h-3.5 text-blue-300" />
-                Contoh Subdomain
-              </h4>
-              <div className="space-y-2.5">
-                {[
-                  { n: "Kopi Aroma Nusantara", u: "sipetto.id/store/kopiaroma", l: "KA" },
-                  { n: "Bakery Pastry Mantap", u: "sipetto.id/store/pastrymantap", l: "BP" },
-                  { n: "Warung Sembako Jaya", u: "sipetto.id/store/sembakojaya", l: "WS" },
-                ].map((t, idx) => (
-                  <motion.div
-                    key={idx}
-                    initial={{ opacity: 0, x: 12 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: idx * 0.1, duration: 0.4 }}
-                    className="p-3 rounded-xl border border-white/8 bg-slate-950/40 flex items-center justify-between hover:border-white/15 hover:bg-slate-950/60 transition-all"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-blue-600/20 text-blue-300 border border-blue-500/20 flex items-center justify-center font-black text-[10px]">
-                        {t.l}
-                      </div>
-                      <div className="leading-tight">
-                        <span className="text-[11px] font-bold text-white block">{t.n}</span>
-                        <span className="text-yellow-400/80 font-mono text-[9px]">{t.u}</span>
-                      </div>
-                    </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-white/30" />
-                  </motion.div>
-                ))}
+          {/* Card 2 */}
+          <AnimSection variant={fadeUp} className="h-full">
+            <div className="h-full rounded-3xl p-6 lg:p-7 border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] backdrop-blur-2xl hover:border-cyan-500/40 hover:shadow-[0_20px_50px_rgba(6,182,212,0.2)] transition-all duration-500 group flex flex-col justify-between relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-44 h-44 bg-cyan-500/10 blur-3xl rounded-full pointer-events-none group-hover:bg-cyan-500/20 transition-all" />
+
+              <div>
+                <div className="flex items-center justify-between mb-5">
+                  <span className="text-xs font-black tracking-widest px-3 py-1 rounded-xl bg-cyan-600/20 border border-cyan-500/30 text-cyan-300 font-mono">
+                    LANGKAH 02
+                  </span>
+                  <Boxes className="w-4 h-4 text-cyan-400/60" />
+                </div>
+
+                <h3 className="text-xl font-bold text-white mb-2 group-hover:text-cyan-300 transition-colors">
+                  Atur Produk & Stok
+                </h3>
+                <p className="text-white/55 text-xs leading-relaxed mb-6">
+                  Input data barang sekali, atur harga, dan distribusikan stok fisik ke cabang-cabang fisik toko Anda secara akurat.
+                </p>
               </div>
-              <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/15 text-[9px] leading-relaxed text-white/50 font-medium">
-                Katalog subdomain terupdate otomatis tanpa mengganggu data keuangan internal.
+
+              {/* Mini UI Mockup 2: Inventory & Multi-Branch Stocks */}
+              <div className="p-4 rounded-2xl bg-slate-950/60 border border-white/8 space-y-2.5 group-hover:border-white/15 transition-all">
+                <div className="flex justify-between items-center pb-2 border-b border-white/8">
+                  <div>
+                    <span className="text-xs font-bold text-white block">Kopi Susu Gula Aren</span>
+                    <span className="text-[10px] text-amber-300 font-mono font-bold">Rp 18.000 / botol</span>
+                  </div>
+                  <span className="text-[10px] font-semibold text-white/50 bg-white/5 px-2 py-0.5 rounded-md">
+                    Minuman
+                  </span>
+                </div>
+
+                <div className="space-y-1.5 pt-0.5">
+                  <div className="flex justify-between items-center text-[10px] bg-white/[0.03] px-2.5 py-1.5 rounded-lg border border-white/5">
+                    <span className="text-white/60">📍 Cabang Pusat</span>
+                    <span className="text-emerald-400 font-bold font-mono">120 pcs</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[10px] bg-white/[0.03] px-2.5 py-1.5 rounded-lg border border-white/5">
+                    <span className="text-white/60">📍 Cabang Timur</span>
+                    <span className="text-cyan-400 font-bold font-mono">45 pcs</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </AnimSection>
+
+          {/* Card 3 */}
+          <AnimSection variant={fadeUp} className="h-full">
+            <div className="h-full rounded-3xl p-6 lg:p-7 border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] backdrop-blur-2xl hover:border-emerald-500/40 hover:shadow-[0_20px_50px_rgba(16,185,129,0.2)] transition-all duration-500 group flex flex-col justify-between relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-44 h-44 bg-emerald-500/10 blur-3xl rounded-full pointer-events-none group-hover:bg-emerald-500/20 transition-all" />
+
+              <div>
+                <div className="flex items-center justify-between mb-5">
+                  <span className="text-xs font-black tracking-widest px-3 py-1 rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-300 font-mono">
+                    LANGKAH 03
+                  </span>
+                  <TrendingUp className="w-4 h-4 text-emerald-400/60" />
+                </div>
+
+                <h3 className="text-xl font-bold text-white mb-2 group-hover:text-emerald-300 transition-colors">
+                  POS & Checkout WA
+                </h3>
+                <p className="text-white/55 text-xs leading-relaxed mb-6">
+                  Transaksi kasir langsung potong stok cabang, pesanan online otomatis diteruskan ke WhatsApp, dan laba tercatat rapi.
+                </p>
+              </div>
+
+              {/* Mini UI Mockup 3: POS Receipt & WhatsApp Button */}
+              <div className="p-4 rounded-2xl bg-slate-950/60 border border-white/8 space-y-2.5 group-hover:border-white/15 transition-all">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-white">Total Penjualan</span>
+                  <span className="text-xs font-black font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-lg">
+                    Rp 54.000
+                  </span>
+                </div>
+
+                <div className="text-[10px] text-white/50 space-y-0.5 pb-1">
+                  <div className="flex justify-between">
+                    <span>3x Kopi Susu Aren</span>
+                    <span className="font-mono">Rp 54.000</span>
+                  </div>
+                  <div className="flex justify-between text-emerald-400/80">
+                    <span>Pembayaran</span>
+                    <span className="font-semibold">QRIS / Tunai Lunas</span>
+                  </div>
+                </div>
+
+                <div className="w-full py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 flex items-center justify-center gap-1.5 text-white font-bold text-[11px] shadow-sm">
+                  <MessageCircle className="w-3.5 h-3.5 fill-white" />
+                  Kirim Nota ke WhatsApp
+                </div>
               </div>
             </div>
           </AnimSection>
         </div>
-      </section>
-
-      {/* ── KASIR POS SECTION ── */}
-      <section id="pos" className="py-20 px-6 md:px-12 max-w-7xl mx-auto z-10 relative">
-        <AnimSection variant={fadeUp} className="text-center max-w-2xl mx-auto mb-12 space-y-3">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-[9px] font-extrabold uppercase tracking-wider text-blue-300">
-            Sistem Kasir POS
-          </span>
-          <h2 className="font-extrabold text-3xl md:text-4xl text-white">
-            Kasir Digital{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-amber-400">
-              Offline & Online
-            </span>
-          </h2>
-          <p className="text-white/55 text-sm leading-relaxed">
-            Transaksi tetap lancar dalam kondisi offline dan otomatis tersinkronisasi saat terhubung ke internet.
-          </p>
-        </AnimSection>
-
-        <motion.div
-          variants={staggerContainer}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, margin: "-50px" }}
-          className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"
-        >
-          {[
-            {
-              icon: <Zap className="w-5 h-5 text-yellow-400" />,
-              title: "Transaksi Super Cepat",
-              desc: "Proses pembayaran instan untuk kelancaran antrean pelanggan.",
-              badge: "REAL-TIME",
-            },
-            {
-              icon: <Database className="w-5 h-5 text-blue-400" />,
-              title: "Sinkronisasi Stok",
-              desc: "Inventori terpotong otomatis saat transaksi terjadi di kasir.",
-              badge: "MULTI-CABANG",
-            },
-            {
-              icon: <FileText className="w-5 h-5 text-emerald-400" />,
-              title: "Laporan Penjualan",
-              desc: "Analitik pendapatan harian & bulanan yang mudah dibaca.",
-              badge: "ANALITIK",
-            },
-            {
-              icon: <Lock className="w-5 h-5 text-blue-400" />,
-              title: "Metode Pembayaran",
-              desc: "Dukung tunai, transfer, dan QRIS dengan pembukuan terintegrasi.",
-              badge: "FLEKSIBEL",
-            },
-            {
-              icon: <Building className="w-5 h-5 text-blue-400" />,
-              title: "Manajemen Shift",
-              desc: "Kontrol penuh atas setoran kasir di tiap cabang toko.",
-              badge: "OPERASIONAL",
-            },
-            {
-              icon: <ArrowRightLeft className="w-5 h-5 text-blue-400" />,
-              title: "Retur & Void",
-              desc: "Kelola pembatalan atau pengembalian dengan sistem audit aman.",
-              badge: "KONTROL",
-            },
-          ].map((card, i) => (
-            <BentoCard
-              key={i}
-              icon={card.icon}
-              title={card.title}
-              desc={card.desc}
-              badge={card.badge}
-            />
-          ))}
-        </motion.div>
       </section>
 
       {/* ── CTA ── */}
@@ -938,7 +982,7 @@ export default function LandingPage() {
             <div className="flex flex-wrap justify-center gap-6 pt-4 relative z-10">
               {[
                 { icon: <Check className="w-3 h-3" />, text: "Tanpa biaya setup" },
-                { icon: <Check className="w-3 h-3" />, text: "Gratis 14 hari trial" },
+                { icon: <Check className="w-3 h-3" />, text: "Gratis" },
                 { icon: <Check className="w-3 h-3" />, text: "Tanpa kartu kredit" },
               ].map((item, i) => (
                 <div key={i} className="flex items-center gap-1.5 text-white/40 text-xs">

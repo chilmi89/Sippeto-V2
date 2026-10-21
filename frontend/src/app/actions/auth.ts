@@ -154,3 +154,56 @@ export async function logoutAction() {
     cookieStore.delete("role_name");
   }
 }
+
+interface VerifyResetPhonePayload {
+  email: string;
+  phone_number: string;
+}
+
+export async function verifyResetPhoneAction(payload: VerifyResetPhonePayload) {
+  try {
+    const res = await fetch(`${BACKEND_API_URL}/auth/verify-reset-phone`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      return { error: data.error || "Data akun tidak cocok atau tidak terdaftar." };
+    }
+    return {
+      success: true,
+      valid: data.valid,
+      full_name: data.full_name,
+      business_name: data.business_name,
+      message: data.message,
+    };
+  } catch (err) {
+    console.error("verifyResetPhoneAction Error:", err);
+    return { error: "Gagal terhubung ke server backend." };
+  }
+}
+
+interface ResetPasswordPhonePayload {
+  email: string;
+  phone_number: string;
+  new_password: string;
+}
+
+export async function resetPasswordPhoneAction(payload: ResetPasswordPhonePayload) {
+  try {
+    const res = await fetch(`${BACKEND_API_URL}/auth/reset-password-phone`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      return { error: data.error || "Gagal memperbarui kata sandi." };
+    }
+    return { success: true, message: data.message };
+  } catch (err) {
+    console.error("resetPasswordPhoneAction Error:", err);
+    return { error: "Gagal terhubung ke server backend." };
+  }
+}

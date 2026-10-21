@@ -18,6 +18,7 @@ func SetupRouter(r *gin.Engine, db *bun.DB) {
 	api := r.Group("/api")
 	{
 		api.GET("/public/store/:username", ctrl.GetPublicStorefront)
+		api.GET("/public/landing-stats", ctrl.GetLandingStats)
 		api.POST("/public/tenant-umkm", ctrl.CreateRegisterUMKM)
 		api.PATCH("/public/tenant-umkm", ctrl.UpdateRegisterUMKM)
 	}
