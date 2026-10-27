@@ -3,7 +3,6 @@ import { Poppins } from "next/font/google";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "./globals.css";
-import { Analytics } from "@vercel/analytics/next";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -29,7 +28,6 @@ export default function RootLayout({
     >
       <body className="font-sans min-h-full flex flex-col">
         {children}
-        <Analytics />
         <ToastContainer 
           position="top-right"
           autoClose={3000}
