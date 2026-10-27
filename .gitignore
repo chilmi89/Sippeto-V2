@@ -42,3 +42,5 @@
 /scratch/
 /minio.exe
 /minio-data/
+*.sql
+backup.sql
