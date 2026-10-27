@@ -107,3 +107,12 @@ func (ctrl *TenantUMKMController) UpdateRegisterUMKM(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Profil UMKM Berhasil Dilengkapi. Role Anda telah di-upgrade menjadi Owner.", "profile": res})
 }
+
+func (ctrl *TenantUMKMController) GetLandingStats(c *gin.Context) {
+	stats, err := ctrl.svc.GetLandingStats(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil statistik"})
+		return
+	}
+	c.JSON(http.StatusOK, stats)
+}

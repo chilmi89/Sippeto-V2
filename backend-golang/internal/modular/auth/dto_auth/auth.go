@@ -40,6 +40,24 @@ type ResetPasswordRequest struct {
 	NewPassword string `json:"new_password" binding:"required,min=8"`
 }
 
+type ResetPasswordPhoneRequest struct {
+	Email       string `json:"email" binding:"required,email"`
+	PhoneNumber string `json:"phone_number" binding:"required"`
+	NewPassword string `json:"new_password" binding:"required,min=6"`
+}
+
+type VerifyResetPhoneRequest struct {
+	Email       string `json:"email" binding:"required,email"`
+	PhoneNumber string `json:"phone_number" binding:"required"`
+}
+
+type VerifyResetPhoneResponse struct {
+	Valid        bool   `json:"valid"`
+	FullName     string `json:"full_name"`
+	BusinessName string `json:"business_name,omitempty"`
+	Message      string `json:"message"`
+}
+
 type RegisterRequest struct {
 	Nama     string `json:"nama" binding:"required"`
 	Email    string `json:"email" binding:"required,email"`

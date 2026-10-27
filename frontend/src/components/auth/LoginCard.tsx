@@ -161,7 +161,7 @@ export const LoginCard = ({ theme = "dark" }: { theme?: "light" | "dark" }) => {
                 </span>
               </label>
               <Link
-                href="#"
+                href="/forgot-password"
                 className={`transition-colors ${isLight ? "hover:text-primary" : "hover:text-white/80"}`}
               >
                 Lupa sandi?

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"backend-golang/internal/modular/profile/model_profile"
@@ -24,6 +25,7 @@ type TenantUMKMRepository interface {
 	GetPublicBranches(ctx context.Context, profileID string) ([]dto_tenant_umkm.PublicBranchInfo, error)
 	CreateRegisterUMKM(ctx context.Context, req dto_tenant_umkm.CompleteRegisterUMKMRequest) (*dto_tenant_umkm.TenantProfileInfo, error)
 	UpdateRegisterUMKM(ctx context.Context, req dto_tenant_umkm.CompleteRegisterUMKMRequest) (*dto_tenant_umkm.TenantProfileInfo, error)
+	GetLandingStats(ctx context.Context) (*dto_tenant_umkm.LandingStatsResponse, error)
 }
 
 type tenantUMKMRepository struct {
@@ -343,9 +345,10 @@ func (r *tenantUMKMRepository) CreateRegisterUMKM(ctx context.Context, req dto_t
 
 	query := `
 		INSERT INTO profiles (
-			id, full_name, email, business_name, phone_number, address, is_active, created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, true, NOW(), NOW())
+			id, role_id, full_name, email, business_name, phone_number, address, is_active, created_at, updated_at
+		) VALUES (?, (SELECT id FROM roles WHERE LOWER(name) = 'owner' LIMIT 1), ?, ?, ?, ?, ?, true, NOW(), NOW())
 		ON CONFLICT (id) DO UPDATE SET
+			role_id = COALESCE(profiles.role_id, (SELECT id FROM roles WHERE LOWER(name) = 'owner' LIMIT 1)),
 			full_name = EXCLUDED.full_name,
 			business_name = EXCLUDED.business_name,
 			phone_number = EXCLUDED.phone_number,
@@ -372,6 +375,9 @@ func (r *tenantUMKMRepository) CreateRegisterUMKM(ctx context.Context, req dto_t
 
 	profile.CreatedAt = createdAt.Format(time.RFC3339)
 	profile.UpdatedAt = updatedAt.Format(time.RFC3339)
+
+	r.ensureTenantDefaults(ctx, profile)
+
 	return profile, nil
 }
 
@@ -387,7 +393,7 @@ func (r *tenantUMKMRepository) UpdateRegisterUMKM(ctx context.Context, req dto_t
 		}
 	}
 
-	setClause := "updated_at = NOW()"
+	setClause := "updated_at = NOW(), role_id = COALESCE(role_id, (SELECT id FROM roles WHERE LOWER(name) = 'owner' LIMIT 1)), is_active = true"
 	args := []interface{}{}
 
 	if req.FullName != nil {
@@ -456,7 +462,76 @@ func (r *tenantUMKMRepository) UpdateRegisterUMKM(ctx context.Context, req dto_t
 
 	profile.CreatedAt = createdAt.Format(time.RFC3339)
 	profile.UpdatedAt = updatedAt.Format(time.RFC3339)
+
+	r.ensureTenantDefaults(ctx, profile)
+
 	return profile, nil
+}
+
+func (r *tenantUMKMRepository) ensureTenantDefaults(ctx context.Context, profile *dto_tenant_umkm.TenantProfileInfo) {
+	if profile == nil || profile.ID == "" {
+		return
+	}
+
+	// 1. Auto generate username if empty
+	if profile.Username == nil || *profile.Username == "" {
+		baseName := ""
+		if profile.BusinessName != nil && *profile.BusinessName != "" {
+			baseName = *profile.BusinessName
+		} else if profile.FullName != nil && *profile.FullName != "" {
+			baseName = *profile.FullName
+		}
+		if baseName != "" {
+			slug := slugify(baseName)
+			var count int
+			_ = r.db.NewRaw(`SELECT COUNT(*) FROM profiles WHERE username = ? AND id != ?`, slug, profile.ID).Scan(ctx, &count)
+			if count > 0 {
+				shortID := profile.ID
+				if len(shortID) > 6 {
+					shortID = shortID[:6]
+				}
+				slug = fmt.Sprintf("%s-%s", slug, shortID)
+			}
+			_, _ = r.db.NewRaw(`UPDATE profiles SET username = ? WHERE id = ?`, slug, profile.ID).Exec(ctx)
+			profile.Username = &slug
+		}
+	}
+
+	// 2. Auto create Cabang Utama if tenant has no branches
+	var branchCount int
+	_ = r.db.NewRaw(`SELECT COUNT(*) FROM branches WHERE tenant_id = ?`, profile.ID).Scan(ctx, &branchCount)
+	if branchCount == 0 {
+		branchID := generateUUID()
+		branchName := "Cabang Utama"
+		branchAddress := profile.Address
+		branchPhone := profile.PhoneNumber
+		_, _ = r.db.NewRaw(`
+			INSERT INTO branches (id, tenant_id, name, address, phone_number, is_active, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, true, NOW(), NOW())
+		`, branchID, profile.ID, branchName, branchAddress, branchPhone).Exec(ctx)
+
+		_, _ = r.db.NewRaw(`UPDATE profiles SET branch_id = ? WHERE id = ?`, branchID, profile.ID).Exec(ctx)
+		profile.BranchID = &branchID
+	}
+}
+
+func slugify(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	var b strings.Builder
+	for _, r := range s {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		} else if r == ' ' || r == '-' || r == '_' {
+			if b.Len() > 0 && b.String()[b.Len()-1] != '-' {
+				b.WriteRune('-')
+			}
+		}
+	}
+	res := strings.Trim(b.String(), "-")
+	if res == "" {
+		res = "toko"
+	}
+	return res
 }
 
 func generateUUID() string {
@@ -469,5 +544,42 @@ func generateUUID() string {
 	b[8] = (b[8] & 0x3f) | 0x80
 	return fmt.Sprintf("%x-%x-%x-%x-%x",
 		b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+}
+
+func (r *tenantUMKMRepository) GetLandingStats(ctx context.Context) (*dto_tenant_umkm.LandingStatsResponse, error) {
+	var totalUsers int
+	err := r.db.NewRaw(`SELECT COUNT(*) FROM profiles WHERE is_active = true`).Scan(ctx, &totalUsers)
+	if err != nil {
+		totalUsers = 0
+	}
+
+	var totalTxs int
+	var totalVol float64
+	err = r.db.NewRaw(`SELECT COUNT(*), COALESCE(SUM(total_income), 0) FROM transaction_groups`).Scan(ctx, &totalTxs, &totalVol)
+	if err != nil {
+		totalTxs = 0
+		totalVol = 0
+	}
+
+	formattedVol := formatCurrencyID(totalVol)
+
+	return &dto_tenant_umkm.LandingStatsResponse{
+		TotalUsers:        totalUsers,
+		TotalTransactions: totalTxs,
+		TotalVolume:       totalVol,
+		FormattedVolume:   formattedVol,
+		FastResponseSLA:   99.9,
+	}, nil
+}
+
+func formatCurrencyID(val float64) string {
+	if val >= 1_000_000_000 {
+		return fmt.Sprintf("Rp %.1fM+", val/1_000_000_000)
+	} else if val >= 1_000_000 {
+		return fmt.Sprintf("Rp %.1fJt+", val/1_000_000)
+	} else if val >= 1_000 {
+		return fmt.Sprintf("Rp %.0fRb+", val/1_000)
+	}
+	return fmt.Sprintf("Rp %.0f", val)
 }
 

@@ -32,6 +32,11 @@
 /backend-golang/backend-golang
 /backend-golang/main
 /backend-golang/bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
 
 # Temporary / Scratch Files
 /scratch/

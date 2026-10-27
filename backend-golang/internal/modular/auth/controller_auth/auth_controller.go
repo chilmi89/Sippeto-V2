@@ -119,6 +119,48 @@ func (ctrl *AuthController) ResetPassword(c *gin.Context) {
 	})
 }
 
+func (ctrl *AuthController) VerifyResetPhone(c *gin.Context) {
+	var req dto_auth.VerifyResetPhoneRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Email dan nomor HP wajib diisi dengan benar.",
+		})
+		return
+	}
+
+	resp, err := ctrl.svc.VerifyAccountWithPhone(c.Request.Context(), req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
+func (ctrl *AuthController) ResetPasswordPhone(c *gin.Context) {
+	var req dto_auth.ResetPasswordPhoneRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Email, nomor HP, dan password baru (minimal 6 karakter) wajib diisi.",
+		})
+		return
+	}
+
+	err := ctrl.svc.ResetPasswordWithPhone(c.Request.Context(), req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Kata sandi Anda berhasil diperbarui! Silakan masuk dengan kata sandi baru.",
+	})
+}
+
 func (ctrl *AuthController) Logout(c *gin.Context) {
 	// Hancurkan cookie auth dengan set expired (maxAge -1)
 	c.SetCookie("token", "", -1, "/", "", true, true)

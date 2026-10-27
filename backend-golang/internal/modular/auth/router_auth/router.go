@@ -25,6 +25,8 @@ func SetupRouter(r *gin.Engine, db *bun.DB) {
 		api.POST("/auth/refresh", ctrl.Refresh)
 		api.POST("/auth/forgot-password", ctrl.ForgotPassword)
 		api.POST("/auth/reset-password", ctrl.ResetPassword)
+		api.POST("/auth/verify-reset-phone", ctrl.VerifyResetPhone)
+		api.POST("/auth/reset-password-phone", ctrl.ResetPasswordPhone)
 		api.POST("/auth/register", ctrl.Register)
 	}
 }
