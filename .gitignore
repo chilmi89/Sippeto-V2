@@ -35,3 +35,5 @@
 
 # Temporary / Scratch Files
 /scratch/
+/minio.exe
+/minio-data/
