@@ -345,15 +345,14 @@ func (r *tenantUMKMRepository) CreateRegisterUMKM(ctx context.Context, req dto_t
 
 	query := `
 		INSERT INTO profiles (
-			id, role_id, full_name, email, business_name, phone_number, address, is_active, created_at, updated_at
-		) VALUES (?, (SELECT id FROM roles WHERE LOWER(name) = 'owner' LIMIT 1), ?, ?, ?, ?, ?, true, NOW(), NOW())
+			id, full_name, email, business_name, phone_number, address, is_active, created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, false, NOW(), NOW())
 		ON CONFLICT (id) DO UPDATE SET
-			role_id = COALESCE(profiles.role_id, (SELECT id FROM roles WHERE LOWER(name) = 'owner' LIMIT 1)),
 			full_name = EXCLUDED.full_name,
 			business_name = EXCLUDED.business_name,
 			phone_number = EXCLUDED.phone_number,
 			address = EXCLUDED.address,
-			is_active = true,
+			is_active = false,
 			updated_at = NOW()
 		RETURNING id, full_name, business_name, email, phone_number, address, avatar_url, banner_url, bio, is_active, created_at, updated_at, branch_id, username, metadata, payment_qr
 	`
@@ -393,7 +392,7 @@ func (r *tenantUMKMRepository) UpdateRegisterUMKM(ctx context.Context, req dto_t
 		}
 	}
 
-	setClause := "updated_at = NOW(), role_id = COALESCE(role_id, (SELECT id FROM roles WHERE LOWER(name) = 'owner' LIMIT 1)), is_active = true"
+	setClause := "updated_at = NOW(), is_active = false"
 	args := []interface{}{}
 
 	if req.FullName != nil {

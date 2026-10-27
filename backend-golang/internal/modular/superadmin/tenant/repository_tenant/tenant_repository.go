@@ -188,13 +188,47 @@ func (r *tenantRepository) UpdateTenant(ctx context.Context, req dto_tenant.Upda
 	}
 
 	// 3. Update profil
-	_, err = r.db.NewRaw(`
-		UPDATE profiles
-		SET is_active = ?, metadata = ?, updated_at = NOW()
-		WHERE id = ?
-	`, isActiveVal, string(metaBytes), req.ID).Exec(ctx)
-	if err != nil {
-		return nil, err
+	if isActiveVal {
+		// Ketika disetujui / diaktifkan oleh admin: aktifkan status dan tetapkan role Owner jika belum ada
+		_, err = r.db.NewRaw(`
+			UPDATE profiles
+			SET is_active = true,
+			    role_id = COALESCE(role_id, (SELECT id FROM roles WHERE LOWER(name) = 'owner' LIMIT 1)),
+			    metadata = ?,
+			    updated_at = NOW()
+			WHERE id = ?
+		`, string(metaBytes), req.ID).Exec(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		// Pastikan Cabang Utama dibuat untuk tenant ini jika belum memiliki cabang
+		var branchCount int
+		_ = r.db.NewRaw(`SELECT COUNT(*) FROM branches WHERE tenant_id = ?`, req.ID).Scan(ctx, &branchCount)
+		if branchCount == 0 {
+			var pAddress, pPhone sql.NullString
+			_ = r.db.NewRaw(`SELECT address, phone_number FROM profiles WHERE id = ?`, req.ID).Scan(ctx, &pAddress, &pPhone)
+			_, _ = r.db.NewRaw(`
+				INSERT INTO branches (id, tenant_id, name, address, phone_number, is_active, created_at, updated_at)
+				VALUES (gen_random_uuid(), ?, 'Cabang Utama', ?, ?, true, NOW(), NOW())
+			`, req.ID, pAddress.String, pPhone.String).Exec(ctx)
+
+			_, _ = r.db.NewRaw(`
+				UPDATE profiles
+				SET branch_id = (SELECT id FROM branches WHERE tenant_id = ? LIMIT 1)
+				WHERE id = ? AND branch_id IS NULL
+			`, req.ID, req.ID).Exec(ctx)
+		}
+	} else {
+		// Ketika ditangguhkan / dinonaktifkan
+		_, err = r.db.NewRaw(`
+			UPDATE profiles
+			SET is_active = false, metadata = ?, updated_at = NOW()
+			WHERE id = ?
+		`, string(metaBytes), req.ID).Exec(ctx)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// 4. Ambil profil terupdate untuk dikembalikan

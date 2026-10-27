@@ -52,8 +52,8 @@ func (r *authRepository) UpdatePassword(ctx context.Context, email string, hashe
 }
 
 func (r *authRepository) CreateProfile(ctx context.Context, id, fullName, email, hashedPassword string) error {
-	query := `INSERT INTO profiles (id, role_id, full_name, email, password, is_active, created_at, updated_at) 
-	          VALUES (?, (SELECT id FROM roles WHERE LOWER(name) = 'owner' LIMIT 1), ?, ?, ?, true, NOW(), NOW())`
+	query := `INSERT INTO profiles (id, full_name, email, password, is_active, created_at, updated_at) 
+	          VALUES (?, ?, ?, ?, false, NOW(), NOW())`
 	_, err := r.db.NewRaw(query, id, fullName, email, hashedPassword).Exec(ctx)
 	return err
 }

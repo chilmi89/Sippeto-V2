@@ -14,10 +14,10 @@ export default function UnauthorizedPage() {
         </div>
 
         <div className="space-y-2">
-          <h1 className="text-2xl font-black text-zinc-800 tracking-tight">Akses Ditolak</h1>
+          <h1 className="text-2xl font-black text-zinc-800 tracking-tight">Akses Ditolak / Menunggu Persetujuan</h1>
           <p className="text-sm text-zinc-500 font-medium leading-relaxed">
-            Anda tidak memiliki izin untuk mengakses halaman ini.
-            Silakan hubungi administrator jika ini adalah kesalahan.
+            Anda belum memiliki izin atau peran aktif untuk mengakses dashboard ini.
+            Bila Anda baru mendaftar, mohon tunggu hingga akun Anda diverifikasi dan disetujui oleh Administrator.
           </p>
         </div>
 

@@ -89,7 +89,7 @@ func (ctrl *TenantUMKMController) CreateRegisterUMKM(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "Registrasi UMKM Berhasil. Anda sekarang adalah Owner.", "profile": res})
+	c.JSON(http.StatusCreated, gin.H{"message": "Registrasi UMKM Berhasil diajukan. Akun Anda sedang menunggu verifikasi dan persetujuan dari Administrator.", "profile": res})
 }
 
 func (ctrl *TenantUMKMController) UpdateRegisterUMKM(c *gin.Context) {
@@ -105,7 +105,7 @@ func (ctrl *TenantUMKMController) UpdateRegisterUMKM(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Profil UMKM Berhasil Dilengkapi. Role Anda telah di-upgrade menjadi Owner.", "profile": res})
+	c.JSON(http.StatusOK, gin.H{"message": "Profil UMKM Berhasil Dilengkapi. Akun Anda sedang menunggu verifikasi dan persetujuan dari Administrator.", "profile": res})
 }
 
 func (ctrl *TenantUMKMController) GetLandingStats(c *gin.Context) {

@@ -8,6 +8,7 @@ import { useState } from "react";
 import { toast } from "react-toastify";
 import { loginAction } from "@/app/actions/auth";
 import { getRedirectByRole } from "@/lib/roleRedirects";
+import { resetCachedMe } from "@/lib/auth/fetchMe";
 
 export const LoginCard = ({ theme = "dark" }: { theme?: "light" | "dark" }) => {
   const [email, setEmail] = useState("");
@@ -29,11 +30,12 @@ export const LoginCard = ({ theme = "dark" }: { theme?: "light" | "dark" }) => {
         return;
       }
 
+      resetCachedMe();
       toast.success("Login berhasil!");
 
-      // Redirect berdasarkan role — konfigurasi ada di src/lib/roleRedirects.ts
+      // Redirect berdasarkan role — gunakan hard navigation window.location.href agar sesi baru bersih dari cache user sebelumnya
       const redirectPath = getRedirectByRole(res.user?.role_name);
-      router.push(redirectPath);
+      window.location.href = redirectPath;
     } catch (_err) {
       toast.error("Gagal terhubung ke server.");
     } finally {

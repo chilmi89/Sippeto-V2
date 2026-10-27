@@ -67,7 +67,7 @@ export async function getPOSPageData(editId?: string | null) {
     // Batch 2: Fetch yang dependen pada tenantOwnerId & selectedBranchId
     const [prodCatRes, pmRes, catRes, prodRes] = await Promise.all([
       fetch(`${GOLANG_BASE}/product-categories?profile_id=${tenantOwnerId}&limit=100&scope=all`, { method: "GET", headers, next: { revalidate: 0 } }),
-      fetch(`${GOLANG_BASE}/payment_kategori?profile_id=${tenantOwnerId}&limit=100`, { method: "GET", headers, next: { revalidate: 0 } }),
+      fetch(`${GOLANG_BASE}/payment_kategori?profile_id=${tenantOwnerId}&is_active=true&limit=100`, { method: "GET", headers, cache: "no-store" }),
       fetch(`${GOLANG_BASE}/kategori?profile_id=${tenantOwnerId}&limit=100`, { method: "GET", headers, next: { revalidate: 0 } }),
       selectedBranchId
         ? fetch(`${GOLANG_BASE}/products?branch_id=${selectedBranchId}`, { method: "GET", headers, next: { revalidate: 0 } })

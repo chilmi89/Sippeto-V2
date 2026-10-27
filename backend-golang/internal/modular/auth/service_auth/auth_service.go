@@ -50,6 +50,15 @@ func (s *authService) Login(ctx context.Context, req dto_auth.LoginRequest) (*dt
 		return nil, errors.New("Email atau password salah.")
 	}
 
+	// Cek status persetujuan & keaktifan akun oleh Admin/Superadmin
+	if !profile.IsActive {
+		return nil, errors.New("Akun Anda sedang menunggu verifikasi dan persetujuan dari Administrator.")
+	}
+
+	if profile.RoleID == "" || profile.Role == nil || profile.Role.Name == "" {
+		return nil, errors.New("Akun Anda sedang menunggu verifikasi dan penugasan peran dari Administrator.")
+	}
+
 	roleName := ""
 	if profile.Role != nil {
 		roleName = profile.Role.Name

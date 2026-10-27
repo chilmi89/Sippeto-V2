@@ -128,7 +128,7 @@ export async function getMeAction() {
     const res = await fetch(`${BACKEND_API_URL}/auth/me`, {
       method: "GET",
       headers,
-      next: { revalidate: 0 },
+      cache: "no-store",
     });
     if (!res.ok) return null;
     return await res.json();
@@ -144,11 +144,14 @@ export async function logoutAction() {
     const token = cookieStore.get("token")?.value;
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (token) headers["Authorization"] = `Bearer ${token}`;
-    await fetch(`${BACKEND_API_URL}/auth/logout`, { method: "POST", headers });
+    await fetch(`${BACKEND_API_URL}/auth/logout`, { method: "POST", headers, cache: "no-store" });
   } catch (err) {
     console.error("logoutAction Error:", err);
   } finally {
     const cookieStore = await cookies();
+    cookieStore.set("token", "", { maxAge: 0, path: "/" });
+    cookieStore.set("refresh_token", "", { maxAge: 0, path: "/" });
+    cookieStore.set("role_name", "", { maxAge: 0, path: "/" });
     cookieStore.delete("token");
     cookieStore.delete("refresh_token");
     cookieStore.delete("role_name");

@@ -60,7 +60,7 @@ func (r *paymentMethodRepository) FindPaymentMethods(ctx context.Context, page, 
 	// Hitung Total (Count) dengan Deduplikasi jika dipanggil oleh Tenant
 	var countQuery string
 	if profileID != "" {
-		countQuery = `SELECT COUNT(DISTINCT name) FROM payment_methods` + whereClause
+		countQuery = `SELECT COUNT(DISTINCT LOWER(TRIM(name))) FROM payment_methods` + whereClause
 	} else {
 		countQuery = `SELECT COUNT(*) FROM payment_methods` + whereClause
 	}
@@ -81,10 +81,10 @@ func (r *paymentMethodRepository) FindPaymentMethods(ctx context.Context, page, 
 		dataQuery = `
 			SELECT id, profile_id, name, is_active, created_at
 			FROM (
-				SELECT DISTINCT ON (name) id, profile_id, name, is_active, created_at
+				SELECT DISTINCT ON (LOWER(TRIM(name))) id, profile_id, name, is_active, created_at
 				FROM payment_methods
 				` + whereClause + `
-				ORDER BY name ASC, profile_id DESC NULLS LAST
+				ORDER BY LOWER(TRIM(name)) ASC, profile_id DESC NULLS LAST
 			) AS t
 			ORDER BY name ASC
 			LIMIT ? OFFSET ?
@@ -125,12 +125,12 @@ func (r *paymentMethodRepository) FindPaymentMethods(ctx context.Context, page, 
 }
 
 func (r *paymentMethodRepository) CreatePaymentMethod(ctx context.Context, req dto_payment_method.CreatePaymentMethodRequest) (*dto_payment_method.PaymentMethodResponse, error) {
-	// Check unique constraint: profile_id + name
+	// Check unique constraint: profile_id + name (case-insensitive & trim)
 	var count int
 	if req.ProfileID != nil {
-		_ = r.db.NewRaw(`SELECT COUNT(*) FROM payment_methods WHERE profile_id = ? AND name = ?`, req.ProfileID, req.Name).Scan(ctx, &count)
+		_ = r.db.NewRaw(`SELECT COUNT(*) FROM payment_methods WHERE (profile_id = ? OR profile_id IS NULL) AND LOWER(TRIM(name)) = LOWER(TRIM(?))`, req.ProfileID, req.Name).Scan(ctx, &count)
 	} else {
-		_ = r.db.NewRaw(`SELECT COUNT(*) FROM payment_methods WHERE profile_id IS NULL AND name = ?`, req.Name).Scan(ctx, &count)
+		_ = r.db.NewRaw(`SELECT COUNT(*) FROM payment_methods WHERE profile_id IS NULL AND LOWER(TRIM(name)) = LOWER(TRIM(?))`, req.Name).Scan(ctx, &count)
 	}
 	if count > 0 {
 		return nil, fmt.Errorf("metode pembayaran dengan nama ini sudah ada")

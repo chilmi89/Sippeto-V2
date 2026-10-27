@@ -54,7 +54,11 @@ const UmkmPage = () => {
                 return;
             }
 
-            toast.success(pendingId ? 'Data UMKM berhasil dilengkapi!' : 'Registrasi UMKM Berhasil!');
+            toast.success(
+                pendingId
+                    ? 'Data UMKM berhasil dikirim! Akun Anda sedang menunggu verifikasi & persetujuan dari Administrator.'
+                    : 'Pendaftaran UMKM berhasil diajukan! Akun Anda sedang menunggu persetujuan dari Administrator.'
+            );
             sessionStorage.removeItem('pending_profile_id');
             router.push('/login');
         } catch (err) {

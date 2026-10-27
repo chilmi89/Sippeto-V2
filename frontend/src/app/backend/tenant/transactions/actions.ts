@@ -48,11 +48,11 @@ export async function getTransactionPageData(editId?: string | null) {
       };
     });
 
-    // 3. Ambil payment methods
-    const pmRes = await fetch(`${GOLANG_BASE}/payment_kategori?profile_id=${profile.tenant_owner_id}&limit=100`, { 
+    // 3. Ambil payment methods (khusus yang aktif)
+    const pmRes = await fetch(`${GOLANG_BASE}/payment_kategori?profile_id=${profile.tenant_owner_id}&is_active=true&limit=100`, { 
       method: "GET",
       headers,
-      next: { revalidate: 0 }
+      cache: "no-store"
     });
     const pmData = await pmRes.json();
     const paymentMethods = pmData.data || [];

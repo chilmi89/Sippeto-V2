@@ -4,7 +4,7 @@ import React, { useRef, useState, useEffect } from "react";
 import { Search, User, Menu, LogOut, ChevronDown, Settings } from "lucide-react";
 import { useSidebar } from "@/lib/context/SidebarContext";
 import { useRouter } from "next/navigation";
-import { fetchMeOnce } from "@/lib/auth/fetchMe";
+import { fetchMeOnce, resetCachedMe } from "@/lib/auth/fetchMe";
 import { logoutAction } from "@/app/actions/auth";
 
 interface CurrentUser {
@@ -47,6 +47,8 @@ export const DashboardHeader = () => {
     } catch {
       // Tetap lanjut logout meski request gagal
     } finally {
+      resetCachedMe();
+
       // Bersihkan cookie non-httpOnly yang bisa diakses JS
       document.cookie.split(";").forEach(cookie => {
         const name = cookie.split("=")[0].trim();
@@ -61,8 +63,8 @@ export const DashboardHeader = () => {
       setCurrentUser(null);
       setLoggingOut(false);
 
-      // Redirect ke halaman login & replace history agar tombol back tidak kembali ke dashboard
-      router.replace("/login");
+      // Redirect ke halaman login dengan hard navigation agar seluruh memori dan cache tereset total
+      window.location.href = "/login";
     }
   };
 
